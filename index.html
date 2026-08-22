@@ -737,6 +737,13 @@ const UI_DATA = {
   gridL: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="1"/><rect x="3" y="13" width="18" height="8" rx="1"/></svg>',
   trophy: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
   star: '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="none"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.6 6.1 20.6l1.3-6.6-4.9-4.6 6.6-.8L12 2.5z"/></svg>',
+  // Text glyphs (star/play/x characters) render through the SYSTEM font —
+  // size, weight and color vary per OS, and iOS draws some of them as
+  // emoji. Everything below exists so no UI icon is ever a bare character
+  // (see the "no glyph icons" guard in tests/logic.test.js).
+  ratingStar: '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M12 2.5l2.9 6.2 6.6.8-4.9 4.6 1.3 6.5-5.9-3.3-5.9 3.3 1.3-6.5L2.5 9.5l6.6-.8z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M8 5v14l11-7z"/></svg>',
+  close: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
   },
 
   // Per-ceremony award icons (see matchAward() in src/logic.js for the name/
@@ -1881,7 +1888,7 @@ function cardHtml(m) {
     <div class="card-body">
       <div class="card-meta-row">
         <span class="year">${esc(m.type)}${m.year ? ` · ${m.year}` : ''}</span>
-        ${m.rating ? `<span class="badge badge--rating rating-badge" data-rating="${esc(m.rating)}">★ ${esc(m.rating)}</span>` : ''}
+        ${m.rating ? `<span class="badge badge--rating rating-badge" data-rating="${esc(m.rating)}">${ICON.ratingStar} ${esc(m.rating)}</span>` : ''}
       </div>
       <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>
       <div class="badges">${awardCountBadgesHtml(m)}</div>
@@ -1956,7 +1963,7 @@ function openModal(m) {
   const isW = watched.has(m.id), isL = liked.has(m.id);
   const q = encodeURIComponent(`${m.canonical_title_en || m.canonical_title_uk} трейлер`);
   const trailerBtn = m.trailer_url
-    ? `<a class="btn" href="${esc(m.trailer_url)}" target="_blank" rel="noopener">▶ Трейлер</a>`
+    ? `<a class="btn" href="${esc(m.trailer_url)}" target="_blank" rel="noopener">${ICON.play} Трейлер</a>`
     : `<a class="btn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Трейлер на YouTube</a>`;
   const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
   modalBox.innerHTML = `
@@ -1968,7 +1975,7 @@ function openModal(m) {
       <div class="meta">
         <span class="badge">${esc(m.type)}</span>
         <span class="badge">${esc(m.genre)}</span>
-        ${m.rating ? `<span class="badge badge--rating rating-badge" data-rating="${esc(m.rating)}">★ ${esc(m.rating)}</span>` : ''}
+        ${m.rating ? `<span class="badge badge--rating rating-badge" data-rating="${esc(m.rating)}">${ICON.ratingStar} ${esc(m.rating)}</span>` : ''}
         ${criticBadgeHtml(m)}
       </div>
       <p class="desc">${esc(m.description_uk)}</p>
@@ -2489,7 +2496,7 @@ async function cropToTextRegion(file, words) {
 
 function addModalHome() {
   addBox.innerHTML = `
-    <button class="modal-close" id="addModalClose">✕</button>
+    <button class="modal-close" id="addModalClose">${ICON.close}</button>
     <div class="add-form">
       <h2>Додати фільм</h2>
       <div class="add-tabs">
@@ -2500,15 +2507,15 @@ function addModalHome() {
       <div id="addPaneManual" class="add-pane">
         <div class="field-clear-wrap">
           <input id="addTitle" type="text" placeholder="Назва фільму або серіалу">
-          <button class="field-clear-btn" data-clear-target="addTitle" type="button">✕</button>
+          <button class="field-clear-btn" data-clear-target="addTitle" type="button">${ICON.close}</button>
         </div>
         <div class="field-clear-wrap">
           <input id="addYear" type="text" placeholder="Рік (необов'язково)">
-          <button class="field-clear-btn" data-clear-target="addYear" type="button">✕</button>
+          <button class="field-clear-btn" data-clear-target="addYear" type="button">${ICON.close}</button>
         </div>
         <div class="field-clear-wrap">
           <input id="addRecBy" type="text" placeholder="Рекомендовано від… (необов'язково)">
-          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">✕</button>
+          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">${ICON.close}</button>
         </div>
         <button class="btn" id="addSearchBtn">Знайти</button>
       </div>
@@ -2525,7 +2532,7 @@ function addModalHome() {
         <textarea id="batchInput" rows="6" placeholder="Дюна, 2021&#10;Опівнічна меса&#10;Форс-мажори, 2011"></textarea>
         <div class="field-clear-wrap">
           <input id="batchRecBy" type="text" placeholder="Рекомендовано від… (застосується до всіх, необов'язково)">
-          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">✕</button>
+          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">${ICON.close}</button>
         </div>
         <button class="btn" id="batchSearchBtn">Знайти всі</button>
       </div>
