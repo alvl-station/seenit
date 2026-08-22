@@ -49,6 +49,35 @@
   .h-badge::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--surface); }
   .h-badge svg { position: relative; z-index: 1; }
   .h-badge, .brand-badge { display: flex; align-items: center; justify-content: center; }
+  /* The wordmark, and only the wordmark: a script face with the brand
+     gradient poured through the letters. Everything else on the page stays
+     on the system stack — a display face is a logo, not a UI font.
+     The fallback chain is cursive, so a blocked or slow Google Fonts still
+     leaves something that reads as a logo rather than as body text. */
+  .wordmark {
+    font-family: 'Grand Hotel', 'Snell Roundhand', 'Brush Script MT', cursive;
+    font-weight: 400;
+    letter-spacing: .01em;
+    font-size: 1.35em;
+    line-height: 1.1;
+    /* Plain readable colour first. The gradient is applied only where
+       background-clip: text actually works — set unconditionally, a
+       transparent colour on an unsupported browser makes the brand name
+       invisible rather than merely unstyled. */
+    color: var(--text);
+    /* Descenders and the swash on the S get clipped without this. */
+    padding: 0 .12em .06em 0;
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .wordmark {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  }
+  header h1 .wordmark { font-size: 1.25em; }
+
   header .subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -108,6 +137,10 @@
     color: #ff6b6b; border-color: #ff6b6b; background: rgba(255,107,107,.12);
   }
   @media (hover: hover) { .del-fab:hover { color: #ff6b6b; border-color: #ff6b6b; } }
+
+  /* Sits between the read-only facts and the editable description, so the
+     trailer can be checked while deciding whether this is the right film. */
+  .cf-trailer { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 10px; }
 
   .delete-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -576,6 +609,13 @@
   .batch-alt { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border);
     color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 12px; margin-top: 3px; }
 </style>
+<!-- Brand wordmark only (see .wordmark in style.css). Preconnect so the
+     one face we need does not delay first paint; every other word on the
+     page uses the system stack, and .wordmark keeps a cursive fallback so
+     the brand still reads as a brand if this never arrives. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -604,7 +644,7 @@
     <div class="brand-badge">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text)"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>
     </div>
-    <h1>SeenIt</h1>
+    <h1><span class="wordmark">SeenIt</span></h1>
     <div class="login-sub">Увійди у свій акаунт</div>
     <form id="loginForm">
       <input id="loginUser" type="text" placeholder="Ім'я користувача" autocomplete="username" required>
@@ -617,7 +657,7 @@
 </div>
 <div id="appRoot" style="display:none">
 <header>
-  <h1><span class="h-badge"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text)"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg></span>SeenIt</h1>
+  <h1><span class="h-badge"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text)"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg></span><span class="wordmark">SeenIt</span></h1>
   <div class="subtitle" id="subtitle"></div>
   <div class="search-row">
     <button class="add-fab" id="addMovieBtn" title="Додати фільм"><span>NEW</span></button>
@@ -629,7 +669,7 @@
       <span>Пошук</span>
     </button>
     <div class="field-clear-wrap" id="searchWrap">
-      <input id="search" type="text" placeholder="Пошук за назвою або актором…">
+      <input id="search" type="text" placeholder="Назва, актор або країна…">
       <button class="field-clear-btn field-clear-btn--arrow" data-clear-target="search" type="button" title="Очистити пошук">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>
       </button>
@@ -741,12 +781,13 @@ const GENRES_DATA = {
   28:  { genre: 'бойовик',            group: 'Бойовики' },
   10759:{ genre: 'бойовик',           group: 'Бойовики' },
   12:  { genre: 'пригоди',            group: 'Пригоди' },
-  16:  { genre: 'анімація',           group: 'Інше' },
+  16:  { genre: 'анімація',           group: 'Мультфільми' },
   35:  { genre: 'комедія',            group: 'Комедії' },
   80:  { genre: 'кримінальний трилер',group: 'Трилери' },
   99:  { genre: 'документальний',     group: 'Документальні' },
   18:  { genre: 'драма',              group: 'Драми' },
   10751:{ genre: 'сімейний',          group: 'Інше' },
+  10762:{ genre: 'анімація',          group: 'Мультфільми' },   // TMDb "Kids", the TV counterpart
   14:  { genre: 'фентезі',            group: 'Фантастика' },
   36:  { genre: 'історична драма',    group: 'Драми' },
   27:  { genre: 'жахи',               group: 'Жахи' },
@@ -848,7 +889,7 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing "Інше" bucket.
-  GENRE_ORDER: ['Трилери','Драми','Комедії','Жахи','Фантастика','Детективи','Бойовики','Пригоди','Документальні','Інше'],
+  GENRE_ORDER: ['Трилери','Драми','Комедії','Жахи','Фантастика','Детективи','Бойовики','Пригоди','Мультфільми','Документальні','Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -1730,6 +1771,10 @@ function matches(m, q) {
   if (!query) return true;
   const hay = [
     m.canonical_title_uk || '', m.canonical_title_en || '',
+    // Country is display-only everywhere else, but people look for "Корея"
+    // or "Japan" the same way they look for an actor, and the field is
+    // already on every movie — so searching it costs nothing.
+    m.country || '',
     ...(m.cast || [])
   ].join(' ').toLowerCase();
   if (hay.includes(query)) return true;
@@ -1770,6 +1815,44 @@ function filterCatalog(movies, { query, tab, showWatched, genre, recommender, li
     if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
     return true;
   });
+}
+
+/**
+ * Films already in the catalog that loosely match what someone typed.
+ *
+ * Used when TMDb finds nothing while adding: often the reason is that the
+ * film is already here and the person is searching for it in the wrong
+ * place. Runs the SAME matcher as the catalog search box, typo tolerance
+ * and all, so "нічого не знайдено" stops being the end of the road.
+ */
+function fuzzyCatalogSuggestions(catalog, query, limit = 5) {
+  const q = (query || '').trim();
+  if (!q) return [];
+  return (catalog || []).filter(m => m && matches(m, q.toLowerCase())).slice(0, limit);
+}
+
+/* ---------- catalog migration safety ----------
+ * The one-time movie migration wrote the whole of kino/movies in a single
+ * set(), sourced from the static snapshot baked into src/movies-data.js.
+ * That snapshot is frozen at build time, so anything added to the live
+ * catalog since then was destroyed by a re-run — and the script advertised
+ * itself as "safe to re-run".
+ */
+
+/** Ids that exist in the live catalog but not in what is about to be written. */
+function catalogIdsLost(live, incoming) {
+  const keep = new Set(Object.keys(incoming || {}));
+  return Object.keys(live || {}).filter(id => !keep.has(id));
+}
+
+/**
+ * Additive merge: everything live, plus anything from the source the live
+ * catalog does not have. The live record always wins, because it is the one
+ * that has been enriched, corrected and marked since the snapshot was taken.
+ */
+function mergeCatalogAdditively(live, source) {
+  const merged = { ...(source || {}), ...(live || {}) };
+  return merged;
 }
 
 /* ---------- duplicate detection when adding a movie ----------
@@ -1820,6 +1903,52 @@ function mapGenre(genreIds) {
 }
 
 /* ---------- slug for new movies ---------- */
+/**
+ * An id that is free in this catalog, derived from a preferred one.
+ *
+ * Needed by "save as a separate record": the second copy cannot reuse the
+ * first one's id, or writing it would silently overwrite the film the person
+ * chose to keep. Appends -2, -3, ... rather than anything random, so the
+ * relationship stays readable in the database.
+ */
+function uniqueMovieId(preferred, catalog) {
+  const taken = new Set((catalog || []).map(m => m && m.id).filter(Boolean));
+  if (!taken.has(preferred)) return preferred;
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${preferred}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${preferred}-${taken.size + 1}`;
+}
+
+/**
+ * The fields a re-download may refresh on an existing record, and the ones
+ * it must not touch.
+ *
+ * Updating in place keeps the film's id, which is what keeps its
+ * "переглянуто"/"рекомендую" marks attached — re-adding under a new id would
+ * silently orphan them. But it must not clobber the parts a person owns:
+ * who recommended it, and the marks themselves live elsewhere anyway.
+ */
+function mergeRefreshedMovie(existing, fetched) {
+  const merged = { ...(existing || {}), ...(fetched || {}) };
+  merged.id = (existing && existing.id) || (fetched && fetched.id);
+  // recommended_by is a personal note, never something TMDb can know.
+  if (existing && existing.recommended_by && !(fetched && fetched.recommended_by)) {
+    merged.recommended_by = existing.recommended_by;
+  }
+  // A refresh should not blank a field just because this fetch came back
+  // thinner than the last one.
+  for (const key of ['critic_score', 'awards_won', 'awards_nominated', 'trailer_url', 'poster_url']) {
+    const incoming = fetched && fetched[key];
+    const isEmpty = incoming === undefined || incoming === null || incoming === ''
+      || (Array.isArray(incoming) && !incoming.length);
+    if (isEmpty && existing && existing[key] !== undefined) merged[key] = existing[key];
+  }
+  Object.keys(merged).forEach(k => merged[k] === undefined && delete merged[k]);
+  return merged;
+}
+
 function slugify(titleEn, titleUk, year) {
   const base = (titleEn || titleUk || 'film').toLowerCase()
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -1914,7 +2043,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     MARK_LISTS, userMarksPath, localMarksKey,
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
-    filterCatalog, normTitleForDup, findDuplicateMovie,
+    filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
+    fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
@@ -3173,9 +3303,32 @@ async function runSearch(title, year) {
   const resultsEl = addBox.querySelector('#addResults');
   resultsEl.innerHTML = '<div class="add-hint">Шукаю…</div>';
   try {
-    const results = await tmdbSearch(title, year);
+    let results = await tmdbSearch(title, year);
+    // A year is an exact filter at TMDb, exactly as it is at OMDb, and the
+    // two databases disagree about release years for the same reasons — a
+    // festival premiere in one and the wide release in the other. Asking
+    // again without it turns "нічого не знайдено" into a result far more
+    // often than it turns up the wrong film.
+    if (!results.length && year) results = await tmdbSearch(title, '');
     if (!results.length) {
-      resultsEl.innerHTML = '<div class="add-hint">Нічого не знайдено. Спробуй іншу назву.</div>';
+      // Often the film is not missing, it is already here. Same fuzzy
+      // matcher as the catalog search box, typos and all.
+      const already = fuzzyCatalogSuggestions(MOVIES, title);
+      resultsEl.innerHTML = already.length
+        ? `<div class="add-hint">TMDb нічого не знайшов. Можливо, це вже є у твоєму каталозі:</div>
+           <div class="candidate-list">${already.map(m => `
+             <div class="candidate-item" data-existing="${esc(m.id)}">
+               ${m.poster_url ? `<img src="${esc(m.poster_url)}">` : '<div class="candidate-noposter"></div>'}
+               <div><div class="candidate-title">${esc(m.canonical_title_uk)}</div>
+               <div class="candidate-year">${m.year ? esc(String(m.year)) : '—'} · ${esc(m.type || '')}</div></div>
+             </div>`).join('')}</div>`
+        : '<div class="add-hint">Нічого не знайдено. Спробуй іншу назву.</div>';
+      resultsEl.querySelectorAll('[data-existing]').forEach(el => {
+        el.addEventListener('click', () => {
+          const m = MOVIES.find(x => x.id === el.dataset.existing);
+          if (m) { closeAddModal(); openModal(m); }
+        });
+      });
       return;
     }
     resultsEl.innerHTML = '<div class="candidate-list"></div>';
@@ -3285,6 +3438,7 @@ function renderConfirmCard(movie) {
         </div>
         <label class="cf-label">Відсоток критиків</label>
         <div class="cf-readonly">${movie.critic_score !== undefined && movie.critic_score !== null ? esc(String(movie.critic_score)) + '%' : '<span class="cf-empty">не знайдено</span>'}</div>
+        ${movie.trailer_url ? `<a class="btn cf-trailer" href="${esc(movie.trailer_url)}" target="_blank" rel="noopener">${ICON.play} Подивитись трейлер</a>` : '<div class="add-hint">Трейлер не знайдено.</div>'}
         <label class="cf-label">Опис</label>
         ${movie._overviewTranslated ? '<div class="add-hint">Автоматичний переклад з англійської — можна відредагувати.</div>' : ''}
         <textarea id="cfDesc" rows="4">${movie.description_uk}</textarea>
@@ -3296,16 +3450,27 @@ function renderConfirmCard(movie) {
         <div class="cf-readonly">${(movie.awards_nominated || []).length ? esc((movie.awards_nominated || []).join(', ')) : '<span class="cf-empty">не знайдено</span>'}</div>
         <label class="cf-label">Рекомендовано від</label>
         ${recBySelectHtml()}
-        ${exists ? `<div class="warn-note">Такий фільм уже є у списку: «${esc(dup.canonical_title_uk)}»${dup.year ? ` (${dup.year})` : ''}.</div>` : ''}
+        ${exists ? `<div class="warn-note">Такий фільм уже є у списку: «${esc(dup.canonical_title_uk)}»${dup.year ? ` (${dup.year})` : ''}. Онови його свіжими даними або збережи як окремий запис.</div>` : ''}
         <div class="modal-actions">
           <button class="btn" id="cfBack">← Назад</button>
-          <button class="btn on-watched" id="cfSave" ${exists ? 'disabled' : ''}>Зберегти</button>
+          ${exists
+            ? `<button class="btn" id="cfSaveCopy">Зберегти окремо</button>
+               <button class="btn on-watched" id="cfSave">Оновити наявний</button>`
+            : '<button class="btn on-watched" id="cfSave">Зберегти</button>'}
         </div>
       </div>
     </div>`;
   wireRecBySelect(resultsEl);
   resultsEl.querySelector('#cfBack').addEventListener('click', () => showResultsAgain());
-  resultsEl.querySelector('#cfSave').addEventListener('click', () => {
+  // Re-adding a film that is already in the catalog used to be a dead end:
+  // a warning and a disabled button. Both outcomes people actually want are
+  // now offered — refresh the existing record, or keep two separate ones.
+  //
+  // Updating IN PLACE matters more than it looks: it keeps the film's id,
+  // and the id is what its "переглянуто"/"рекомендую" marks hang off. Saving
+  // the fresh data under a new id would leave those marks pointing at the
+  // old record and the person's history silently split in two.
+  const saveHandler = (mode) => () => {
     const recBy = readRecBy(resultsEl);
     // Actor names: Latin script only (CONVENTIONS.md). Names arriving from
     // TMDb are already resolved by resolveLatinCastNames() above, but this
@@ -3338,23 +3503,34 @@ function renderConfirmCard(movie) {
     delete finalMovie._overviewTranslated;
     delete finalMovie._titleTranslated;
     Object.keys(finalMovie).forEach(k => finalMovie[k] === undefined && delete finalMovie[k]);
-    const saveBtn = resultsEl.querySelector('#cfSave');
+    const record = mode === 'update'
+      ? mergeRefreshedMovie(dup, { ...finalMovie, id: dup.id })
+      : mode === 'copy'
+        ? { ...finalMovie, id: uniqueMovieId(finalMovie.id, MOVIES) }
+        : finalMovie;
+
+    const saveBtn = resultsEl.querySelector(mode === 'copy' ? '#cfSaveCopy' : '#cfSave');
+    const savedLabel = saveBtn.textContent;
     saveBtn.disabled = true;
     saveBtn.textContent = 'Зберігаю…';
-    moviesRef.child(finalMovie.id).set(finalMovie).then(() => {
+    moviesRef.child(record.id).set(record).then(() => {
       const castNote = castDropped > 0
         ? ` (${castDropped} ${castDropped === 1 ? 'ім\'я актора прибрано' : 'імені акторів прибрано'} — лише латиницею, без ієрогліфів)`
         : '';
-      toast('success', `«${finalMovie.canonical_title_uk}» збережено${castNote}`);
+      const what = mode === 'update' ? 'оновлено' : 'збережено';
+      toast('success', `«${record.canonical_title_uk}» ${what}${castNote}`);
       closeAddModal();
     }).catch(err => {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Зберегти';
+      saveBtn.textContent = savedLabel;
       const msg = (err && err.message) || 'невідома помилка';
       toast('error', `Не вдалося зберегти: ${msg}`);
       resultsEl.insertAdjacentHTML('beforeend', `<div class="warn-note">Не вдалося зберегти: ${msg}.</div>`);
     });
-  });
+  };
+  resultsEl.querySelector('#cfSave').addEventListener('click', saveHandler(exists ? 'update' : 'new'));
+  const copyBtn = resultsEl.querySelector('#cfSaveCopy');
+  if (copyBtn) copyBtn.addEventListener('click', saveHandler('copy'));
 }
 function showResultsAgain() {
   const title = addBox.querySelector('#addTitle') ? addBox.querySelector('#addTitle').value.trim() : '';
