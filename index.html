@@ -1169,6 +1169,68 @@ function countExistingMarks(marks, movies) {
  * back is close enough to be the same film rather than a remake.
  */
 
+/**
+ * Whether a payload is actually an OMDb answer at all.
+ *
+ * Every OMDb reply — hit or miss — carries a `Response` field. Anything
+ * without one came from somewhere else: a proxy error page, a rate-limit
+ * body, an HTML gateway response. The old code asked only whether Response
+ * was 'False', so a body with no Response at all fell through as a SUCCESS
+ * with no data, and the film was recorded as "OMDb has nothing" and stamped
+ * as checked for a month.
+ */
+function isOmdbAnswer(data) {
+  return !!data && typeof data === 'object' && typeof data.Response === 'string';
+}
+
+/**
+ * Whether an OMDb result is really the title we asked for.
+ *
+ * OMDb's `t=` is a fuzzy search, not an exact lookup, and it will answer with
+ * something that merely CONTAINS the words. Asked for "I Care a Lot" (2021)
+ * it returned "FailurePiece Theater ep 36: I Care a Lot." — a podcast
+ * episode that happens to share the catalog's year, because the real film is
+ * 2020 in OMDb. Without this check the enrichment attaches one work's
+ * ratings and awards to a different work entirely, which is worse than
+ * leaving the film empty: wrong data looks exactly like right data.
+ *
+ * The rule: the titles match outright, or one is the other's part before a
+ * SEPARATOR. Catalogs disagree about subtitles — TMDb's "Dune" is OMDb's
+ * "Dune: Part One" — but they do not disagree by appending plain words, so
+ * "The Bodyguard Diaries" is not "Bodyguard". A bare prefix rule accepts
+ * both; keying on the separator accepts only the first.
+ *
+ * Deliberately strict. A false negative leaves a film unenriched, which is
+ * visible and harmless. A false positive writes another work's ratings and
+ * awards onto it, which looks exactly like correct data.
+ */
+function omdbTitleMatches(returned, requested) {
+  const a = normalizeTitleForMatch(returned);
+  const b = normalizeTitleForMatch(requested);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return normalizeTitleForMatch(titleHead(returned)) === b
+    || normalizeTitleForMatch(titleHead(requested)) === a;
+}
+
+/** The part of a title before its first subtitle separator. */
+function titleHead(text) {
+  return String(text == null ? '' : text).split(/[:\u2013\u2014(]|\s-\s/)[0];
+}
+
+function normalizeTitleForMatch(text) {
+  return String(text == null ? '' : text)
+    .toLowerCase()
+    // Leading articles differ between catalogs often enough that they must
+    // not decide a match ("Shining" vs "The Shining").
+    .replace(/^(the|a|an)\s+/, '')
+    // Apostrophes sit INSIDE a word, so they must vanish rather than become
+    // a space: "Miranda's Victim" and "Mirandas Victim" are one title.
+    .replace(/['\u2019\u02bc\u0060]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
 /** The first four-digit year in an OMDb `Year` ("1943", "2019–2023"). */
 function parseOmdbYear(value) {
   const m = /(\d{4})/.exec(String(value == null ? '' : value));
@@ -1671,7 +1733,7 @@ if (typeof module !== 'undefined' && module.exports) {
     filterCatalog, normTitleForDup, findDuplicateMovie,
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
-    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
+    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently,
@@ -2539,7 +2601,15 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
     url.searchParams.set('type', kind === 'tv' ? 'series' : 'movie');
     const res = await fetch(url, { headers: await proxyHeaders() });
     const data = await res.json();
-    return data && data.Response !== 'False' ? data : null;
+    // A body with no `Response` field is not an OMDb answer — it is a proxy
+    // error (401, 429, upstream failure). Treating it as data would show the
+    // film as simply having no critic score, which is a different claim.
+    if (!isOmdbAnswer(data) || data.Response === 'False') return null;
+    // OMDb's `t=` is a fuzzy search: asked for "I Care a Lot" it has
+    // answered with a podcast episode whose name contains those words. A
+    // result that is not actually this title must be discarded, not written
+    // onto the film — see omdbTitleMatches() in logic.js.
+    return omdbTitleMatches(data.Title, title) ? data : null;
   };
   try {
     const exact = await ask(true);
