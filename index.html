@@ -2185,16 +2185,14 @@ updateRecommenderFilter();
 render();
 
 /* ==================== Add movie: OCR + TMDb ==================== */
-// TMDb v4 read-access token — substituted at deploy time from the
-// TMDB_CRED repo secret (see .github/workflows/deploy-pages.yml).
-// In local/dev checkouts this stays as the literal placeholder and
-// TMDb calls will simply fail gracefully.
-const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhODY2NzVkNjg4MmI3ZmZkODBkZTc5YjQ2MWZiMmJhYiIsIm5iZiI6MTc4NzI3NDU3OC43MzksInN1YiI6IjZhODdhNTUyZTBkY2VkODc3ZWU2NTg2NSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.r7_7H_tPvQhQjr6CSHS-__lcPqajyHhI0cTAWSxMKWQ';
+// All third-party API calls go through the seenit-backend Cloudflare
+// Worker proxy — the published page is a static site, so any key baked
+// into it would be world-readable, and OMDb's free quota would be shared
+// by every visitor. The Worker holds the keys as Cloudflare secrets and
+// injects them server-side (REQUIREMENTS S-2). Poster images stay direct:
+// image.tmdb.org needs no key.
+const API_PROXY = 'https://seenit-proxy.seenit.workers.dev';
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
-// Same substitution pattern as TMDB_TOKEN above, from the OMDB_API_KEY repo
-// secret — critic_score/awards are auto-fetched at add-time (see
-// tmdbDetails() below), never manual entry (CONVENTIONS.md).
-const OMDB_KEY = '13d5be9b';
 
 const moviesRef = db.ref('kino/movies');
 let moviesLoaded = false;
@@ -2224,9 +2222,9 @@ function attachMovies() {
 // TMDb genre id -> our own genre/genre_group taxonomy (see GENRE_ORDER above)
 // TMDB_GENRE_MAP, mapGenre(), slugify() now live in src/logic.js (loaded before this file).
 async function tmdbFetch(path, params = {}) {
-  const url = new URL('https://api.themoviedb.org/3' + path);
+  const url = new URL(API_PROXY + '/tmdb/3' + path);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}`, accept: 'application/json' } });
+  const res = await fetch(url, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`TMDb ${res.status}`);
   return res.json();
 }
@@ -2251,8 +2249,7 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
   const title = titleEn || titleUk;
   if (!title) return null;
   try {
-    const url = new URL('https://www.omdbapi.com/');
-    url.searchParams.set('apikey', OMDB_KEY);
+    const url = new URL(API_PROXY + '/omdb/');
     url.searchParams.set('t', title);
     if (year) url.searchParams.set('y', year);
     url.searchParams.set('type', kind === 'tv' ? 'series' : 'movie');
@@ -2273,7 +2270,7 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
 async function fetchWikidataAwardCategories(imdbId) {
   if (!imdbId || !/^tt\d+$/.test(imdbId)) return null;
   try {
-    const url = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(buildWikidataAwardsQuery(imdbId))}`;
+    const url = `${API_PROXY}/wikidata/sparql?format=json&query=${encodeURIComponent(buildWikidataAwardsQuery(imdbId))}`;
     const res = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } });
     if (!res.ok) return null;
     const data = await res.json();
