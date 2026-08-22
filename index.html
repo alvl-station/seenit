@@ -890,6 +890,42 @@ function usernameToEmail(username) {
   return (username || '').trim().toLowerCase().replace(/\s+/g, '') + AUTH_DOMAIN_SUFFIX;
 }
 
+/* ---------- where a person's marks live ----------
+ * "Переглянуто" and "рекомендую" used to be GLOBAL nodes: kino/watched and
+ * kino/liked, shared by every account. Anyone who logged in saw and could
+ * change the same list, which is why the e2e suite had to stay read-only and
+ * why "my own recommendations" could not exist as a feature at all.
+ *
+ * They now hang off the signed-in uid. kino/movies stays shared on purpose —
+ * it is the film database, and the social features in the roadmap depend on
+ * everyone recommending out of one catalog. What is personal is the marks.
+ */
+const MARK_LISTS = ['watched', 'liked'];
+
+/**
+ * The database path for one person's list.
+ *
+ * Returns null rather than a path when the uid is missing, and the caller
+ * must treat that as "do not read or write". This is the dangerous case: a
+ * blank uid interpolated into `kino/users/${uid}/watched` yields
+ * `kino/users//watched`, which Firebase collapses to `kino/users/watched` —
+ * a node SHARED by everyone, silently recreating the exact problem this
+ * change exists to remove.
+ */
+function userMarksPath(uid, list) {
+  if (typeof uid !== 'string' || !uid.trim()) return null;
+  if (!MARK_LISTS.includes(list)) return null;
+  if (/[.$#[\]/]/.test(uid)) return null;   // characters Firebase forbids in a key
+  return `kino/users/${uid}/${list}`;
+}
+
+/** localStorage key for the offline copy, scoped so two accounts on one
+ *  browser never read each other's cached marks. */
+function localMarksKey(uid, list) {
+  if (!MARK_LISTS.includes(list)) return null;
+  return uid ? `seenit_${uid}_${list}` : null;
+}
+
 /* ---------- rating / display helpers ---------- */
 function ratingNum(m) {
   const r = (m && m.rating) || '';
@@ -1113,9 +1149,24 @@ function extractCriticScore(omdbData) {
  * the marks survive their movie and keep being counted forever, because
  * nothing else in the app ever removes them. Any new id->true list keyed by
  * movie id belongs here too.
+ *
+ * Marks are per-account now, so this covers the CALLER's lists only. Without
+ * a uid it returns just the movie — deleting the film but leaving even our
+ * own marks behind, which is the safe half of a bad situation rather than
+ * writing to a path we cannot name.
  */
-function deletionPaths(id) {
-  return [`kino/movies/${id}`, `kino/watched/${id}`, `kino/liked/${id}`];
+function deletionPaths(id, uid) {
+  const paths = [`kino/movies/${id}`];
+  // Only the signed-in person's own marks: the rules forbid writing into
+  // anyone else's subtree, and rightly so. Other accounts that marked this
+  // film are left with a mark pointing at nothing — which is exactly what
+  // the deploy-time sweep (scripts/sweep-orphan-marks.js) exists to clear,
+  // now that it walks every account and not just the legacy global lists.
+  for (const list of MARK_LISTS) {
+    const path = userMarksPath(uid, list);
+    if (path) paths.push(`${path}/${id}`);
+  }
+  return paths;
 }
 
 /**
@@ -1399,6 +1450,11 @@ const ENRICHMENT_RESULTS = {
   NOT_FOUND: 'not-found',            // OMDb does not have it
   TITLE_MISMATCH: 'title-mismatch',  // OMDb offered a different work
   YEAR_MISMATCH: 'year-mismatch',    // found, but too far from our year to be the same film
+  // Not an answer from OMDb but still the true reason the field is empty:
+  // the film is old enough that we deliberately stopped asking. Recorded
+  // without spending a call, so "why is this blank?" stays answerable for
+  // the whole catalog and not only for what we still query.
+  SKIPPED_OLD: 'skipped-too-old',
 };
 
 /** The failure kinds — the ones whose share should not suddenly jump. */
@@ -1467,7 +1523,12 @@ function enrichmentRunAlarm(current, previous = null, opts = {}) {
 
 function enrichmentProcessedCount(counts) {
   const c = counts || {};
-  return Object.values(ENRICHMENT_RESULTS).reduce((n, k) => n + (c[k] || 0), 0) + (c.failed || 0);
+  // SKIPPED_OLD is excluded deliberately: those films were never asked
+  // about, so counting them would dilute the failure rate the alarm reads
+  // and could hide a real outage behind a pile of skips.
+  return Object.values(ENRICHMENT_RESULTS)
+    .filter(k => k !== ENRICHMENT_RESULTS.SKIPPED_OLD)
+    .reduce((n, k) => n + (c[k] || 0), 0) + (c.failed || 0);
 }
 
 function enrichmentFailureRate(counts) {
@@ -1851,6 +1912,7 @@ function parseBatchLine(line) {
 // a plain <script>, where `module` is undefined, so this is a no-op there.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    MARK_LISTS, userMarksPath, localMarksKey,
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie,
     TMDB_GENRE_MAP, mapGenre, slugify,
@@ -1883,8 +1945,12 @@ const GENRE_ORDER = UI.GENRE_ORDER;
 
 const db = firebase.database();
 const auth = firebase.auth();
-const watchedRef = db.ref('kino/watched');
-const likedRef = db.ref('kino/liked');
+// Built after sign-in, not at load: these paths depend on the uid, so there
+// is nothing to point them at until somebody is signed in. See
+// userMarksPath() in logic.js for why a missing uid must never produce a
+// path rather than a shared-node fallback.
+let watchedRef = null;
+let likedRef = null;
 
 let watched = new Set();
 let liked = new Set();
@@ -1896,6 +1962,7 @@ const localStore = {
 };
 
 function attachSync(ref, targetSetName, localKey) {
+  if (!ref) return;
   ref.on('value', snap => {
     const val = snap.val() || {};
     const ids = Object.keys(val).filter(id => val[id]);
@@ -1942,8 +2009,14 @@ auth.onAuthStateChanged(user => {
     logoutBtn.style.display = '';
     if (!syncedOnce) {
       syncedOnce = true;
-      attachSync(watchedRef, 'watched', 'kino_watched');
-      attachSync(likedRef, 'liked', 'kino_liked');
+      const watchedPath = userMarksPath(user.uid, 'watched');
+      const likedPath = userMarksPath(user.uid, 'liked');
+      // No usable uid means no marks — showing an empty list is correct,
+      // and far better than falling back to a path everyone shares.
+      watchedRef = watchedPath ? db.ref(watchedPath) : null;
+      likedRef = likedPath ? db.ref(likedPath) : null;
+      attachSync(watchedRef, 'watched', localMarksKey(user.uid, 'watched'));
+      attachSync(likedRef, 'liked', localMarksKey(user.uid, 'liked'));
       attachMovies();
     }
   } else {
@@ -2458,6 +2531,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 function toggle(act, id) {
   const set = act === 'watch' ? watched : liked;
   const ref = act === 'watch' ? watchedRef : likedRef;
+  if (!ref) return;   // not signed in yet: nothing to write to
   const willBeOn = !set.has(id);
 
   // Optimistic local update for instant feedback
@@ -3433,7 +3507,8 @@ async function deleteSelected() {
     // deletionPaths() is what keeps this from recreating the orphan bug that
     // prompted the feature: removing only the movie leaves its watched/liked
     // marks behind, counted forever against a film nobody can see.
-    await Promise.all(ids.flatMap(id => deletionPaths(id).map(path => db.ref(path).remove())));
+    const uid = auth.currentUser && auth.currentUser.uid;
+    await Promise.all(ids.flatMap(id => deletionPaths(id, uid).map(path => db.ref(path).remove())));
     toast('ok', `Видалено ${ids.length} ${pluralFilms(ids.length)}`);
     setDeleteMode(false);
   } catch (err) {
