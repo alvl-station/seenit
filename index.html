@@ -515,15 +515,20 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAMXHGhQ_-3wU8a56fuGkgqwXPB5rqXTCA",
-    authDomain: "kino-tracker-80559.firebaseapp.com",
-    databaseURL: "https://kino-tracker-80559-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "kino-tracker-80559",
-    storageBucket: "kino-tracker-80559.firebasestorage.app",
-    messagingSenderId: "623346019873",
-    appId: "1:623346019873:web:cf85d27dcff57b44ed7d60"
-  };
+  // The Firebase web config is substituted at deploy time from the
+  // FIREBASE_WEB_CONFIG repo secret (same placeholder pattern the API keys
+  // used before the Worker proxy). To be clear about the threat model: this
+  // is NOT hiding a credential — the config reaches every browser and is
+  // fully visible on the published page; access control is Firebase Auth +
+  // Security Rules, never this object. Keeping it out of the source is
+  // config hygiene: the repo stays environment-agnostic, so a future
+  // staging project is just a different secret, not a code change.
+  //
+  // The try/catch is the unsubstituted-placeholder path (local checkouts,
+  // the jsdom test boot): JSON.parse of the literal placeholder throws,
+  // the config stays {}, and the stubbed/absent Firebase never minds.
+  let firebaseConfig = {};
+  try { firebaseConfig = JSON.parse('{"apiKey":"AIzaSyAMXHGhQ_-3wU8a56fuGkgqwXPB5rqXTCA","authDomain":"kino-tracker-80559.firebaseapp.com","databaseURL":"https://kino-tracker-80559-default-rtdb.europe-west1.firebasedatabase.app","projectId":"kino-tracker-80559","storageBucket":"kino-tracker-80559.firebasestorage.app","messagingSenderId":"623346019873","appId":"1:623346019873:web:cf85d27dcff57b44ed7d60"}'); } catch (e) { /* placeholder not substituted */ }
   firebase.initializeApp(firebaseConfig);
 </script>
 </head>
