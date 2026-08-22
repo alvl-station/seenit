@@ -2279,6 +2279,21 @@ render();
 // injects them server-side (REQUIREMENTS S-2). Poster images stay direct:
 // image.tmdb.org needs no key.
 const API_PROXY = 'https://seenit-proxy.seenit.workers.dev';
+
+// The proxy only serves signed-in users: its URL is in this public page, so
+// without this anyone could spend our OMDb quota. The Firebase ID token is
+// the credential — it is minted per session, expires hourly and is refreshed
+// automatically, so unlike a key baked into the HTML there is nothing here
+// worth lifting out of DevTools.
+async function proxyHeaders(extra = {}) {
+  const user = auth.currentUser;
+  if (!user) return extra;                       // caller handles the 401
+  try {
+    return { ...extra, Authorization: `Bearer ${await user.getIdToken()}` };
+  } catch (err) {
+    return extra;
+  }
+}
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 
 const moviesRef = db.ref('kino/movies');
@@ -2311,7 +2326,7 @@ function attachMovies() {
 async function tmdbFetch(path, params = {}) {
   const url = new URL(API_PROXY + '/tmdb/3' + path);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
+  const res = await fetch(url, { headers: await proxyHeaders({ accept: 'application/json' }) });
   if (!res.ok) throw new Error(`TMDb ${res.status}`);
   return res.json();
 }
@@ -2340,7 +2355,7 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
     url.searchParams.set('t', title);
     if (year) url.searchParams.set('y', year);
     url.searchParams.set('type', kind === 'tv' ? 'series' : 'movie');
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: await proxyHeaders() });
     const data = await res.json();
     return data.Response === 'False' ? null : data;
   } catch (err) {
@@ -2358,7 +2373,7 @@ async function fetchWikidataAwardCategories(imdbId) {
   if (!imdbId || !/^tt\d+$/.test(imdbId)) return null;
   try {
     const url = `${API_PROXY}/wikidata/sparql?format=json&query=${encodeURIComponent(buildWikidataAwardsQuery(imdbId))}`;
-    const res = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } });
+    const res = await fetch(url, { headers: await proxyHeaders({ Accept: 'application/sparql-results+json' }) });
     if (!res.ok) return null;
     const data = await res.json();
     return parseWikidataAwards(data.results && data.results.bindings);
