@@ -1382,6 +1382,101 @@ function enrichmentCheckedRecently(movie, now = Date.now(), days = ENRICHMENT_RE
   return (now - then) < days * 24 * 60 * 60 * 1000;
 }
 
+/* ---------- why a title ended up with nothing ----------
+ * The database used to record only WHEN we last asked about a film, never
+ * what the answer was. Those are not the same thing, and the difference cost
+ * real time: a film with no critic score looked identical whether OMDb had
+ * never heard of it, had it but carried no score, answered with a different
+ * work entirely, or the request had failed and been misread as "no data".
+ * All four also produced the same summary line, so a broken run and a
+ * healthy one were indistinguishable from the outside.
+ *
+ * Recording the reason makes the database answer that question itself.
+ */
+const ENRICHMENT_RESULTS = {
+  OK: 'ok',                          // something was written
+  NO_DATA: 'no-data',                // OMDb has the title, but no score and no awards
+  NOT_FOUND: 'not-found',            // OMDb does not have it
+  TITLE_MISMATCH: 'title-mismatch',  // OMDb offered a different work
+  YEAR_MISMATCH: 'year-mismatch',    // found, but too far from our year to be the same film
+};
+
+/** The failure kinds — the ones whose share should not suddenly jump. */
+const ENRICHMENT_FAILURES = [
+  ENRICHMENT_RESULTS.NOT_FOUND,
+  ENRICHMENT_RESULTS.TITLE_MISMATCH,
+  ENRICHMENT_RESULTS.YEAR_MISMATCH,
+];
+
+/**
+ * Whether a title is old enough that re-asking is pointless.
+ *
+ * Award ceremonies happen the year AFTER release (a 2025 film wins its Oscar
+ * in March 2026), and OMDb keeps adding recent titles — so a young film is
+ * worth re-asking about. An old one is not: nothing about it is going to
+ * change, and every call spends a 1,000/day quota.
+ *
+ * Applies to the ROUTINE recheck only. A deliberate one-off pass — fixing
+ * data a bug got wrong — must still be able to reach old films, or it cannot
+ * fix the very records it exists for.
+ */
+function enrichmentTooOldToRecheck(movie, now = Date.now(), years = ENRICHMENT_MAX_AGE_YEARS) {
+  const year = Number(movie && movie.year);
+  if (!Number.isFinite(year) || year <= 0) return false;   // unknown age: do not skip
+  return (new Date(now).getUTCFullYear() - year) > years;
+}
+const ENRICHMENT_MAX_AGE_YEARS = 2;
+
+/**
+ * Whether a run's outcome looks wrong enough to stop and shout about.
+ *
+ * The failure this exists for: if the OMDb key expired, every request would
+ * fail, every film would be recorded as checked, and the report would read
+ * "110 films, nothing new" — a perfectly calm sentence describing a total
+ * outage, followed by a month of silence because each film was stamped.
+ *
+ * @param {object} current  counts keyed by ENRICHMENT_RESULTS value, plus `failed`
+ * @param {object|null} previous  the last run's counts, or null on a first run
+ * @returns {string|null} what looks wrong, or null if the run looks normal
+ */
+function enrichmentRunAlarm(current, previous = null, opts = {}) {
+  const { minSample = 10, failedShare = 0.2, minFailed = 5, jump = 0.2 } = opts;
+  const c = current || {};
+  const processed = enrichmentProcessedCount(c);
+  if (processed < minSample) return null;   // too few to reason about
+
+  const failed = c.failed || 0;
+  if (failed >= minFailed && failed > processed * failedShare) {
+    return `${failed} of ${processed} requests failed outright — the proxy or the API key is likely broken.`;
+  }
+
+  const resolved = (c[ENRICHMENT_RESULTS.OK] || 0) + (c[ENRICHMENT_RESULTS.NO_DATA] || 0);
+  if (resolved === 0) {
+    return `None of ${processed} titles resolved to a real OMDb record. A healthy run always resolves most of them.`;
+  }
+
+  if (previous && enrichmentProcessedCount(previous) >= minSample) {
+    const before = enrichmentFailureRate(previous);
+    const after = enrichmentFailureRate(c);
+    if (after - before > jump) {
+      return `Titles that failed to match jumped from ${Math.round(before * 100)}% to ${Math.round(after * 100)}% since the last run.`;
+    }
+  }
+  return null;
+}
+
+function enrichmentProcessedCount(counts) {
+  const c = counts || {};
+  return Object.values(ENRICHMENT_RESULTS).reduce((n, k) => n + (c[k] || 0), 0) + (c.failed || 0);
+}
+
+function enrichmentFailureRate(counts) {
+  const processed = enrichmentProcessedCount(counts);
+  if (!processed) return 0;
+  const c = counts || {};
+  return ENRICHMENT_FAILURES.reduce((n, k) => n + (c[k] || 0), 0) / processed;
+}
+
 /* ---------- reconciling the two award sources ----------
  * The two sources fail in opposite directions, so neither alone is right:
  *
@@ -1437,6 +1532,33 @@ function mergeAwardSources(wikidata, omdb) {
     won: majorAwardsOnly(mergeAwardLists(wikidata && wikidata.won, omdb && omdb.won)),
     nominated: majorAwardsOnly(mergeAwardLists(wikidata && wikidata.nominated, omdb && omdb.nominated)),
   };
+}
+
+/**
+ * Tops up an ALREADY-STORED award list from OMDb's counts. Add-only.
+ *
+ * Why this is separate from mergeAwardSources(): that one builds a fresh
+ * list and filters it down to recognized ceremonies. Here the list already
+ * exists in the database and may contain hand-typed entries, so nothing may
+ * be dropped, reordered or rewritten — a top-up that can remove is not a
+ * top-up, it is an overwrite with extra steps.
+ *
+ * The problem it fixes: awards are written once, at add-time, and the rule
+ * "only enrich a film whose awards are empty" then freezes whatever was
+ * captured. Where Wikidata knew about one of a film's eight Emmys, that one
+ * is what the catalog shows forever. Beef is stored with a single Emmy;
+ * OMDb reports eight.
+ */
+function topUpAwardCounts(stored, fromOmdb) {
+  const existing = [...(stored || [])];
+  const topped = mergeAwardLists(existing, fromOmdb);
+  // mergeAwardLists only ever appends, but this is data nobody can get back
+  // if it is wrong, so the guarantee is checked rather than assumed.
+  if (topped.length < existing.length) return existing;
+  for (let i = 0; i < existing.length; i++) {
+    if (topped[i] !== existing[i]) return existing;
+  }
+  return topped;
 }
 
 /* ---------- language rules for award text ----------
@@ -1734,9 +1856,10 @@ if (typeof module !== 'undefined' && module.exports) {
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
-    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources,
+    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
-    ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently,
+    ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently, ENRICHMENT_RESULTS, ENRICHMENT_MAX_AGE_YEARS,
+    enrichmentTooOldToRecheck, enrichmentRunAlarm, enrichmentProcessedCount, enrichmentFailureRate,
     backupCounts, backupRejectionReason,
     TITLE_TRIGGER_WORDS, UI_JUNK_PHRASES,
     isJunkLine, cleanCandidate, isPlausibleTitle, extractTitleCandidates,
