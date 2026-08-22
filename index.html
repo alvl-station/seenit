@@ -500,6 +500,21 @@
     margin-bottom: 10px; min-width: 0;
   }
   .cf-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 4px; }
+  /* Auto-fetched values shown for reference only (year, rating, critic
+     score, cast, awards). Deliberately NOT a disabled <input>: a greyed-out
+     field still looks like something that ought to be editable and invites
+     clicking it. This reads as a value, sits on the same grid as the
+     inputs, and wraps instead of truncating a long cast list. */
+  .cf-readonly {
+    /* No box, no border: with the same surface and border as the inputs
+       these read as fields you could click into and edit. Plain text under
+       its label says "value", not "control" — which is the whole point of
+       showing them for reference only. */
+    padding: 2px 2px 0; margin-bottom: 12px;
+    font-size: 14px; color: var(--text); line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .cf-readonly .cf-empty { color: var(--text-muted); font-style: italic; }
   .confirm-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
   .confirm-row input, .confirm-row select { margin-bottom: 10px; }
   .ocr-preview { max-width: 100%; max-height: 460px; border-radius: 8px; display: block; margin: 8px 0; object-fit: contain; }
@@ -1110,6 +1125,24 @@ function parseWikidataAwards(bindings) {
   return result;
 }
 
+/* ---------- enrichment re-check window ----------
+ * A title OMDb has nothing for never gets critic_score or awards_* written,
+ * so a naive "is it still empty?" check re-queried it on every single
+ * deploy — dozens of guaranteed-useless calls per run against a 1,000/day
+ * quota. scripts/backfill-critic-awards.js therefore stamps
+ * `enrichment_checked_at` whenever it actually asks OMDb, whatever the
+ * answer, and skips anything asked recently. The window is not zero because
+ * OMDb does gain titles over time — just not daily.
+ */
+const ENRICHMENT_RECHECK_DAYS = 30;
+function enrichmentCheckedRecently(movie, now = Date.now(), days = ENRICHMENT_RECHECK_DAYS) {
+  const stamp = movie && movie.enrichment_checked_at;
+  if (!stamp) return false;
+  const then = Date.parse(stamp);
+  if (!Number.isFinite(then)) return false;   // unparseable: treat as never asked
+  return (now - then) < days * 24 * 60 * 60 * 1000;
+}
+
 /* ---------- reconciling the two award sources ----------
  * The two sources fail in opposite directions, so neither alone is right:
  *
@@ -1464,6 +1497,7 @@ if (typeof module !== 'undefined' && module.exports) {
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
+    ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently,
     TITLE_TRIGGER_WORDS, UI_JUNK_PHRASES,
     isJunkLine, cleanCandidate, isPlausibleTitle, extractTitleCandidates,
     parseBatchLine,
@@ -2725,6 +2759,7 @@ function renderConfirmCard(movie) {
     <div class="confirm-card">
       ${movie.poster_url ? `<img src="${movie.poster_url}" class="confirm-poster">` : ''}
       <div class="confirm-body">
+        <div class="add-hint">Рік, рейтинг, відсоток критиків, акторський склад і нагороди підтягуються автоматично (TMDb / OMDb / Wikidata) і показані лише для ознайомлення — редагувати їх не можна.</div>
         <label class="cf-label">Назва українською</label>
         ${movie._titleTranslated ? '<div class="add-hint">Офіційної української назви не знайдено — автоматичний переклад, можна відредагувати.</div>' : ''}
         <input id="cfTitleUk" type="text" value="${movie.canonical_title_uk.replace(/"/g, '&quot;')}">
@@ -2733,7 +2768,7 @@ function renderConfirmCard(movie) {
         <div class="confirm-row">
           <div>
             <label class="cf-label">Рік</label>
-            <input id="cfYear" type="text" value="${movie.year || ''}" placeholder="Рік">
+            <div class="cf-readonly">${movie.year ? esc(String(movie.year)) : '<span class="cf-empty">не вказано</span>'}</div>
           </div>
           <div>
             <label class="cf-label">Тип</label>
@@ -2743,7 +2778,7 @@ function renderConfirmCard(movie) {
         <div class="confirm-row">
           <div>
             <label class="cf-label">Рейтинг</label>
-            <input id="cfRating" type="text" value="${(movie.rating || '').replace(/"/g, '&quot;')}" placeholder="напр. TMDb 8.4">
+            <div class="cf-readonly">${movie.rating ? esc(movie.rating) : '<span class="cf-empty">не знайдено</span>'}</div>
           </div>
           <div>
             <label class="cf-label">Жанр</label>
@@ -2751,19 +2786,16 @@ function renderConfirmCard(movie) {
           </div>
         </div>
         <label class="cf-label">Відсоток критиків</label>
-        <div class="add-hint">Автоматично підтягнуто з OMDb (Rotten Tomatoes) — можна відредагувати.</div>
-        <input id="cfCriticScore" type="number" min="0" max="100" step="1" inputmode="numeric" value="${movie.critic_score !== undefined && movie.critic_score !== null ? movie.critic_score : ''}" placeholder="напр. 87 (необов'язково — не знайдено на OMDb)">
+        <div class="cf-readonly">${movie.critic_score !== undefined && movie.critic_score !== null ? esc(String(movie.critic_score)) + '%' : '<span class="cf-empty">не знайдено</span>'}</div>
         <label class="cf-label">Опис</label>
         ${movie._overviewTranslated ? '<div class="add-hint">Автоматичний переклад з англійської — можна відредагувати.</div>' : ''}
         <textarea id="cfDesc" rows="4">${movie.description_uk}</textarea>
         <label class="cf-label">Акторський склад</label>
-        <div class="add-hint">Лише латиницею — без ієрогліфів (для азійських акторів автоматично підставляється англійське написання).</div>
-        <input id="cfCast" type="text" value="${(movie.cast || []).join(', ').replace(/"/g, '&quot;')}" placeholder="Через кому: Ім'я Прізвище, Ім'я Прізвище">
+        <div class="cf-readonly">${(movie.cast || []).length ? esc((movie.cast || []).join(', ')) : '<span class="cf-empty">не знайдено</span>'}</div>
         <label class="cf-label">Нагороди — перемоги</label>
-        <div class="add-hint">Автоматично підтягнуто з OMDb, де вказано явно (без загальної суми "N перемог/номінацій") — можна відредагувати.</div>
-        <input id="cfAwardsWon" type="text" value="${(movie.awards_won || []).join(', ').replace(/"/g, '&quot;')}" placeholder="Через кому: Оскар — найкращий фільм, Золотий глобус — драма">
+        <div class="cf-readonly">${(movie.awards_won || []).length ? esc((movie.awards_won || []).join(', ')) : '<span class="cf-empty">не знайдено</span>'}</div>
         <label class="cf-label">Нагороди — номінації</label>
-        <input id="cfAwardsNom" type="text" value="${(movie.awards_nominated || []).join(', ').replace(/"/g, '&quot;')}" placeholder="Через кому: BAFTA — найкращий сценарій">
+        <div class="cf-readonly">${(movie.awards_nominated || []).length ? esc((movie.awards_nominated || []).join(', ')) : '<span class="cf-empty">не знайдено</span>'}</div>
         <label class="cf-label">Рекомендовано від</label>
         ${recBySelectHtml()}
         ${exists ? `<div class="warn-note">Такий фільм уже є у списку: «${esc(dup.canonical_title_uk)}»${dup.year ? ` (${dup.year})` : ''}.</div>` : ''}
@@ -2779,25 +2811,26 @@ function renderConfirmCard(movie) {
     const recBy = readRecBy(resultsEl);
     // Actor names: Latin script only (CONVENTIONS.md). Names arriving from
     // TMDb are already resolved by resolveLatinCastNames() above, but this
-    // field is freely editable, so re-check on save in case someone pastes
-    // a hieroglyph name in by hand — drop it rather than save it, and note
-    // the drop in the success toast so it's not a silent surprise.
-    const castInput = resultsEl.querySelector('#cfCast').value.split(',').map(s => s.trim()).filter(Boolean);
+    // Enriched fields (year, rating, critic score, cast, awards) are shown
+    // read-only, so they come from the fetched movie object rather than the
+    // DOM — nothing to re-parse and nothing a stray keystroke could corrupt.
+    // The Latin-script guard stays: TMDb itself can hand back a CJK name
+    // that pickLatinPersonName() had no alias to replace.
+    const castInput = movie.cast || [];
     const cast = castInput.filter(s => !hasCJKScript(s));
     const castDropped = castInput.length - cast.length;
-    const awardsWon = resultsEl.querySelector('#cfAwardsWon').value.split(',').map(s => s.trim()).filter(Boolean);
-    const awardsNom = resultsEl.querySelector('#cfAwardsNom').value.split(',').map(s => s.trim()).filter(Boolean);
-    const criticScoreRaw = resultsEl.querySelector('#cfCriticScore').value.trim();
-    const criticScore = criticScoreRaw === '' ? undefined : Math.max(0, Math.min(100, Math.round(parseFloat(criticScoreRaw))));
+    const awardsWon = movie.awards_won || [];
+    const awardsNom = movie.awards_nominated || [];
+    const criticScore = movie.critic_score;
     const finalMovie = {
       ...movie,
       canonical_title_uk: resultsEl.querySelector('#cfTitleUk').value.trim(),
       canonical_title_en: resultsEl.querySelector('#cfTitleEn').value.trim() || undefined,
-      year: parseInt(resultsEl.querySelector('#cfYear').value, 10) || undefined,
+      year: movie.year || undefined,
       type: resultsEl.querySelector('#cfType').value,
       genre_group: resultsEl.querySelector('#cfGroup').value,
-      rating: resultsEl.querySelector('#cfRating').value.trim() || undefined,
-      critic_score: Number.isNaN(criticScore) ? undefined : criticScore,
+      rating: movie.rating || undefined,
+      critic_score: criticScore,
       description_uk: resultsEl.querySelector('#cfDesc').value.trim(),
       cast: cast.length ? cast : undefined,
       awards_won: awardsWon.length ? awardsWon : undefined,
