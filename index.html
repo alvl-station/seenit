@@ -1125,6 +1125,32 @@ function parseWikidataAwards(bindings) {
   return result;
 }
 
+/* ---------- database backup guards ----------
+ * scripts/backup-db.js runs as a gate before every migration, so its
+ * failure modes matter more than its happy path. The dangerous one is a
+ * backup that LOOKS fine but is empty: an empty read is far more likely to
+ * be a permissions or URL problem than a genuinely empty database, and
+ * restoring such a file would wipe everything. Kept here (pure) so the
+ * refusal rules are unit-testable without touching Firebase.
+ */
+function backupCounts(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  return Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v && typeof v === 'object' ? Object.keys(v).length : 1]),
+  );
+}
+/** @returns {string|null} why the snapshot must NOT be written, or null if it's fine. */
+function backupRejectionReason(data) {
+  const counts = backupCounts(data);
+  // Two distinct failures, and the message must say WHICH — they send you
+  // to different places. Nothing at all (unreadable, or an empty subtree)
+  // points at credentials, the database URL or the ref path. Data that
+  // exists but has no movies points at the data itself.
+  if (!counts || Object.keys(counts).length === 0) return 'Read kino/ but got nothing back.';
+  if (!counts.movies) return 'Backup contains no kino/movies.';
+  return null;
+}
+
 /* ---------- enrichment re-check window ----------
  * A title OMDb has nothing for never gets critic_score or awards_* written,
  * so a naive "is it still empty?" check re-queried it on every single
@@ -1498,6 +1524,7 @@ if (typeof module !== 'undefined' && module.exports) {
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently,
+    backupCounts, backupRejectionReason,
     TITLE_TRIGGER_WORDS, UI_JUNK_PHRASES,
     isJunkLine, cleanCandidate, isPlausibleTitle, extractTitleCandidates,
     parseBatchLine,
