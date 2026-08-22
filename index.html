@@ -1039,6 +1039,40 @@ function extractCriticScore(omdbData) {
   return Number.isNaN(meta) ? undefined : meta;
 }
 
+/* ---------- OMDb: surviving a one-year disagreement ----------
+ * OMDb's `y` parameter is an exact filter, not a hint, and OMDb and TMDb
+ * routinely disagree about a film's year by one: TMDb records the earliest
+ * release (a festival premiere), OMDb the wide release. Casablanca is TMDb
+ * 1942 and OMDb 1943, so `t=Casablanca&y=1942` answers "Movie not found!"
+ * and the film silently ends up with no critic score and no awards at all.
+ * Anything premiering late in a year and released in the next one hits this.
+ *
+ * So the year is used as a preference, not a filter: ask with it, and if
+ * OMDb finds nothing, ask again without it — then check the year that comes
+ * back is close enough to be the same film rather than a remake.
+ */
+
+/** The first four-digit year in an OMDb `Year` ("1943", "2019–2023"). */
+function parseOmdbYear(value) {
+  const m = /(\d{4})/.exec(String(value == null ? '' : value));
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Whether a year-less OMDb result is plausibly the film we asked about.
+ *
+ * The tolerance is what makes the retry safe: without it, dropping the year
+ * would happily return the 1998 remake of a 1960 film. One year covers the
+ * premiere/release split; anything further apart is a different film.
+ */
+function omdbYearAcceptable(returnedYear, expectedYear, tolerance = 1) {
+  const expected = parseOmdbYear(expectedYear);
+  if (expected === null) return true;   // nothing to contradict
+  const got = parseOmdbYear(returnedYear);
+  if (got === null) return false;       // a result with no year is unverifiable
+  return Math.abs(got - expected) <= tolerance;
+}
+
 /* ---------- Wikidata: per-category award detail ----------
  * OMDb's "Awards" field is counts only ("Won 4 Oscars") — never which
  * categories. Wikidata records that detail as structured statements, so
@@ -1520,7 +1554,7 @@ if (typeof module !== 'undefined' && module.exports) {
     filterCatalog, normTitleForDup, findDuplicateMovie,
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
-    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore,
+    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently,
@@ -2347,17 +2381,32 @@ function pickTrailer(videos) {
 // parseOmdbAwardsSummary() in src/logic.js) — TMDb has neither. Best-effort:
 // a title OMDb doesn't have, or a network hiccup, just leaves these fields
 // empty rather than failing the whole add-movie flow.
+// The year is a PREFERENCE, not a filter. OMDb's `y` matches exactly, and
+// OMDb and TMDb routinely disagree by one year — TMDb dates a film by its
+// earliest release (a festival premiere), OMDb by the wide one. Casablanca
+// is TMDb 1942 and OMDb 1943, so asking with the year found nothing and the
+// film silently ended up with no critic score and no awards. So: ask with
+// the year (it disambiguates remakes), and if that finds nothing, ask again
+// without it and check the year that comes back is close enough to be the
+// same film — see omdbYearAcceptable() in logic.js.
 async function fetchOmdbData(titleEn, titleUk, year, kind) {
   const title = titleEn || titleUk;
   if (!title) return null;
-  try {
+  const ask = async (withYear) => {
     const url = new URL(API_PROXY + '/omdb/');
     url.searchParams.set('t', title);
-    if (year) url.searchParams.set('y', year);
+    if (withYear && year) url.searchParams.set('y', year);
     url.searchParams.set('type', kind === 'tv' ? 'series' : 'movie');
     const res = await fetch(url, { headers: await proxyHeaders() });
     const data = await res.json();
-    return data.Response === 'False' ? null : data;
+    return data && data.Response !== 'False' ? data : null;
+  };
+  try {
+    const exact = await ask(true);
+    if (exact) return exact;
+    if (!year) return null;
+    const loose = await ask(false);
+    return loose && omdbYearAcceptable(loose.Year, year) ? loose : null;
   } catch (err) {
     return null;
   }
