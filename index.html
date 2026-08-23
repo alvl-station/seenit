@@ -895,47 +895,6 @@ const AWARDS_DATA = {
     description: 'Премія Гільдії кіноакторів США — її вручають самі актори.' },
   { key: 'saturn', match: /\bsaturn\b|прем[іi]я «сатурн»/i, name: 'Saturn',
     description: 'Премія за фантастику, фентезі та фільми жахів.' },
-
-  /* Added from what the catalog ACTUALLY holds, not from a general list of
-   * famous awards. Before this, one ceremony arriving in several spellings
-   * became several keys: the European Film Awards alone were split six ways
-   * — the English name plus four Ukrainian phrasings (including a
-   * misspelling) — so forty awards sat in six separate piles with none of
-   * them counted correctly. Every pattern below therefore matches BOTH the
-   * English and the Ukrainian form.
-   *
-   * Recognition also gates display (majorAwardsOnly drops what is not
-   * here), so this stays a list of ceremonies a person would recognise —
-   * national academies, the international critics' bodies, the guilds —
-   * and not every regional critics' circle Wikidata knows about. */
-  { key: 'nbr', match: /national board of review(?: awards?)?|національн[а-яіїєґ]* ради кінокритик[а-яіїєґ]*/i, name: 'National Board of Review Award',
-    description: 'Нагорода Національної ради кінокритиків США — одна з найстаріших у країні.' },
-  { key: 'european-film', match: /european film(?: awards?)?|європейськ[а-яіїєґ]* кіноприз[а-яіїєґ]*|європейский кіноприз[а-яіїєґ]*/i, name: 'European Film Award',
-    description: 'Головна кінопремія Європейської кіноакадемії.' },
-  { key: 'cesar', match: /\bc[ée]sar\b|«?сезар»?/i, name: 'César',
-    description: 'Головна кінопремія Франції.' },
-  { key: 'goya', match: /\bgoya\b|«?гойя»?/i, name: 'Goya',
-    description: 'Головна кінопремія Іспанії.' },
-  { key: 'japan-academy', match: /japan academy(?: prize)?|японськ[а-яіїєґ]* кіноакадем[а-яіїєґ]*/i, name: 'Japan Academy Prize',
-    description: 'Головна кінопремія Японії.' },
-  { key: 'asian-film', match: /asian film awards?|азійськ[а-яіїєґ]* кінопремі[а-яіїєґ]*/i, name: 'Asian Film Award',
-    description: 'Головна кінопремія Азії, заснована фестивалями Гонконгу, Пусана й Токіо.' },
-  { key: 'critics-choice', match: /critics.? choice|вибір критик/i, name: "Critics' Choice Award",
-    description: 'Премія Асоціації кінокритиків США та Канади.' },
-  { key: 'sundance', match: /sundance|санденс/i, name: 'Sundance',
-    description: 'Головна нагорода найбільшого фестивалю незалежного кіно США.' },
-  { key: 'fipresci', match: /fipresci|фіпресі/i, name: 'FIPRESCI Prize',
-    description: 'Приз Міжнародної федерації кінопреси, який вручають на великих фестивалях.' },
-  // "Art Directors Guild" is a DIFFERENT body, and it appears in this very
-  // catalog — hence the lookbehind rather than a bare "directors guild".
-  { key: 'dga', match: /\bdga\b|(?<!art )directors guild(?: of america)?|гільді[а-яіїєґ]* режисер[а-яіїєґ]*/i, name: 'DGA Award',
-    description: 'Премія Гільдії режисерів США — її вручають самі режисери.' },
-  { key: 'pga', match: /\bpga\b|producers guild(?: of america)?|гільді[а-яіїєґ]* продюсер[а-яіїєґ]*/i, name: 'PGA Award',
-    description: 'Премія Гільдії продюсерів США.' },
-  { key: 'mtv', match: /mtv movie(?: awards?)?|кінонагород[а-яіїєґ]* mtv/i, name: 'MTV Movie Award',
-    description: 'Глядацька кінопремія телеканалу MTV.' },
-  { key: 'satellite', match: /satellite award|премія «?сателіт»?/i, name: 'Satellite Award',
-    description: 'Премія Міжнародної академії преси.' },
 ],
 };
 
@@ -1236,35 +1195,6 @@ function matchAward(str) {
 // wins — not whichever alternative is listed first.
 function splitAwardLabel(text) {
   const s = (text || '').trim();
-  // When we RECOGNISE the ceremony, cut its own matched name out and take
-  // whatever is left as the category. This is far more reliable than
-  // hunting for a separator: "Європейський кіноприз найкращому актору" has
-  // none, so the separator rule kept the entire string as the name and the
-  // category was lost — which is how one ceremony ended up as four keys.
-  const info = matchAward(s);
-  if (info) {
-    // matchAward returns a display-safe copy WITHOUT the pattern, so the
-    // pattern is looked up here rather than assumed to be on it.
-    const entry = AWARD_INFO.find(a => a.key === info.key);
-    const hit = entry && s.match(entry.match);
-    if (hit) {
-      // Cutting the ceremony out of the middle leaves debris on both
-      // sides — "Премія «Оскар» за X" becomes "Премія « » за X" — so the
-      // remains are cleaned in order: quotes, then the generic
-      // award/премія noun, then the connective, then punctuation.
-      const rest = (s.slice(0, hit.index) + ' ' + s.slice(hit.index + hit[0].length))
-        .replace(/[«»"„“”]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        // \b is ASCII-only in JS, so it never fires after a Cyrillic word —
-        // the noun has to be anchored on whitespace instead.
-        .replace(/^(?:awards?|prizes?|премія|нагорода|приз|кінопремія|кінонагорода)(?=\s|$)\s*/i, '')
-        .replace(/^(?:for|за)\s+/i, '')
-        .replace(/^[\s:–—-]+|[\s:,–—-]+$/g, '')
-        .trim();
-      return { name: info.name, category: rest || null };
-    }
-  }
   const m = s.match(/^(.+?)(?:\s+(?:for|за)\s+|\s*[:–—]\s+)(.+)$/i);
   return m ? { name: m[1].trim(), category: m[2].trim() } : { name: s, category: null };
 }
