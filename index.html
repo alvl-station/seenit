@@ -1025,7 +1025,7 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing "Інше" bucket.
-  GENRE_ORDER: ['Трилери','Драми','Комедії','Жахи','Фантастика','Детективи','Бойовики','Пригоди','Мультфільми','Документальні','Інше'],
+  GENRE_ORDER: ['Трилери','Драми','Комедії','Жахи','Фантастика','Детективи','Бойовики','Пригоди','Аніме','Мультфільми','Документальні','Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -2121,19 +2121,31 @@ function trendingListChanged(oldMovies, newMovies) {
  * TMDb discover (highest vote average with a minimum vote count, so a
  * ten-vote 10.0 never outranks a classic). Genre ids are TMDb's own.
  */
+// `group` is the decisive field: TMDb's with_genres matches ANY tag a film
+// carries, which is why anime flooded the sci-fi list and action films sat
+// in the drama one. Each list keeps only films whose PRIMARY genre (see
+// primaryGenre) equals its group, so a film appears in exactly one
+// collection — the one it actually belongs to.
 const TOPLIST_DEFS = [
-  { key: 'all',       title: 'Топ-100 фільмів',        genres: [],        minVotes: 1000 },
-  { key: 'thriller',  title: 'Топ-100 трилерів',       genres: [53],      minVotes: 500 },
-  { key: 'drama',     title: 'Топ-100 драм',           genres: [18],      minVotes: 500 },
-  { key: 'comedy',    title: 'Топ-100 комедій',        genres: [35],      minVotes: 500 },
-  { key: 'horror',    title: 'Топ-100 жахів',          genres: [27],      minVotes: 300 },
-  { key: 'scifi',     title: 'Топ-100 фантастики',     genres: [878, 14], minVotes: 500 },
-  { key: 'detective', title: 'Топ-100 детективів',     genres: [9648],    minVotes: 300 },
-  { key: 'action',    title: 'Топ-100 бойовиків',      genres: [28],      minVotes: 500 },
-  { key: 'adventure', title: 'Топ-100 пригод',         genres: [12],      minVotes: 500 },
-  { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      minVotes: 300 },
-  { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      minVotes: 100 },
+  { key: 'all',       title: 'Топ-100 фільмів',        genres: [],        group: null,             minVotes: 1000 },
+  { key: 'thriller',  title: 'Топ-100 трилерів',       genres: [53, 80],  group: 'Трилери',        minVotes: 400 },
+  { key: 'drama',     title: 'Топ-100 драм',           genres: [18, 36, 10749, 10752], group: 'Драми', minVotes: 400 },
+  { key: 'comedy',    title: 'Топ-100 комедій',        genres: [35],      group: 'Комедії',        minVotes: 400 },
+  { key: 'horror',    title: 'Топ-100 жахів',          genres: [27],      group: 'Жахи',           minVotes: 250 },
+  { key: 'scifi',     title: 'Топ-100 фантастики',     genres: [878, 14], group: 'Фантастика',     minVotes: 400 },
+  { key: 'detective', title: 'Топ-100 детективів',     genres: [9648],    group: 'Детективи',      minVotes: 200 },
+  { key: 'action',    title: 'Топ-100 бойовиків',      genres: [28],      group: 'Бойовики',       minVotes: 400 },
+  { key: 'adventure', title: 'Топ-100 пригод',         genres: [12],      group: 'Пригоди',        minVotes: 400 },
+  { key: 'anime',     title: 'Топ-100 аніме',          genres: [16],      group: 'Аніме',          minVotes: 150, language: 'ja' },
+  { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      group: 'Мультфільми',    minVotes: 250 },
+  { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      group: 'Документальні',  minVotes: 80 },
 ];
+
+/** Does this discover result belong in that list? */
+function belongsInToplist(item, def) {
+  if (!def || !def.group) return true;   // the overall list takes everyone
+  return primaryGenre(item && item.genre_ids, item).group === def.group;
+}
 
 /** One TMDb discover page -> display-ready entries (uk title + original). */
 function parseDiscoverMovies(data) {
@@ -2145,6 +2157,10 @@ function parseDiscoverMovies(data) {
       year: Number((r.release_date || '').slice(0, 4)) || null,
       tmdb_id: r.id || null,
       poster_path: r.poster_path || null,
+      // Carried so the list can be filtered by PRIMARY genre; stripped
+      // before storing, since the stored list only feeds a poster grid.
+      genre_ids: r.genre_ids || [],
+      original_language: r.original_language || null,
     }));
 }
 
@@ -2239,11 +2255,50 @@ function compareMovies(a, b, { sortMode, watchedIds }) {
 
 /* ---------- TMDb genre mapping ---------- */
 
-function mapGenre(genreIds) {
+/* TMDb's genre_ids order is CURATED, not sorted — measured, not assumed:
+ *   The Dark Knight  28 Action, 80 Crime, 53 Thriller
+ *   Hot Fuzz         80 Crime, 28 Action, 35 Comedy
+ *   Pulp Fiction     53 Thriller, 80 Crime, 35 Comedy
+ *   Dune             878 SciFi, 12 Adventure
+ * None of those are ascending by id, and each leads with what the film
+ * actually is. So "first recognised id" is a sound basis for the primary
+ * genre — a true action film with comic moments leads with Action, a
+ * comedy with gunfights leads with Comedy, exactly the distinction we
+ * want. What the rule was missing is anime.
+ */
+
+/**
+ * ANIME is not a TMDb genre; TMDb files it as Animation, so it scattered
+ * into Sci-Fi, Fantasy and Adventure collections and drowned them. The
+ * reliable split is animation + Japanese origin — measured on the same
+ * probe: Spirited Away is 16 Animation with original_language "ja", while
+ * Spider-Verse is 16 Animation with "en". Same genre tag, different thing.
+ */
+const ANIMATION_GENRE_IDS = [16, 10762];
+function isAnime(genreIds, meta) {
+  const ids = genreIds || [];
+  if (!ids.some(id => ANIMATION_GENRE_IDS.includes(Number(id)))) return false;
+  const lang = (meta && meta.original_language) || '';
+  const countries = (meta && meta.origin_country) || [];
+  return lang === 'ja' || countries.includes('JP');
+}
+
+/**
+ * The ONE genre a film belongs to, used both when adding a film and when
+ * building the auto-generated collections — so a film lands in the same
+ * place either way.
+ */
+function primaryGenre(genreIds, meta) {
+  if (isAnime(genreIds, meta)) return { genre: 'аніме', group: 'Аніме' };
   for (const id of (genreIds || [])) {
     if (TMDB_GENRE_MAP[id]) return TMDB_GENRE_MAP[id];
   }
   return { genre: 'драма', group: 'Драми' };
+}
+
+// Kept as the historical name used across app.js and the migrations.
+function mapGenre(genreIds, meta) {
+  return primaryGenre(genreIds, meta);
 }
 
 /* ---------- slug for new movies ---------- */
@@ -2391,8 +2446,8 @@ if (typeof module !== 'undefined' && module.exports) {
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
     trendingIdentity, trendingCacheKey, parseTmdbTrending, parseItunesTopMovies,
     mergeTrendingSources, resolveTrendingEntry, trendingListChanged,
-    TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged,
-    TMDB_GENRE_MAP, mapGenre, slugify,
+    TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged, belongsInToplist,
+    TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
@@ -3528,7 +3583,10 @@ async function tmdbDetails(id, mediaType) {
   }
   const yearStr = (kind === 'tv' ? d.first_air_date : d.release_date) || '';
   const year = yearStr ? parseInt(yearStr.slice(0, 4), 10) : null;
-  const { genre, group } = mapGenre(d.genres ? d.genres.map(g => g.id) : []);
+  // The details response carries original_language and origin_country, and
+  // both are needed: anime is animation FROM JAPAN, and without them a
+  // Studio Ghibli film files itself as a cartoon (see primaryGenre).
+  const { genre, group } = mapGenre(d.genres ? d.genres.map(g => g.id) : [], d);
   // uk-UA response already localizes country names when TMDb has a
   // translation on file; dEn (fetched for a missing trailer/overview
   // anyway, see above) is just the fallback when the uk-UA response has
