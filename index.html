@@ -914,28 +914,34 @@ if (typeof module !== 'undefined' && module.exports) {
  */
 const GENRES_DATA = {
   TMDB_GENRE_MAP: {
+  // One group per TMDb genre, deliberately. The groups used to be a short
+  // curated list and everything unmapped fell into "Інше" — which is how a
+  // Pixar film ended up filed as "other". A film should land in the group
+  // named after its own genre; the chips row wraps, so more of them costs
+  // layout, not comprehension.
   28:  { genre: 'бойовик',            group: 'Бойовики' },
   10759:{ genre: 'бойовик',           group: 'Бойовики' },
   12:  { genre: 'пригоди',            group: 'Пригоди' },
   16:  { genre: 'анімація',           group: 'Мультфільми' },
+  10762:{ genre: 'анімація',          group: 'Мультфільми' },   // TMDb "Kids"
   35:  { genre: 'комедія',            group: 'Комедії' },
-  80:  { genre: 'кримінальний трилер',group: 'Трилери' },
+  80:  { genre: 'кримінальний',       group: 'Кримінал' },
   99:  { genre: 'документальний',     group: 'Документальні' },
   18:  { genre: 'драма',              group: 'Драми' },
-  10751:{ genre: 'сімейний',          group: 'Інше' },
-  10762:{ genre: 'анімація',          group: 'Мультфільми' },   // TMDb "Kids", the TV counterpart
-  14:  { genre: 'фентезі',            group: 'Фантастика' },
-  36:  { genre: 'історична драма',    group: 'Драми' },
+  10751:{ genre: 'сімейний',          group: 'Сімейні' },
+  14:  { genre: 'фентезі',            group: 'Фентезі' },
+  36:  { genre: 'історичний',         group: 'Історичні' },
   27:  { genre: 'жахи',               group: 'Жахи' },
-  10402:{ genre: 'музичний',          group: 'Інше' },
+  10402:{ genre: 'музичний',          group: 'Музичні' },
   9648:{ genre: 'детектив',           group: 'Детективи' },
-  10749:{ genre: 'мелодрама',         group: 'Драми' },
+  10749:{ genre: 'мелодрама',         group: 'Мелодрами' },
   878: { genre: 'фантастика',         group: 'Фантастика' },
   10765:{ genre: 'фантастика',        group: 'Фантастика' },
   53:  { genre: 'трилер',             group: 'Трилери' },
-  10752:{ genre: 'військова драма',   group: 'Драми' },
-  10768:{ genre: 'військова драма',   group: 'Драми' },
-  37:  { genre: 'вестерн',            group: 'Інше' },
+  10752:{ genre: 'військовий',        group: 'Військові' },
+  10768:{ genre: 'військовий',        group: 'Військові' },
+  37:  { genre: 'вестерн',            group: 'Вестерни' },
+  10770:{ genre: 'телефільм',         group: 'Інше' },
 },
 };
 
@@ -1025,7 +1031,7 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing "Інше" bucket.
-  GENRE_ORDER: ['Трилери','Драми','Комедії','Жахи','Фантастика','Детективи','Бойовики','Пригоди','Мультфільми','Документальні','Інше'],
+  GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Вестерни', 'Документальні', 'Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -1479,6 +1485,23 @@ function normalizeTitleForMatch(text) {
     .trim();
 }
 
+/**
+ * Is this OMDb answer a QUOTA refusal rather than a fact about the film?
+ *
+ * OMDb reports "Request limit reached!" with HTTP 200 and Response:False —
+ * the same shape as a genuine "Movie not found!". Conflating them is
+ * expensive in both directions: a quota day looks like a catalog of
+ * missing films, and worse, adding a film would report an error and lose
+ * the person's work over a rate limit that has nothing to do with them.
+ *
+ * A limited answer means "ask again tomorrow", never "this film has no
+ * critic score" — so it must not be recorded, stamped, or surfaced.
+ */
+function isOmdbQuotaExhausted(data) {
+  const err = data && typeof data === 'object' ? String(data.Error || '') : '';
+  return /limit reached|request limit/i.test(err);
+}
+
 /** The first four-digit year in an OMDb `Year` ("1943", "2019–2023"). */
 function parseOmdbYear(value) {
   const m = /(\d{4})/.exec(String(value == null ? '' : value));
@@ -1824,6 +1847,94 @@ function topUpAwardCounts(stored, fromOmdb) {
   return topped;
 }
 
+/* ---------- how awards are STORED ----------
+ * Flat arrays repeated the ceremony name in every single entry:
+ *
+ *   awards_won: [
+ *     "Премія «Оскар» за найкращий оригінальний сценарій",
+ *     "премія «Оскар» за найкращу чоловічу роль другого плану",
+ *   ]
+ *
+ * which meant the same ceremony name was stored, split apart at render
+ * time by a regex, and — worst of all — sent through the translator again
+ * on every re-enrichment, because the name and the category travelled as
+ * one inseparable string. It also produced the casing drift visible above.
+ *
+ * Grouped by ceremony, the name is stored ONCE as a stable key and each
+ * entry is only the category:
+ *
+ *   awards_won: {
+ *     oscar: ["за найкращий оригінальний сценарій", "за найкращу чоловічу роль другого плану"],
+ *     "National Board of Review": ["за найкращий акторський склад"],
+ *   }
+ *
+ * The key is AWARD_INFO's key for a ceremony we curate (so the English
+ * display name comes from there and never from stored text), or the
+ * ceremony's own name for one we do not. An entry is "" when the award is
+ * known to have happened but its category is not — that is the
+ * count-only shape OMDb gives, and the array length stays the true count.
+ */
+
+/**
+ * The stable key a ceremony is stored under.
+ *
+ * For a curated ceremony it is AWARD_INFO's key, so the English display
+ * name always comes from there and never from stored text. For one we do
+ * not curate, the ceremony's own name — normalised, because the same body
+ * arrives spelled differently in different awards: "National Board of
+ * Review Award for Best Cast" and "National Board of Review: Top Ten
+ * Films" are one ceremony and must not become two keys.
+ *
+ * Firebase keys also cannot contain . # $ / [ ].
+ */
+function awardCeremonyKey(text) {
+  const info = matchAward(text);
+  if (info) return info.key;
+  return shortAwardLabel(text)
+    .replace(/[.#$/\[\]]/g, ' ')
+    // Trailing "Award(s)"/"Prize"/"премія" is a suffix on the body's name,
+    // not part of it — and it is present in some entries and absent in
+    // others for the same body.
+    .replace(/\s+(awards?|prize|премі[яї])\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim() || 'other';
+}
+
+/** Flat array -> { ceremonyKey: [category, ...] } */
+function groupAwardsByCeremony(list) {
+  const out = {};
+  for (const raw of (list || [])) {
+    const text = (raw || '').trim();
+    if (!text) continue;
+    const key = awardCeremonyKey(text);
+    const { category } = splitAwardLabel(text);
+    (out[key] = out[key] || []).push(category || '');
+  }
+  return out;
+}
+
+/** { ceremonyKey: [category] } -> flat array, for code that still wants it. */
+function flattenCeremonyAwards(grouped) {
+  const out = [];
+  for (const [key, cats] of Object.entries(grouped || {})) {
+    const info = AWARD_INFO.find(a => a.key === key);
+    const name = info ? info.name : key;
+    for (const cat of (cats || [])) out.push(cat ? `${name} за ${cat}` : name);
+  }
+  return out;
+}
+
+/**
+ * Reads either shape. Everything downstream — badges, popovers, counts —
+ * goes through this, so a record written before the change and one written
+ * after render identically and no migration has to run before a deploy.
+ */
+function readAwards(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return flattenCeremonyAwards(value);
+  return [];
+}
+
 /* ---------- language rules for award text ----------
  * Two invariants, enforced as RULES rather than curated lookups so they
  * keep holding for ceremonies and categories we haven't seen yet:
@@ -2121,19 +2232,42 @@ function trendingListChanged(oldMovies, newMovies) {
  * TMDb discover (highest vote average with a minimum vote count, so a
  * ten-vote 10.0 never outranks a classic). Genre ids are TMDb's own.
  */
+// `group` is the decisive field: TMDb's with_genres matches ANY tag a film
+// carries, which is why anime flooded the sci-fi list and action films sat
+// in the drama one. Each list keeps only films whose PRIMARY genre (see
+// primaryGenre) equals its group, so a film appears in exactly one
+// collection — the one it actually belongs to.
 const TOPLIST_DEFS = [
-  { key: 'all',       title: 'Топ-100 фільмів',        genres: [],        minVotes: 1000 },
-  { key: 'thriller',  title: 'Топ-100 трилерів',       genres: [53],      minVotes: 500 },
-  { key: 'drama',     title: 'Топ-100 драм',           genres: [18],      minVotes: 500 },
-  { key: 'comedy',    title: 'Топ-100 комедій',        genres: [35],      minVotes: 500 },
-  { key: 'horror',    title: 'Топ-100 жахів',          genres: [27],      minVotes: 300 },
-  { key: 'scifi',     title: 'Топ-100 фантастики',     genres: [878, 14], minVotes: 500 },
-  { key: 'detective', title: 'Топ-100 детективів',     genres: [9648],    minVotes: 300 },
-  { key: 'action',    title: 'Топ-100 бойовиків',      genres: [28],      minVotes: 500 },
-  { key: 'adventure', title: 'Топ-100 пригод',         genres: [12],      minVotes: 500 },
-  { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      minVotes: 300 },
-  { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      minVotes: 100 },
+  { key: 'all',       title: 'Топ-100 фільмів',        genres: [],        group: null,             minVotes: 1000 },
+  { key: 'thriller',  title: 'Топ-100 трилерів',       genres: [53, 80],  group: 'Трилери',        minVotes: 400 },
+  { key: 'drama',     title: 'Топ-100 драм',           genres: [18, 36, 10749, 10752], group: 'Драми', minVotes: 400 },
+  { key: 'comedy',    title: 'Топ-100 комедій',        genres: [35],      group: 'Комедії',        minVotes: 400 },
+  { key: 'horror',    title: 'Топ-100 жахів',          genres: [27],      group: 'Жахи',           minVotes: 250 },
+  { key: 'scifi',     title: 'Топ-100 фантастики',     genres: [878, 14], group: 'Фантастика',     minVotes: 400 },
+  { key: 'detective', title: 'Топ-100 детективів',     genres: [9648],    group: 'Детективи',      minVotes: 200 },
+  { key: 'action',    title: 'Топ-100 бойовиків',      genres: [28],      group: 'Бойовики',       minVotes: 400 },
+  { key: 'adventure', title: 'Топ-100 пригод',         genres: [12],      group: 'Пригоди',        minVotes: 400 },
+  { key: 'anime',     title: 'Топ-100 аніме',          genres: [16],      group: 'Аніме',          minVotes: 150, language: 'ja' },
+  // Membership is guaranteed by the API filter (with_keywords), so there
+  // is no group to re-check client-side — discover results carry no
+  // keywords. Every other list excludes the same keyword, so a parody
+  // lands here and nowhere else.
+  { key: 'parody',    title: 'Топ-100 пародій',        genres: [],        group: null,             minVotes: 150, withKeywords: 9755 },   // 9755 = PARODY_KEYWORD_ID, declared below
+  { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      group: 'Мультфільми',    minVotes: 250 },
+  { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      group: 'Документальні',  minVotes: 80 },
 ];
+
+/** Lists that should not contain parodies — everything except the parody
+ *  list itself, which is defined by them. */
+function toplistExcludesParody(def) {
+  return !!def && !def.withKeywords;
+}
+
+/** Does this discover result belong in that list? */
+function belongsInToplist(item, def) {
+  if (!def || !def.group) return true;   // the overall list takes everyone
+  return primaryGenre(item && item.genre_ids, item).group === def.group;
+}
 
 /** One TMDb discover page -> display-ready entries (uk title + original). */
 function parseDiscoverMovies(data) {
@@ -2145,6 +2279,10 @@ function parseDiscoverMovies(data) {
       year: Number((r.release_date || '').slice(0, 4)) || null,
       tmdb_id: r.id || null,
       poster_path: r.poster_path || null,
+      // Carried so the list can be filtered by PRIMARY genre; stripped
+      // before storing, since the stored list only feeds a poster grid.
+      genre_ids: r.genre_ids || [],
+      original_language: r.original_language || null,
     }));
 }
 
@@ -2239,11 +2377,82 @@ function compareMovies(a, b, { sortMode, watchedIds }) {
 
 /* ---------- TMDb genre mapping ---------- */
 
-function mapGenre(genreIds) {
+/* TMDb's genre_ids order is CURATED, not sorted — measured, not assumed:
+ *   The Dark Knight  28 Action, 80 Crime, 53 Thriller
+ *   Hot Fuzz         80 Crime, 28 Action, 35 Comedy
+ *   Pulp Fiction     53 Thriller, 80 Crime, 35 Comedy
+ *   Dune             878 SciFi, 12 Adventure
+ * None of those are ascending by id, and each leads with what the film
+ * actually is. So "first recognised id" is a sound basis for the primary
+ * genre — a true action film with comic moments leads with Action, a
+ * comedy with gunfights leads with Comedy, exactly the distinction we
+ * want. What the rule was missing is anime.
+ */
+
+/**
+ * ANIME is not a TMDb genre; TMDb files it as Animation, so it scattered
+ * into Sci-Fi, Fantasy and Adventure collections and drowned them. The
+ * reliable split is animation + Japanese origin — measured on the same
+ * probe: Spirited Away is 16 Animation with original_language "ja", while
+ * Spider-Verse is 16 Animation with "en". Same genre tag, different thing.
+ */
+const ANIMATION_GENRE_IDS = [16, 10762];
+
+/* PARODY is the second thing TMDb's genre list cannot express. Hot Shots!
+ * — a Top Gun spoof whose own keywords say `parody` — is filed
+ * 28 Action > 35 Comedy > 10752 War, so the order rule calls it an action
+ * film. The order there describes what the film is ABOUT (military
+ * aviation), not what it IS. Same for Hot Fuzz and Shaun of the Dead.
+ *
+ * The keyword is the honest signal: TMDb's `parody` (9755) appears on all
+ * three and on none of the straight action films in the sample. `satire`
+ * (8201) is deliberately NOT included — a satirical drama is still a
+ * drama, and widening the rule to it would swallow films that are not
+ * parodies at all.
+ */
+const PARODY_KEYWORD_ID = 9755;
+
+/** Keywords arrive as [{id,name}] from TMDb, or as bare ids/names elsewhere. */
+function hasKeyword(meta, id, name) {
+  const list = (meta && meta.keywords) || [];
+  const items = Array.isArray(list) ? list : (list.keywords || []);
+  return items.some(k => {
+    if (k && typeof k === 'object') return k.id === id || String(k.name).toLowerCase() === name;
+    return k === id || String(k).toLowerCase() === name;
+  });
+}
+function isParody(meta) {
+  return hasKeyword(meta, PARODY_KEYWORD_ID, 'parody');
+}
+function isAnime(genreIds, meta) {
+  const ids = genreIds || [];
+  if (!ids.some(id => ANIMATION_GENRE_IDS.includes(Number(id)))) return false;
+  const lang = (meta && meta.original_language) || '';
+  const countries = (meta && meta.origin_country) || [];
+  return lang === 'ja' || countries.includes('JP');
+}
+
+/**
+ * The ONE genre a film belongs to, used both when adding a film and when
+ * building the auto-generated collections — so a film lands in the same
+ * place either way.
+ */
+function primaryGenre(genreIds, meta) {
+  // Two overrides before the order rule, both for things TMDb's genre list
+  // cannot say. Anime goes first deliberately: it describes the MEDIUM and
+  // the origin, which stays true even of a parody — a Japanese animated
+  // spoof is still shelved with anime.
+  if (isAnime(genreIds, meta)) return { genre: 'аніме', group: 'Аніме' };
+  if (isParody(meta)) return { genre: 'пародія', group: 'Пародії' };
   for (const id of (genreIds || [])) {
     if (TMDB_GENRE_MAP[id]) return TMDB_GENRE_MAP[id];
   }
   return { genre: 'драма', group: 'Драми' };
+}
+
+// Kept as the historical name used across app.js and the migrations.
+function mapGenre(genreIds, meta) {
+  return primaryGenre(genreIds, meta);
 }
 
 /* ---------- slug for new movies ---------- */
@@ -2391,11 +2600,13 @@ if (typeof module !== 'undefined' && module.exports) {
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
     trendingIdentity, trendingCacheKey, parseTmdbTrending, parseItunesTopMovies,
     mergeTrendingSources, resolveTrendingEntry, trendingListChanged,
-    TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged,
-    TMDB_GENRE_MAP, mapGenre, slugify,
+    TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged, belongsInToplist,
+    toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
+    TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     hasCJKScript, pickLatinPersonName,
-    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
+    AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
+    awardCeremonyKey, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently, ENRICHMENT_RESULTS, ENRICHMENT_MAX_AGE_YEARS,
     enrichmentTooOldToRecheck, enrichmentRunAlarm, enrichmentProcessedCount, enrichmentFailureRate,
@@ -2868,7 +3079,7 @@ function awardGroupToast(anchorEl, registryName, idx) {
 function posterAwardToast(anchorEl, idx) {
   const m = _posterAwardMovies[idx];
   if (!m) return;
-  const text = majorAwardGroups(m.awards_won)
+  const text = majorAwardGroups(readAwards(m.awards_won))
     .map(awardGroupPopoverText).filter(Boolean).join('\n\n');
   if (text) showInfoPopover(anchorEl, text);
 }
@@ -2882,8 +3093,8 @@ function awardBadgeAttrs(group, registryName, idx) {
 // labeled groups of mini pill-badges (icon + name + count marker), each
 // tappable for a toast enumerating the actual award(s) it covers.
 function awardsSectionHtml(m) {
-  const wonGroups = majorAwardGroups(m.awards_won);
-  const nomGroups = majorAwardGroups(m.awards_nominated);
+  const wonGroups = majorAwardGroups(readAwards(m.awards_won));
+  const nomGroups = majorAwardGroups(readAwards(m.awards_nominated));
   if (!wonGroups.length && !nomGroups.length) return '';
   const pill = (g, kind) => {
     const icon = AWARD_ICONS[g.key] || (kind === 'won' ? ICON.trophy : ICON.star);
@@ -2926,7 +3137,7 @@ function posterHtml(m, cls) {
 // view — where an absolutely-positioned corner badge collided with the
 // row layout (owner-reported). CSS shows exactly one of the two.
 function posterAwardBadge(m) {
-  const wonCount = (m.awards_won || []).length;
+  const wonCount = readAwards(m.awards_won).length;
   if (!wonCount) return () => '';
   const idx = _posterAwardMovies.push(m) - 1;
   return (variant) =>
@@ -3378,6 +3589,9 @@ function pickTrailer(videos) {
 async function fetchOmdbData(titleEn, titleUk, year, kind) {
   const title = titleEn || titleUk;
   if (!title) return null;
+  // Set by ask() when OMDb says the daily allowance is gone. Retrying a
+  // year-less lookup then just walks into the same wall.
+  let quotaHit = false;
   const ask = async (withYear) => {
     const url = new URL(API_PROXY + '/omdb/');
     url.searchParams.set('t', title);
@@ -3388,7 +3602,13 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
     // A body with no `Response` field is not an OMDb answer — it is a proxy
     // error (401, 429, upstream failure). Treating it as data would show the
     // film as simply having no critic score, which is a different claim.
-    if (!isOmdbAnswer(data) || data.Response === 'False') return null;
+    if (!isOmdbAnswer(data)) return null;
+    // A quota refusal is NOT a fact about this film. Adding a movie must
+    // never fail — or even mention it — because OMDb's daily allowance ran
+    // out: the critic score simply stays empty and the catalog job picks it
+    // up on a later day (see the nightly enrichment run).
+    if (isOmdbQuotaExhausted(data)) { quotaHit = true; return null; }
+    if (data.Response === 'False') return null;
     // OMDb's `t=` is a fuzzy search: asked for "I Care a Lot" it has
     // answered with a podcast episode whose name contains those words. A
     // result that is not actually this title must be discarded, not written
@@ -3398,7 +3618,7 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
   try {
     const exact = await ask(true);
     if (exact) return exact;
-    if (!year) return null;
+    if (quotaHit || !year) return null;
     const loose = await ask(false);
     return loose && omdbYearAcceptable(loose.Year, year) ? loose : null;
   } catch (err) {
@@ -3528,7 +3748,10 @@ async function tmdbDetails(id, mediaType) {
   }
   const yearStr = (kind === 'tv' ? d.first_air_date : d.release_date) || '';
   const year = yearStr ? parseInt(yearStr.slice(0, 4), 10) : null;
-  const { genre, group } = mapGenre(d.genres ? d.genres.map(g => g.id) : []);
+  // The details response carries original_language and origin_country, and
+  // both are needed: anime is animation FROM JAPAN, and without them a
+  // Studio Ghibli film files itself as a cartoon (see primaryGenre).
+  const { genre, group } = mapGenre(d.genres ? d.genres.map(g => g.id) : [], d);
   // uk-UA response already localizes country names when TMDb has a
   // translation on file; dEn (fetched for a missing trailer/overview
   // anyway, see above) is just the fallback when the uk-UA response has
@@ -3573,8 +3796,10 @@ async function tmdbDetails(id, mediaType) {
     poster_url: d.poster_path ? (TMDB_IMG + d.poster_path) : undefined,
     trailer_url: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : undefined,
     cast,
-    awards_won: awardsWon.length ? awardsWon : undefined,
-    awards_nominated: awardsNominated.length ? awardsNominated : undefined,
+    // Grouped on the way in as well, so a film reaches the confirm form in
+    // the same shape it will be stored — one format from fetch to save.
+    awards_won: awardsWon.length ? groupAwardsByCeremony(awardsWon) : undefined,
+    awards_nominated: awardsNominated.length ? groupAwardsByCeremony(awardsNominated) : undefined,
   };
 }
 
@@ -3901,12 +4126,12 @@ function renderConfirmCard(movie) {
         <textarea id="cfDesc" rows="4">${movie.description_uk}</textarea>
         <label class="cf-label">Акторський склад</label>
         <div class="cf-readonly">${(movie.cast || []).length ? esc((movie.cast || []).join(', ')) : '<span class="cf-empty">не знайдено</span>'}</div>
-        ${(movie.awards_won || []).length ? `
+        ${readAwards(movie.awards_won).length ? `
         <label class="cf-label">Нагороди — перемоги</label>
-        <div class="cf-readonly">${esc((movie.awards_won || []).join(', '))}</div>` : ''}
-        ${(movie.awards_nominated || []).length ? `
+        <div class="cf-readonly">${esc(readAwards(movie.awards_won).join(', '))}</div>` : ''}
+        ${readAwards(movie.awards_nominated).length ? `
         <label class="cf-label">Нагороди — номінації</label>
-        <div class="cf-readonly">${esc((movie.awards_nominated || []).join(', '))}</div>` : ''}
+        <div class="cf-readonly">${esc(readAwards(movie.awards_nominated).join(', '))}</div>` : ''}
         <label class="cf-label">Рекомендовано від</label>
         ${recBySelectHtml()}
         ${exists ? `<div class="warn-note">Такий фільм уже є у списку: «${esc(dup.canonical_title_uk)}»${dup.year ? ` (${dup.year})` : ''}. Онови його свіжими даними або збережи як окремий запис.</div>` : ''}
@@ -3941,8 +4166,8 @@ function renderConfirmCard(movie) {
     const castInput = movie.cast || [];
     const cast = castInput.filter(s => !hasCJKScript(s));
     const castDropped = castInput.length - cast.length;
-    const awardsWon = movie.awards_won || [];
-    const awardsNom = movie.awards_nominated || [];
+    const awardsWon = readAwards(movie.awards_won);
+    const awardsNom = readAwards(movie.awards_nominated);
     const criticScore = movie.critic_score;
     const finalMovie = {
       ...movie,
@@ -3955,8 +4180,11 @@ function renderConfirmCard(movie) {
       critic_score: criticScore,
       description_uk: resultsEl.querySelector('#cfDesc').value.trim(),
       cast: cast.length ? cast : undefined,
-      awards_won: awardsWon.length ? awardsWon : undefined,
-      awards_nominated: awardsNom.length ? awardsNom : undefined,
+      // Stored grouped by ceremony: the name lives once, as a key, and
+      // each entry is only the category — so re-enrichment never re-
+      // translates a ceremony name it already knows (see logic.js).
+      awards_won: awardsWon.length ? groupAwardsByCeremony(awardsWon) : undefined,
+      awards_nominated: awardsNom.length ? groupAwardsByCeremony(awardsNom) : undefined,
       recommended_by: recBy || undefined,
     };
     delete finalMovie._overviewTranslated;
