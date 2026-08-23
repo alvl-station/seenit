@@ -241,8 +241,13 @@
     background: linear-gradient(135deg, hsl(var(--hue) 45% 22%), hsl(calc(var(--hue) + 40) 40% 14%)); }
   .poster-initial { font-size: 42px; font-weight: 700; color: rgba(255,255,255,.35); }
 
+  /* A vertical stack, not a row (owner-reported): on a three-column phone
+     grid the poster is ~110px wide, and eye+heart side by side ran into
+     the trophy at the opposite corner, clipping both. Stacked in the
+     top-right column they coexist with the trophy at any card width. */
   .card-toggles {
-    position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; z-index: 2;
+    position: absolute; top: 8px; right: 8px; display: flex;
+    flex-direction: column; gap: 6px; z-index: 2; align-items: flex-end;
   }
   /* Quick-glance award-win count on the poster itself (posterAwardBadgeHtml()
      in app.js) — visible while scrolling/searching the grid, without
@@ -360,7 +365,7 @@
   body[data-view="list"] .card-title-row { flex: 1 1 180px; min-width: 180px; order: 1; margin-top: 0; }
   body[data-view="list"] .badges { margin-top: 0; order: 3; }
   body[data-view="list"] .critic-corner { margin-top: 0; align-self: auto; padding-top: 0; order: 4; }
-  body[data-view="list"] .card-toggles { position: static; margin-right: 12px; order: 5; margin-left: auto; }
+  body[data-view="list"] .card-toggles { position: static; flex-direction: row; margin-right: 12px; order: 5; margin-left: auto; }
 
   /* MODAL */
   .modal-overlay {
