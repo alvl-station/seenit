@@ -553,6 +553,13 @@
   .trend-title { font-size: 11.5px; line-height: 1.25; margin-top: 5px; color: var(--text); }
   .trend-year { font-size: 10.5px; color: var(--text-muted); }
 
+  .pool-card { display: flex; gap: 12px; }
+  .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
+  .pool-body { min-width: 0; }
+  .pool-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; }
+  .pool-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 6px; }
+
   /* ---------- toast (save success/error banner) ---------- */
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
@@ -1063,6 +1070,26 @@ function localMarksKey(uid, list) {
   return uid ? `seenit_${uid}_${list}` : null;
 }
 
+/**
+ * The database path for one person's MOVIE CATALOG.
+ *
+ * The catalog itself is per-account now, not only the marks. It was shared
+ * first, by design — but a person who registers and sees 111 of somebody
+ * else's films has been given the wrong product: "мій список фільмів" is
+ * the entire premise of the app. The same blank-uid guard as the marks
+ * path, for the same reason: a collapsed path is a shared node.
+ */
+function userCatalogPath(uid) {
+  if (typeof uid !== 'string' || !uid.trim()) return null;
+  if (/[.$#[\]/]/.test(uid)) return null;
+  return `kino/users/${uid}/movies`;
+}
+
+/** Per-account offline cache of the catalog, mirroring localMarksKey. */
+function localCatalogKey(uid) {
+  return uid ? `seenit_${uid}_movies` : null;
+}
+
 /* ---------- rating / display helpers ---------- */
 function ratingNum(m) {
   const r = (m && m.rating) || '';
@@ -1293,12 +1320,12 @@ function extractCriticScore(omdbData) {
  * writing to a path we cannot name.
  */
 function deletionPaths(id, uid) {
-  const paths = [`kino/movies/${id}`];
-  // Only the signed-in person's own marks: the rules forbid writing into
-  // anyone else's subtree, and rightly so. Other accounts that marked this
-  // film are left with a mark pointing at nothing — which is exactly what
-  // the deploy-time sweep (scripts/sweep-orphan-marks.js) exists to clear,
-  // now that it walks every account and not just the legacy global lists.
+  // Catalog and marks both hang off the caller's uid now; with no usable
+  // uid there is NOTHING to delete — returning the legacy shared path here
+  // would let a signed-out state delete from a node other people read.
+  const catalog = userCatalogPath(uid);
+  if (!catalog) return [];
+  const paths = [`${catalog}/${id}`];
   for (const list of MARK_LISTS) {
     const path = userMarksPath(uid, list);
     if (path) paths.push(`${path}/${id}`);
@@ -1548,7 +1575,12 @@ function backupRejectionReason(data) {
   // points at credentials, the database URL or the ref path. Data that
   // exists but has no movies points at the data itself.
   if (!counts || Object.keys(counts).length === 0) return 'Read kino/ but got nothing back.';
-  if (!counts.movies) return 'Backup contains no kino/movies.';
+  // Movies live per-account now (kino/users/{uid}/movies); the legacy
+  // shared node may or may not still exist. A backup is acceptable if
+  // EITHER holds films — and worthless if neither does.
+  const perUserMovies = Object.values((data && data.users) || {})
+    .some(u => u && u.movies && Object.keys(u.movies).length);
+  if (!counts.movies && !perUserMovies) return 'Backup contains no movies (neither kino/movies nor any kino/users/*/movies).';
   return null;
 }
 
@@ -2044,7 +2076,7 @@ function resolveTrendingEntry(entry, catalog, cache) {
 function trendingListChanged(oldMovies, newMovies) {
   const strip = list => (list || []).map(m => ({
     identity: m.identity, title_en: m.title_en, title_uk: m.title_uk, year: m.year,
-    poster_url: m.poster_url, in_catalog: m.in_catalog || null, rank: m.rank,
+    poster_url: m.poster_url, rank: m.rank,
     sources: [...(m.sources || [])].sort(),
   }));
   return JSON.stringify(strip(oldMovies)) !== JSON.stringify(strip(newMovies));
@@ -2260,7 +2292,7 @@ function parseBatchLine(line) {
 // a plain <script>, where `module` is undefined, so this is a no-op there.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    MARK_LISTS, userMarksPath, localMarksKey,
+    MARK_LISTS, userMarksPath, localMarksKey, userCatalogPath, localCatalogKey,
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
@@ -2369,7 +2401,7 @@ auth.onAuthStateChanged(user => {
       likedRef = likedPath ? db.ref(likedPath) : null;
       attachSync(watchedRef, 'watched', localMarksKey(user.uid, 'watched'));
       attachSync(likedRef, 'liked', localMarksKey(user.uid, 'liked'));
-      attachMovies();
+      attachMovies(user.uid);
       // First visit on this account: the flag lives in the account's own
       // subtree (not localStorage), so a new phone does not replay the
       // guide for an account that has already seen it.
@@ -2856,9 +2888,14 @@ function render() {
   document.getElementById('nWatched').textContent = nWatched ? `(${nWatched})` : '';
 
   if (!items.length) {
-    main.innerHTML = moviesLoaded
-      ? '<div class="empty-msg">Нічого не знайдено</div>'
-      : '<div class="empty-msg">Завантажую каталог…</div>';
+    // Three different truths, three different sentences: still loading, an
+    // account whose catalog is genuinely empty (every new registration),
+    // and filters that matched nothing in a non-empty catalog.
+    main.innerHTML = !moviesLoaded
+      ? '<div class="empty-msg">Завантажую каталог…</div>'
+      : MOVIES.length === 0
+        ? '<div class="empty-msg">Твій каталог поки порожній.<br>Додай перший фільм кнопкою <b>NEW</b> — або відкрий «Акаунт → Гайд і Топ-20»: там щоденний топ-20 і випадкова рекомендація з добірки.</div>'
+        : '<div class="empty-msg">Нічого не знайдено</div>';
     return;
   }
 
@@ -3175,20 +3212,39 @@ async function proxyHeaders(extra = {}) {
 }
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 
-const moviesRef = db.ref('kino/movies');
+// Per-account, like the marks: built after sign-in, because the path
+// depends on the uid. The catalog was shared first, by design — but a
+// person who registers and sees somebody else's 111 films has been handed
+// the wrong product, so each account now owns its list outright.
+let moviesRef = null;
 let moviesLoaded = false;
-// The catalog embedded in movies-data.js (baked in at build time) is used
-// as an instant first paint / offline fallback. Once Firebase responds,
-// its data becomes authoritative and fully replaces MOVIES' contents —
-// but only if it actually has something, so a not-yet-migrated or
-// temporarily unreachable database never wipes out the fallback catalog.
-function attachMovies() {
+// movies-data.js still ships a baked catalog, but it is NEVER shown any
+// more: it is the OWNER's old list, and painting it before the database
+// answers would flash another person's films at every new account. The
+// instant-paint role moved to a per-account localStorage cache instead.
+function attachMovies(uid) {
+  MOVIES.length = 0;
+  const cacheKey = localCatalogKey(uid);
+  const cached = cacheKey ? localStore.get(cacheKey) : [];
+  if (Array.isArray(cached) && cached.length) {
+    cached.forEach(m => { if (m && m.id) MOVIES.push(m); });
+    // The cache IS a loaded catalog as far as messaging goes. Without this,
+    // a search typed during the paint-from-cache window answered
+    // "Завантажую каталог…" to a person looking at a fully painted grid —
+    // e2e caught it on the first run after the per-account change.
+    moviesLoaded = true;
+    render();
+  }
+  const path = userCatalogPath(uid);
+  if (!path) { moviesLoaded = true; render(); return; }
+  moviesRef = db.ref(path);
   moviesRef.on('value', snap => {
     const val = snap.val();
-    if (val && Object.keys(val).length) {
-      MOVIES.length = 0;
-      Object.values(val).forEach(m => { if (m && m.id) MOVIES.push(m); });
-    }
+    // Authoritative INCLUDING emptiness: a new account's catalog is null,
+    // and that must render as "порожньо", never as a stale fallback.
+    MOVIES.length = 0;
+    if (val) Object.values(val).forEach(m => { if (m && m.id) MOVIES.push(m); });
+    if (cacheKey) localStore.set(cacheKey, MOVIES);
     moviesLoaded = true;
     renderChips();
     updateSubtitle();
@@ -3827,6 +3883,7 @@ function renderConfirmCard(movie) {
         ? { ...finalMovie, id: uniqueMovieId(finalMovie.id, MOVIES) }
         : finalMovie;
 
+    if (!moviesRef) { toast('error', 'Немає з\u02bcєднання з базою — увійди ще раз.'); return; }
     const saveBtn = resultsEl.querySelector(mode === 'copy' ? '#cfSaveCopy' : '#cfSave');
     const savedLabel = saveBtn.textContent;
     saveBtn.disabled = true;
@@ -3938,6 +3995,7 @@ function renderBatchRows(rows, recommendedBy) {
         delete movie._titleTranslated;
         if (recommendedBy) movie.recommended_by = recommendedBy;
         Object.keys(movie).forEach(k => movie[k] === undefined && delete movie[k]);
+        if (!moviesRef) throw new Error('not signed in');
         await moviesRef.child(movie.id).set(movie);
         saved++;
       } catch (err) { otherSkipped++; }
@@ -4095,9 +4153,12 @@ function openOnboarding() {
     <div class="acc-label">Топ-20 зараз</div>
     <div class="trend-updated" id="trendUpdated"></div>
     <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>
+    <div class="acc-label">Або випадкова рекомендація з добірки</div>
+    <div id="poolPick"><div class="add-hint">Завантажую…</div></div>
     <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
   onboardBox.querySelector('#onbDoneBtn').addEventListener('click', () => closeOnboarding());
   renderTrending();
+  rollPoolPick();
   onboardOverlay.classList.add('open');
   lockScroll();
 }
@@ -4130,7 +4191,7 @@ function renderTrending() {
       <div class="trend-item" data-idx="${i}">
         ${m.poster_url ? `<img src="${esc(m.poster_url)}" alt="" loading="lazy">` : '<div class="trend-noposter">🎬</div>'}
         <div class="trend-rank">${m.rank}</div>
-        ${m.in_catalog ? '<div class="trend-have">Є</div>' : ''}
+        ${findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year) ? '<div class="trend-have">Є</div>' : ''}
         <div class="trend-title">${esc(m.title_uk || m.title_en || '')}</div>
         <div class="trend-year">${m.year ? esc(String(m.year)) : ''}</div>
       </div>`).join('');
@@ -4139,11 +4200,11 @@ function renderTrending() {
         const m = movies[Number(el.dataset.idx)];
         if (!m) return;
         closeOnboarding();
-        if (m.in_catalog) {
-          // Already ours: its full card, not a second add flow.
-          const own = MOVIES.find(x => x.id === m.in_catalog);
-          if (own) { openModal(own); return; }
-        }
+        // Membership is decided against MY catalog at click time. The
+        // stored list cannot know it: catalogs are per-account, and one
+        // shared in_catalog flag would answer for the wrong person.
+        const own = findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year);
+        if (own) { openModal(own); return; }
         // Route through the NORMAL add flow rather than saving the thin
         // trending record directly: the flow fetches the description, cast
         // and enrichment, and its duplicate check still applies.
@@ -4158,6 +4219,72 @@ function renderTrending() {
     });
   }).catch(() => {
     grid.innerHTML = '<div class="add-hint">Не вдалося завантажити список. Спробуй пізніше.</div>';
+  });
+}
+
+/* ---------- the shared recommendation pool ----------
+ * The legacy shared catalog (kino/movies) is not being deleted after all:
+ * it is a hundred-plus FULLY ENRICHED records — description, cast, critic
+ * score, awards — and that makes it a perfect ready-made recommendation
+ * pool for any account. "Випадковий фільм" deals one out; adding it is a
+ * straight copy of the complete record into the person's own catalog, so
+ * it costs zero TMDb/OMDb requests. The node is frozen read-only by the
+ * rules, which is exactly what a shared pool should be.
+ */
+let poolCache = null;
+function loadPool() {
+  if (poolCache) return Promise.resolve(poolCache);
+  return db.ref('kino/movies').once('value').then(snap => {
+    poolCache = Object.values(snap.val() || {}).filter(m => m && m.id);
+    return poolCache;
+  });
+}
+
+function rollPoolPick() {
+  const box = onboardBox.querySelector('#poolPick');
+  if (!box) return;
+  loadPool().then(pool => {
+    if (!pool.length) {
+      box.innerHTML = '<div class="add-hint">Добірка порожня.</div>';
+      return;
+    }
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    const own = findDuplicateMovie(MOVIES, m.canonical_title_uk, m.canonical_title_en, m.year);
+    box.innerHTML = `
+      <div class="pool-card" data-id="${esc(m.id)}">
+        ${m.poster_url ? `<img class="pool-poster" src="${esc(m.poster_url)}" alt="">` : '<div class="pool-poster trend-noposter">🎬</div>'}
+        <div class="pool-body">
+          <div class="pool-title">${esc(m.canonical_title_uk || m.canonical_title_en || '')}</div>
+          <div class="trend-year">${esc(m.type || '')}${m.year ? ` · ${esc(String(m.year))}` : ''}${m.rating ? ` · ${esc(m.rating)}` : ''}</div>
+          <div class="pool-desc">${esc((m.description_uk || '').slice(0, 140))}${(m.description_uk || '').length > 140 ? '…' : ''}</div>
+          <div class="acc-actions">
+            ${own
+              ? '<span class="add-hint">Уже у твоєму каталозі.</span>'
+              : `<button class="btn on-watched" id="poolAddBtn">Додати собі</button>`}
+            <button class="btn" id="poolRollBtn">Ще раз</button>
+          </div>
+        </div>
+      </div>`;
+    const addBtn = box.querySelector('#poolAddBtn');
+    if (addBtn) addBtn.addEventListener('click', () => {
+      if (!moviesRef) { toast('error', 'Немає з\u02bcєднання з базою — увійди ще раз.'); return; }
+      addBtn.disabled = true;
+      // The pool record is already complete and enriched — a straight copy,
+      // not a re-fetch. The only thing that must NOT travel is another
+      // person's recommendation note.
+      const record = { ...m };
+      delete record.recommended_by;
+      moviesRef.child(record.id).set(record).then(() => {
+        toast('success', `«${record.canonical_title_uk}» додано до твого каталогу`);
+        rollPoolPick();
+      }).catch(() => {
+        toast('error', 'Не вдалося додати — спробуй ще раз');
+        addBtn.disabled = false;
+      });
+    });
+    box.querySelector('#poolRollBtn').addEventListener('click', rollPoolPick);
+  }).catch(() => {
+    box.innerHTML = '<div class="add-hint">Добірка недоступна. Спробуй пізніше.</div>';
   });
 }
 
