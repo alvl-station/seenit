@@ -563,6 +563,14 @@
   .trend-title { font-size: 11.5px; line-height: 1.25; margin-top: 5px; color: var(--text); }
   .trend-year { font-size: 10.5px; color: var(--text-muted); }
 
+  #recsBox { padding: 20px 22px; max-height: 86vh; overflow-y: auto; }
+  .recs-lists { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .recs-list-chip {
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .recs-list-chip.active { background: var(--grad); color: var(--bg); border-color: transparent; font-weight: 700; }
+
   .pool-card { display: flex; gap: 12px; }
   .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
     border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
@@ -802,6 +810,7 @@
   <div class="tabs" id="tabs">
     <button class="tab active" data-tab="all">Усі</button>
     <button class="tab" data-tab="liked"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="vertical-align:-2px;margin-right:4px"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.3 1.6 6.9 4.4 5.3c2.3-1.3 5-.7 6.6 1.3l1 1.2 1-1.2c1.6-2 4.3-2.6 6.6-1.3 2.8 1.6 3.4 5 1.7 7.6C18.7 16.65 12 21 12 21z"/></svg>Рекомендую <span class="n" id="nLiked"></span></button>
+    <button class="tab" id="recsBtn" title="Рекомендації та добірки"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Добірки</button>
     <button class="tab tab-toggle" id="watchedToggle" title="Показати/сховати переглянуте"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Дивився <span class="n" id="nWatched"></span></button>
   </div>
   <div class="chips" id="genreChips"></div>
@@ -829,6 +838,9 @@
 </div>
 <div class="modal-overlay" id="onboardOverlay">
   <div class="modal add-modal" id="onboardBox"></div>
+</div>
+<div class="modal-overlay" id="recsOverlay">
+  <div class="modal add-modal" id="recsBox"></div>
 </div>
 </div>
 
@@ -2092,6 +2104,66 @@ function trendingListChanged(oldMovies, newMovies) {
   return JSON.stringify(strip(oldMovies)) !== JSON.stringify(strip(newMovies));
 }
 
+/* ---------- auto-generated top-100 collections ----------
+ * The "Добірки SeenIt" half of the recommendations flow: a top-100 overall
+ * plus a top-100 per genre, rebuilt by scripts/update-toplists.js from
+ * TMDb discover (highest vote average with a minimum vote count, so a
+ * ten-vote 10.0 never outranks a classic). Genre ids are TMDb's own.
+ */
+const TOPLIST_DEFS = [
+  { key: 'all',       title: 'Топ-100 фільмів',        genres: [],        minVotes: 1000 },
+  { key: 'thriller',  title: 'Топ-100 трилерів',       genres: [53],      minVotes: 500 },
+  { key: 'drama',     title: 'Топ-100 драм',           genres: [18],      minVotes: 500 },
+  { key: 'comedy',    title: 'Топ-100 комедій',        genres: [35],      minVotes: 500 },
+  { key: 'horror',    title: 'Топ-100 жахів',          genres: [27],      minVotes: 300 },
+  { key: 'scifi',     title: 'Топ-100 фантастики',     genres: [878, 14], minVotes: 500 },
+  { key: 'detective', title: 'Топ-100 детективів',     genres: [9648],    minVotes: 300 },
+  { key: 'action',    title: 'Топ-100 бойовиків',      genres: [28],      minVotes: 500 },
+  { key: 'adventure', title: 'Топ-100 пригод',         genres: [12],      minVotes: 500 },
+  { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      minVotes: 300 },
+  { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      minVotes: 100 },
+];
+
+/** One TMDb discover page -> display-ready entries (uk title + original). */
+function parseDiscoverMovies(data) {
+  return ((data && data.results) || [])
+    .filter(r => r && (r.title || r.original_title))
+    .map(r => ({
+      title_uk: r.title || r.original_title,
+      title_en: r.original_title || r.title,
+      year: Number((r.release_date || '').slice(0, 4)) || null,
+      tmdb_id: r.id || null,
+      poster_path: r.poster_path || null,
+    }));
+}
+
+/** Pages -> one ranked list: deduped by tmdb_id, capped, rank assigned. */
+function buildToplist(pages, limit = 100) {
+  const seen = new Set();
+  const out = [];
+  for (const page of pages || []) {
+    for (const m of page || []) {
+      if (!m || !m.tmdb_id || seen.has(m.tmdb_id)) continue;
+      seen.add(m.tmdb_id);
+      out.push({ ...m, rank: out.length + 1 });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/** Field-level change check across every list, so an identical rebuild
+ *  writes nothing — the same contract as the trending list. */
+function toplistsChanged(oldLists, newLists) {
+  const strip = lists => Object.fromEntries(Object.entries(lists || {}).map(([k, v]) => [k, {
+    title: v && v.title,
+    movies: ((v && v.movies) || []).map(m => ({
+      tmdb_id: m.tmdb_id, rank: m.rank, title_uk: m.title_uk, year: m.year, poster_url: m.poster_url,
+    })),
+  }]));
+  return JSON.stringify(strip(oldLists)) !== JSON.stringify(strip(newLists));
+}
+
 /* ---------- catalog migration safety ----------
  * The one-time movie migration wrote the whole of kino/movies in a single
  * set(), sourced from the static snapshot baked into src/movies-data.js.
@@ -2308,6 +2380,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
     trendingIdentity, trendingCacheKey, parseTmdbTrending, parseItunesTopMovies,
     mergeTrendingSources, resolveTrendingEntry, trendingListChanged,
+    TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged,
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
@@ -4193,21 +4266,7 @@ function renderTrending() {
         const m = movies[Number(el.dataset.idx)];
         if (!m) return;
         closeOnboarding();
-        // Membership is decided against MY catalog at click time. The
-        // stored list cannot know it: catalogs are per-account, and one
-        // shared in_catalog flag would answer for the wrong person.
-        const own = findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year);
-        if (own) { openModal(own); return; }
-        // Route through the NORMAL add flow rather than saving the thin
-        // trending record directly: the flow fetches the description, cast
-        // and enrichment, and its duplicate check still applies.
-        openAddModal();
-        const input = addBox.querySelector('#addTitle');
-        if (input) {
-          input.value = m.title_en || m.title_uk || '';
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          runSearch(input.value, m.year ? String(m.year) : '');
-        }
+        openExternalPick(m);
       });
     });
   }).catch(() => {
@@ -4280,6 +4339,131 @@ function rollPoolPick() {
     box.innerHTML = '<div class="add-hint">Добірка недоступна. Спробуй пізніше.</div>';
   });
 }
+
+/**
+ * Shared routing for a film picked from any external list (trending,
+ * toplists). Membership is decided against MY catalog at click time —
+ * catalogs are per-account, so a stored flag would answer for the wrong
+ * person. A film we track opens its own card; a new one routes through the
+ * NORMAL add flow rather than saving the thin list record directly: the
+ * flow fetches the description, cast and enrichment, and its duplicate
+ * check still applies.
+ */
+function openExternalPick(m) {
+  const own = findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year);
+  if (own) { openModal(own); return; }
+  openAddModal();
+  const input = addBox.querySelector('#addTitle');
+  if (input) {
+    input.value = m.title_en || m.title_uk || '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    runSearch(input.value, m.year ? String(m.year) : '');
+  }
+}
+
+/* ---------- the recommendations flow ("Добірки") ----------
+ * One overlay, three sources the person switches between:
+ *   - друзі: a placeholder until subscriptions exist (see ROADMAP, the
+ *     social section) — stated honestly rather than hidden;
+ *   - мої: films THEY marked "рекомендую", in one place;
+ *   - SeenIt: the auto-generated top-100 collections (kino/toplists,
+ *     rebuilt weekly server-side — the app only reads).
+ */
+const recsBtn = document.getElementById('recsBtn');
+const recsOverlay = document.getElementById('recsOverlay');
+const recsBox = document.getElementById('recsBox');
+let recsSource = 'seenit';
+let recsListKey = 'all';
+let toplistsCache = null;
+
+function openRecs() {
+  renderRecs();
+  recsOverlay.classList.add('open');
+  lockScroll();
+}
+function closeRecs() { recsOverlay.classList.remove('open'); unlockScroll(); }
+
+function pickGridHtml(items, { ranks = false } = {}) {
+  return `<div class="trend-grid">${items.map((m, i) => `
+    <div class="trend-item" data-idx="${i}">
+      ${m.poster_url ? `<img src="${esc(m.poster_url)}" alt="" loading="lazy">` : '<div class="trend-noposter">🎬</div>'}
+      ${ranks && m.rank ? `<div class="trend-rank">${m.rank}</div>` : ''}
+      ${findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year) ? '<div class="trend-have">Є</div>' : ''}
+      <div class="trend-title">${esc(m.title_uk || m.title_en || '')}</div>
+      <div class="trend-year">${m.year ? esc(String(m.year)) : ''}</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderRecs() {
+  const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
+  recsBox.innerHTML = `
+    <div class="acc-row"><span class="wordmark">SeenIt</span></div>
+    <div class="add-tabs">
+      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'Добірки SeenIt')}
+    </div>
+    <div id="recsbody"></div>
+    <div class="acc-actions"><button class="btn" id="recsCloseBtn">Закрити</button></div>`;
+  recsBox.querySelectorAll('[data-recs-src]').forEach(el =>
+    el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; renderRecs(); }));
+  recsBox.querySelector('#recsCloseBtn').addEventListener('click', closeRecs);
+
+  const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
+  if (recsSource === 'friends') {
+    body.innerHTML = '<div class="add-hint">Рекомендації від друзів з\u02bcявляться разом із підписками — вони в планах. Поки що зазирни в «Мої» або «Добірки SeenIt».</div>';
+    return;
+  }
+  if (recsSource === 'mine') {
+    const mine = MOVIES.filter(m => liked.has(m.id));
+    if (!mine.length) {
+      body.innerHTML = '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» — твій власний список порад.</div>';
+      return;
+    }
+    const items = mine.map(m => ({
+      title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
+      year: m.year, poster_url: m.poster_url,
+    }));
+    body.innerHTML = pickGridHtml(items);
+    body.querySelectorAll('.trend-item').forEach(el =>
+      el.addEventListener('click', () => { closeRecs(); openModal(mine[Number(el.dataset.idx)]); }));
+    return;
+  }
+  // SeenIt collections
+  body.innerHTML = '<div class="add-hint">Завантажую добірки…</div>';
+  const paint = (data) => {
+    const lists = (data && data.lists) || {};
+    const keys = TOPLIST_DEFS.map(d => d.key).filter(k => lists[k]);
+    if (!keys.length) {
+      body.innerHTML = '<div class="add-hint">Добірки ще формуються — зазирни пізніше.</div>';
+      return;
+    }
+    if (!lists[recsListKey]) recsListKey = keys[0];
+    const current = lists[recsListKey];
+    body.innerHTML = `
+      <div class="recs-lists">${keys.map(k =>
+        `<button class="recs-list-chip ${k === recsListKey ? 'active' : ''}" data-list="${k}">${esc(lists[k].title)}</button>`).join('')}</div>
+      ${data.updated_at ? `<div class="trend-updated">Оновлено ${new Date(data.updated_at).toLocaleDateString('uk-UA')} · за оцінками TMDb</div>` : ''}
+      ${pickGridHtml(current.movies || [], { ranks: true })}`;
+    body.querySelectorAll('[data-list]').forEach(el =>
+      el.addEventListener('click', () => { recsListKey = el.dataset.list; renderRecs(); }));
+    body.querySelectorAll('.trend-item').forEach(el =>
+      el.addEventListener('click', () => {
+        const m = (current.movies || [])[Number(el.dataset.idx)];
+        if (!m) return;
+        closeRecs();
+        openExternalPick(m);
+      }));
+  };
+  if (toplistsCache) { paint(toplistsCache); return; }
+  db.ref('kino/toplists').once('value').then(snap => {
+    toplistsCache = snap.val();
+    paint(toplistsCache);
+  }).catch(() => {
+    body.innerHTML = '<div class="add-hint">Не вдалося завантажити добірки. Спробуй пізніше.</div>';
+  });
+}
+
+recsBtn.addEventListener('click', openRecs);
+recsOverlay.addEventListener('click', e => { if (e.target === recsOverlay) closeRecs(); });
 
 accountBtn.addEventListener('click', openAccount);
 accountOverlay.addEventListener('click', e => { if (e.target === accountOverlay) closeAccount(); });
