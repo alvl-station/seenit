@@ -268,9 +268,15 @@
   }
   .poster-award-badge svg { width: 13px; height: 13px; flex-shrink: 0; }
   .poster-award-badge:active { transform: scale(.95); }
-  body[data-view="list"] .poster-award-badge {
-    position: static; height: 24px; font-size: 11px; padding: 0 8px;
-    display: inline-flex; margin-top: 4px;
+  /* Exactly one of the two placements is visible per view. The corner sits
+     on the poster in grids; the inline copy joins the card-body row right
+     after the critic score in the list view, where an absolutely-
+     positioned corner collided with the row layout (owner-reported). */
+  .poster-award-badge--inline { display: none; }
+  body[data-view="list"] .poster-award-badge--corner { display: none; }
+  body[data-view="list"] .poster-award-badge--inline {
+    display: inline-flex; position: static; height: 24px;
+    font-size: 11px; padding: 0 9px; order: 5; margin: 0;
   }
   .tgl {
     width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
@@ -2914,21 +2920,28 @@ function posterHtml(m, cls) {
 // contradiction). Wins only, because "how many did it WIN" is the at-a-
 // glance signal; nominations live in the modal. Tappable: opens the
 // per-ceremony breakdown the badge row used to carry.
-function posterAwardBadgeHtml(m) {
+// Returns a RENDERER for this movie's trophy, so the card can place the
+// same pill (same registry index, same popover) in two spots: the poster
+// corner for grid views, and inline after the critic score for the list
+// view — where an absolutely-positioned corner badge collided with the
+// row layout (owner-reported). CSS shows exactly one of the two.
+function posterAwardBadge(m) {
   const wonCount = (m.awards_won || []).length;
-  if (!wonCount) return '';
-  _posterAwardMovies.push(m);
-  return `<div class="poster-award-badge" data-poster-award-idx="${_posterAwardMovies.length - 1}" role="button" tabindex="0">${ICON.trophy}<span>${wonCount}</span></div>`;
+  if (!wonCount) return () => '';
+  const idx = _posterAwardMovies.push(m) - 1;
+  return (variant) =>
+    `<div class="poster-award-badge poster-award-badge--${variant}" data-poster-award-idx="${idx}" role="button" tabindex="0">${ICON.trophy}<span>${wonCount}</span></div>`;
 }
 
 function cardHtml(m) {
   const isW = watched.has(m.id), isL = liked.has(m.id);
   const critic = criticBadgeHtml(m);
   const sel = deleteMode && selectedForDelete.has(m.id);
+  const trophy = posterAwardBadge(m);
   return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}">
     ${deleteMode ? `<div class="card-select-mark">${sel ? ICON.check : ''}</div>` : ''}
     ${posterHtml(m, 'poster')}
-    ${posterAwardBadgeHtml(m)}
+    ${trophy('corner')}
     <div class="card-toggles">
       <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}</button>
       <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}</button>
@@ -2940,6 +2953,7 @@ function cardHtml(m) {
       </div>
       <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>
       ${critic ? `<div class="critic-corner">${critic}</div>` : ''}
+      ${trophy('inline')}
     </div>
   </div>`;
 }
