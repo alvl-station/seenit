@@ -6,34 +6,17 @@
 <title>SeenIt</title>
 <style>
   :root {
-    /* The brand palette, and nothing else — see BRAND.md. Names match PALETTE
-       in brand/virazh.js so the stylesheet and the mark cannot end up
-       describing different reds. */
-    --blood: #8E0000;
-    --flash: #C21414;
-    --ink: #0E0E10;
-    --paper: #F2F3F6;
-    --graphite: #2A2C31;
-    --ash: #8A8D93;
-    --dust: #D5D7DB;
-
-    /* Roles. Every one of these resolves to a palette colour or to a step on
-       the ink -> graphite ramp; no new hues enter here. */
-    --bg: var(--ink);
-    --surface: #17181D;
-    --surface2: var(--graphite);
-    --border: #24262C;
-    --text: var(--paper);
-    --text-muted: var(--ash);
-    --grad: linear-gradient(135deg, var(--blood), var(--flash));
-    --like: var(--flash);
-    --danger: var(--flash);
-    --ok: var(--paper);
-    /* Ratings and won awards were gold. The book has no gold, so the win/
-       nominated distinction is carried by brightness instead of by hue. */
-    --accent: var(--dust);
-    --accent2: var(--blood);
-    --accent3: var(--flash);
+    --bg: #070c16;
+    --surface: #10192a;
+    --surface2: #17263c;
+    --text: #edf2fb;
+    --text-muted: #7991ac;
+    --accent: #f0b95c;
+    --accent2: #4f9dff;
+    --accent3: #33dba0;
+    --grad: linear-gradient(135deg, var(--accent2), var(--accent3));
+    --like: #ff5d78;
+    --border: #1c2c44;
     --radius: 14px;
     --control-h: 44px;
   }
@@ -59,30 +42,44 @@
     margin: 0 0 4px; font-size: 24px; display: flex; align-items: center; gap: 10px;
     letter-spacing: .04em; font-weight: 700;
   }
-  /* Both badges hold the mark itself, injected at build time from
-     brand/virazh.js. The header takes the flat drawing because 30 px is far
-     under the 56 px the layered one needs; the login screen takes the full
-     stack. See BRAND.md. */
-  .h-badge { width: 30px; height: 30px; flex-shrink: 0; }
-  .h-badge svg, .brand-badge svg { width: 100%; height: 100%; display: block; }
+  .h-badge {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--grad);
+    position: relative; flex-shrink: 0;
+  }
+  .h-badge::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--surface); }
+  .h-badge svg { position: relative; z-index: 1; }
   .h-badge, .brand-badge { display: flex; align-items: center; justify-content: center; }
-  /* The wordmark, and only the wordmark: the brand's heavy grotesque, with
-     "It" in blood. Everything else on the page stays on the system stack — a
-     display face is a logo, not a UI font. The fallback chain is heavy too,
-     so a blocked or slow Google Fonts leaves a wordmark, not body text. */
+  /* The wordmark, and only the wordmark: a script face with the brand
+     gradient poured through the letters. Everything else on the page stays
+     on the system stack — a display face is a logo, not a UI font.
+     The fallback chain is cursive, so a blocked or slow Google Fonts still
+     leaves something that reads as a logo rather than as body text. */
   .wordmark {
-    font-family: 'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Grand Hotel', 'Snell Roundhand', 'Brush Script MT', cursive;
     font-weight: 400;
     /* Both set explicitly: the login h1 carries uppercase + .14em tracking,
-       and the wordmark must inherit neither. */
+       and a script face inherits them into caps-only stretched lettering —
+       the brand looked broken exactly there. */
     text-transform: none;
-    letter-spacing: -.035em;
-    font-size: 1.3em;
+    letter-spacing: .01em;
+    font-size: 1.35em;
     line-height: 1.1;
+    /* Plain readable colour first. The gradient is applied only where
+       background-clip: text actually works — set unconditionally, a
+       transparent colour on an unsupported browser makes the brand name
+       invisible rather than merely unstyled. */
     color: var(--text);
+    /* Descenders and the swash on the S get clipped without this. */
+    padding: 0 .12em .06em 0;
   }
-  /* Blood on the second half — the one place the accent appears in type. */
-  .wordmark em { font-style: normal; color: var(--blood); }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .wordmark {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  }
   header h1 .wordmark { font-size: 1.25em; }
 
   header .subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
@@ -116,17 +113,17 @@
     padding: 9px 12px; cursor: pointer; font-size: 15px; line-height: 1;
     display: flex; align-items: center; justify-content: center; flex: 1;
   }
-  .view-toggle button.active { background: var(--grad); color: var(--paper); }
+  .view-toggle button.active { background: var(--grad); color: var(--bg); }
   .view-toggle button:not(:last-child) { border-right: 1px solid var(--border); }
 
   /* ---------- search row: circular "+NEW" add button, Search button, search field ---------- */
   .search-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .add-fab {
     flex-shrink: 0; width: var(--control-h); height: var(--control-h); border-radius: 50%;
-    border: none; background: var(--grad); color: var(--paper); font-weight: 800;
+    border: none; background: var(--grad); color: var(--bg); font-weight: 800;
     font-size: 10.5px; letter-spacing: .03em; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 6px 16px -6px rgba(142,0,0,.65), inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 5px rgba(0,0,0,.2);
+    box-shadow: 0 6px 16px -6px rgba(79,157,255,.6), inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 5px rgba(0,0,0,.2);
     transition: transform .15s;
   }
   .add-fab:active { transform: scale(.94); }
@@ -141,9 +138,9 @@
   }
   .del-fab:active { transform: scale(.94); }
   .del-fab[aria-pressed="true"] {
-    color: var(--danger); border-color: var(--danger); background: rgba(194,20,20,.16);
+    color: #ff6b6b; border-color: #ff6b6b; background: rgba(255,107,107,.12);
   }
-  @media (hover: hover) { .del-fab:hover { color: var(--danger); border-color: var(--danger); } }
+  @media (hover: hover) { .del-fab:hover { color: #ff6b6b; border-color: #ff6b6b; } }
 
   /* Sits between the read-only facts and the editable description, so the
      trailer can be checked while deciding whether this is the right film. */
@@ -152,7 +149,7 @@
   .delete-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     margin-top: 12px; padding: 10px 12px; border-radius: 12px;
-    border: 1px solid rgba(194,20,20,.5); background: rgba(194,20,20,.12);
+    border: 1px solid rgba(255,107,107,.45); background: rgba(255,107,107,.10);
   }
   .delete-bar[hidden] { display: none; }
   .delete-bar-count { flex: 1; min-width: 0; font-size: 13px; color: var(--text); }
@@ -160,7 +157,7 @@
     height: var(--control-h); border-radius: 10px; padding: 0 14px; font-size: 13px;
     cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text);
   }
-  .delete-bar-btn--go { border-color: var(--danger); background: var(--danger); color: var(--ink); font-weight: 700; }
+  .delete-bar-btn--go { border-color: #ff6b6b; background: #ff6b6b; color: #10131a; font-weight: 700; }
   /* A disabled destructive button must not still look armed. */
   .delete-bar-btn--go:disabled { opacity: .45; cursor: not-allowed; background: var(--surface2); color: var(--muted); border-color: var(--border); }
 
@@ -168,14 +165,14 @@
      tap target on a phone would make multi-select painful. */
   body.delete-mode .card { cursor: pointer; }
   body.delete-mode .card-toggles { opacity: .25; pointer-events: none; }
-  .card.is-selected { outline: 2px solid var(--danger); outline-offset: -2px; }
+  .card.is-selected { outline: 2px solid #ff6b6b; outline-offset: -2px; }
   .card-select-mark {
     position: absolute; top: 8px; left: 8px; z-index: 3;
     width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid rgba(255,255,255,.75); background: rgba(0,0,0,.45);
     display: flex; align-items: center; justify-content: center; color: #fff;
   }
-  .card.is-selected .card-select-mark { background: var(--danger); border-color: var(--danger); color: var(--ink); }
+  .card.is-selected .card-select-mark { background: #ff6b6b; border-color: #ff6b6b; color: #10131a; }
   .search-btn {
     flex-shrink: 0; height: var(--control-h); border-radius: 10px; border: 1px solid var(--border);
     background: var(--surface2); color: var(--text); padding: 0 14px; font-size: 13px; cursor: pointer;
@@ -191,7 +188,7 @@
     background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
     padding: 7px 14px; border-radius: 999px; font-size: 13px; cursor: pointer;
   }
-  .tab.active { background: var(--grad); color: var(--paper); border-color: transparent; font-weight: 600; }
+  .tab.active { background: var(--grad); color: var(--bg); border-color: transparent; font-weight: 600; }
   .tab .n { opacity: .7; font-size: 11px; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
@@ -264,10 +261,10 @@
   .poster-award-badge {
     position: absolute; top: 8px; left: 8px; z-index: 2;
     display: flex; align-items: center; gap: 4px; height: 32px;
-    background: rgba(14,14,16,.74); backdrop-filter: blur(4px);
+    background: rgba(15,17,21,.72); backdrop-filter: blur(4px);
     color: var(--accent); font-size: 12.5px; font-weight: 700;
     padding: 0 11px; border-radius: 999px; cursor: pointer;
-    border: 1px solid rgba(213,215,219,.3);
+    border: 1px solid rgba(240,185,92,.35);
   }
   .poster-award-badge svg { width: 13px; height: 13px; flex-shrink: 0; }
   .poster-award-badge:active { transform: scale(.95); }
@@ -283,14 +280,14 @@
   }
   .tgl {
     width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
-    background: rgba(14,14,16,.74); color: var(--dust); font-size: 15px;
+    background: rgba(15,17,21,.72); color: #cfd3da; font-size: 15px;
     display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(4px); transition: all .15s;
   }
   @media (hover: hover) {
     .tgl:hover { transform: scale(1.12); color: #fff; }
   }
-  .tgl.on-watched { background: var(--grad); color: var(--paper); }
+  .tgl.on-watched { background: var(--grad); color: var(--bg); }
   .tgl.on-liked { background: var(--like); color: #fff; }
 
   .card.is-watched { opacity: .55; }
@@ -340,8 +337,8 @@
   .award-badge { cursor: pointer; }
   .award-badge, .critic-badge { -webkit-tap-highlight-color: transparent; }
   .badge--award-won svg, .badge--award-nom svg { width: 13px; height: 13px; flex-shrink: 0; }
-  .badge--award-won { color: var(--accent); border: 1px solid rgba(213,215,219,.4); background: rgba(213,215,219,.12); }
-  .badge--award-nom { color: var(--ash); border: 1px solid rgba(138,141,147,.4); background: rgba(138,141,147,.12); }
+  .badge--award-won { color: var(--accent); border: 1px solid rgba(240,185,92,.4); background: rgba(240,185,92,.12); }
+  .badge--award-nom { color: #b8c4d1; border: 1px solid rgba(184,196,209,.35); background: rgba(184,196,209,.1); }
   body[data-view="grid-s"] .card-body { padding: 8px 9px 9px; }
   body[data-view="grid-s"] .card-title-row h3 { font-size: 12px; }
   /* A grid-s card is too narrow for named pills ("Golden Globe" alone can
@@ -396,7 +393,7 @@
   .modal-body h2 { margin: 0 0 2px; font-size: 22px; overflow-wrap: break-word; }
   .modal-body .title-en { color: var(--text-muted); font-style: italic; font-size: 13px; margin-bottom: 10px; }
   .modal-body .meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
-  .modal-body .desc { font-size: 14px; color: var(--dust); margin: 0 0 14px; }
+  .modal-body .desc { font-size: 14px; color: #c6cad2; margin: 0 0 14px; }
   .modal-cast { margin-bottom: 16px; }
   .modal-cast .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 5px; }
   .actor {
@@ -424,8 +421,8 @@
     font-size: 12.5px; margin: 0 5px 5px 0;
   }
   .award-pill svg { width: 13px; height: 13px; flex-shrink: 0; }
-  .award-pill--won { background: rgba(213,215,219,.12); border: 1px solid rgba(213,215,219,.4); color: var(--accent); }
-  .award-pill--nom { background: rgba(138,141,147,.12); border: 1px solid rgba(138,141,147,.35); color: var(--ash); }
+  .award-pill--won { background: rgba(240,185,92,.14); border: 1px solid rgba(240,185,92,.4); color: var(--accent); }
+  .award-pill--nom { background: rgba(184,196,209,.1); border: 1px solid rgba(184,196,209,.3); color: #b8c4d1; }
   .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   .btn {
     display: inline-flex; align-items: center; gap: 7px;
@@ -435,15 +432,15 @@
   @media (hover: hover) {
     .btn:hover { border-color: var(--accent2); }
   }
-  .btn.b-watched.on { background: var(--grad); color: var(--paper); border-color: transparent; }
+  .btn.b-watched.on { background: var(--grad); color: var(--bg); border-color: transparent; }
   .btn.b-liked.on { background: var(--like); color: #fff; border-color: var(--like); }
   .modal-close {
     position: absolute; top: 6px; right: 6px; width: 44px; height: 44px;
-    border-radius: 50%; border: none; background: rgba(14,14,16,.78); color: #fff;
+    border-radius: 50%; border: none; background: rgba(7,12,22,.75); color: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 2; -webkit-tap-highlight-color: transparent;
   }
-  .warn-note { font-size: 12px; color: var(--flash); margin-top: 10px; }
+  .warn-note { font-size: 12px; color: #e0a04f; margin-top: 10px; }
 
   .empty-msg { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 15px; }
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
@@ -461,9 +458,15 @@
     padding: 28px 24px;
   }
   .brand-badge {
-    width: 76px; height: 76px; margin: 0 auto 14px;
+    width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+    background: var(--grad); position: relative;
     display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 28px -10px rgba(79,157,255,.5);
   }
+  .brand-badge::before {
+    content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--surface);
+  }
+  .brand-badge svg { position: relative; z-index: 1; }
   .login-box h1 {
     font-size: 17px; margin: 0 0 4px; text-align: center;
     letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
@@ -476,7 +479,7 @@
   }
   .login-box input:focus { outline: none; border-color: var(--accent2); }
   .login-box button {
-    width: 100%; background: var(--grad); color: var(--paper); border: none;
+    width: 100%; background: var(--grad); color: var(--bg); border: none;
     border-radius: 10px; padding: 11px 13px; font-size: 15px; font-weight: 600;
     cursor: pointer; margin-top: 4px;
   }
@@ -494,14 +497,14 @@
   .login-divider::before, .login-divider::after {
     content: ''; flex: 1; height: 1px; background: var(--border);
   }
-  .login-box .google-btn {
+  .google-btn {
     width: 100%; height: var(--control-h); border-radius: 10px;
     border: 1px solid var(--border); background: var(--surface2); color: var(--text);
     font-size: 13.5px; font-family: inherit; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 9px;
   }
-  .login-box .google-btn:active { border-color: var(--flash); }
-  @media (hover: hover) { .login-box .google-btn:hover { border-color: var(--flash); } }
+  .google-btn:active { border-color: var(--accent2); }
+  @media (hover: hover) { .google-btn:hover { border-color: var(--accent2); } }
 
   .login-reset {
     text-align: center; font-size: 12px; color: var(--text-muted);
@@ -543,7 +546,7 @@
   .onb-step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
   .onb-step-n {
     flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
-    background: var(--grad); color: var(--paper); font-weight: 800; font-size: 12px;
+    background: var(--grad); color: var(--bg); font-weight: 800; font-size: 12px;
     display: flex; align-items: center; justify-content: center;
   }
   .onb-step p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text); }
@@ -577,7 +580,7 @@
     border: 1px solid var(--border); background: var(--surface2); color: var(--text);
     border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
   }
-  .recs-list-chip.active { background: var(--grad); color: var(--paper); border-color: transparent; font-weight: 700; }
+  .recs-list-chip.active { background: var(--grad); color: var(--bg); border-color: transparent; font-weight: 700; }
 
   .pool-card { display: flex; gap: 12px; }
   .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
@@ -597,8 +600,8 @@
     transition: opacity .2s, transform .2s;
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .toast--success { border-color: var(--ok); }
-  .toast--error { border-color: var(--like); color: #F6CFCF; }
+  .toast--success { border-color: var(--accent3); }
+  .toast--error { border-color: var(--like); color: #ffd7de; }
   .toast--info { border-color: var(--accent2); }
 
   /* ---------- info popover (award/critic-score explanations) ----------
@@ -656,7 +659,7 @@
     background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
     padding: 7px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
   }
-  .add-tab.active { background: var(--grad); color: var(--paper); border-color: transparent; font-weight: 600; }
+  .add-tab.active { background: var(--grad); color: var(--bg); border-color: transparent; font-weight: 600; }
   .add-pane input[type="text"], .add-pane input[type="file"] {
     width: 100%; box-sizing: border-box; background: var(--surface2);
     border: 1px solid var(--border); color: var(--text);
@@ -722,21 +725,13 @@
   .batch-alt { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border);
     color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 12px; margin-top: 3px; }
 </style>
-<!-- The mark, generated from brand/virazh.js at build time so it can never
-     drift from the brand book (see BRAND.md). A plate rather than a bare
-     glyph, because browser tab chrome is light in some themes and dark in
-     others and the letter must not have to survive both alone. -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2224%22%20fill%3D%22%238E0000%22%2F%3E%3Cg%20transform%3D%22translate(15%2C15)%20scale(0.75)%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22i0d%22%20x%3D%22-60%25%22%20y%3D%22-60%25%22%20width%3D%22220%25%22%20height%3D%22220%25%22%3E%3CfeDropShadow%20dx%3D%22-3.36%22%20dy%3D%224.97%22%20stdDeviation%3D%223.8%22%20flood-color%3D%22%23000000%22%20flood-opacity%3D%221.00%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cg%20transform%3D%22translate(1.65%2C-5.31)%20scale(0.8709)%22%3E%3Cg%20fill%3D%22%23F2F3F6%22%3E%3Cpath%20d%3D%22M105.14%2C52.00%20A38.14%2C37.86%200%201%200%2067.00%2C89.86%20L67.00%2C65.63%20A9.86%2C10.14%200%201%201%2075.75%2C52.00%20L105.14%2C52.00%20Z%22%2F%3E%3Cpath%20d%3D%22M104.14%2C34.00%20A51.14%2C49.86%200%201%200%2053.00%2C83.86%20L53.00%2C59.63%20A22.86%2C22.14%200%201%201%2075.07%2C34.00%20L104.14%2C34.00%20Z%22%20transform%3D%22rotate(180%2060%2060)%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E">
-<link rel="apple-touch-icon" href="{{FAVICON}}">
-<meta name="theme-color" content="#0E0E10">
-
-<!-- Brand wordmark only (see .wordmark in style.css). Preconnect so the one
-     face we need does not delay first paint; every other word on the page
-     uses the system stack. The fallback chain is a heavy grotesque, so a
-     blocked or slow Google Fonts still leaves a wordmark, not body text. -->
+<!-- Brand wordmark only (see .wordmark in style.css). Preconnect so the
+     one face we need does not delay first paint; every other word on the
+     page uses the system stack, and .wordmark keeps a cursive fallback so
+     the brand still reads as a brand if this never arrives. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -766,8 +761,10 @@
 </button>
 <div id="loginOverlay">
   <div class="login-box">
-    <div class="brand-badge"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m1d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#8e0000"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m1d)"><g fill="#8e0000"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m1d)"><g fill="#8e0000"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m1d)"><g fill="#8e0606"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
-    <h1><span class="wordmark">Seen<em>It</em></span></h1>
+    <div class="brand-badge">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text)"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>
+    </div>
+    <h1><span class="wordmark">SeenIt</span></h1>
     <div class="login-sub">Увійди у свій акаунт</div>
     <form id="loginForm">
       <input id="loginUser" type="text" placeholder="Ім'я користувача" autocomplete="username" required>
@@ -786,7 +783,7 @@
 </div>
 <div id="appRoot" style="display:none">
 <header>
-  <h1><span class="h-badge"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="i2d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#8E0000"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g></g></svg></span><span class="wordmark">Seen<em>It</em></span></h1>
+  <h1><span class="h-badge"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--text)"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg></span><span class="wordmark">SeenIt</span></h1>
   <div class="subtitle" id="subtitle"></div>
   <div class="search-row">
     <button class="add-fab" id="addMovieBtn" title="Додати фільм"><span>NEW</span></button>
@@ -1658,23 +1655,11 @@ function buildWikidataAwardsQuery(imdbId) {
 // half on the rare award with no English label at all), category from the
 // Ukrainian label when one exists, else English's own category. Returns
 // null only if neither label was present at all.
-/**
- * Wikidata's label service returns the ENTITY ID when an item carries no
- * label in any requested language — so an award with neither an English
- * nor a Ukrainian name arrives as the literal string "Q118956281", and it
- * was stored and shown as though that were the ceremony. It is an
- * identifier, not a name, and there is nothing in it for a person to read.
- */
-function isWikidataEntityId(text) {
-  return /^Q\d+$/i.test(String(text || '').trim());
-}
-
 function combineWikidataAwardLabel(labelEn, labelUk) {
   const en = labelEn ? splitAwardLabel(labelEn) : null;
   const uk = labelUk ? splitAwardLabel(labelUk) : null;
   const name = (en && en.name) || (uk && uk.name) || '';
-  // A bare entity id is not a name — see isWikidataEntityId.
-  if (!name || isWikidataEntityId(name)) return null;
+  if (!name) return null;
   const category = (uk && uk.category) || (en && en.category) || null;
   return category ? `${name} за ${category}` : name;
 }
@@ -2731,7 +2716,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
-    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
+    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
