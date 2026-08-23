@@ -1890,25 +1890,66 @@ function topUpAwardCounts(stored, fromOmdb) {
 function awardCeremonyKey(text) {
   const info = matchAward(text);
   if (info) return info.key;
-  return shortAwardLabel(text)
-    .replace(/[.#$/\[\]]/g, ' ')
-    // Trailing "Award(s)"/"Prize"/"премія" is a suffix on the body's name,
-    // not part of it — and it is present in some entries and absent in
-    // others for the same body.
-    .replace(/\s+(awards?|prize|премі[яї])\s*$/i, '')
+  return shortAwardLabel(text).replace(/[.#$/\[\]]/g, ' ').replace(/\s+/g, ' ').trim() || 'other';
+}
+
+/**
+ * The form two spellings of one ceremony have in common.
+ *
+ * "National Board of Review Award for Best Cast" and "National Board of
+ * Review: Top Ten Films" are the same body: the trailing "Award(s)" is a
+ * suffix present in some of its own entries and absent in others. Matching
+ * on this collapses them; the KEY itself keeps the fuller spelling, since
+ * that is the ceremony's actual name and what a person reads on the badge.
+ */
+function ceremonyMatchForm(key) {
+  return String(key || '').toLowerCase()
+    .replace(/\s+(awards?|prize|премі[яї])\s*$/, '')
     .replace(/\s+/g, ' ')
-    .trim() || 'other';
+    .trim();
 }
 
 /** Flat array -> { ceremonyKey: [category, ...] } */
 function groupAwardsByCeremony(list) {
   const out = {};
+  const byMatch = new Map();          // common form -> the key actually used
   for (const raw of (list || [])) {
     const text = (raw || '').trim();
     if (!text) continue;
     const key = awardCeremonyKey(text);
+    const match = ceremonyMatchForm(key);
+    const existing = byMatch.get(match);
+    if (existing === undefined) {
+      byMatch.set(match, key);
+    } else if (key.length > existing.length) {
+      // A fuller spelling turned up later ("… Award" after a bare name):
+      // adopt it as THE name and move what was already collected.
+      out[key] = out[existing];
+      delete out[existing];
+      byMatch.set(match, key);
+    }
+    const target = byMatch.get(match);
     const { category } = splitAwardLabel(text);
-    (out[key] = out[key] || []).push(category || '');
+    (out[target] = out[target] || []).push(category || '');
+  }
+  return out;
+}
+
+/**
+ * Translates the CATEGORY values of a grouped award map into Ukrainian.
+ *
+ * Values are what a person reads, so they must be Ukrainian (the ceremony
+ * NAME stays English — see CONVENTIONS). This is the whole payoff of the
+ * grouped shape: the name is a key and never reaches the translator, so
+ * only the half that needs translating is sent, once.
+ */
+async function localizeCeremonyAwards(grouped, translate) {
+  const out = {};
+  for (const [key, cats] of Object.entries(grouped || {})) {
+    out[key] = [];
+    for (const cat of (cats || [])) {
+      out[key].push(cat ? await ensureUkrainian(cat, translate) : '');
+    }
   }
   return out;
 }
@@ -2606,7 +2647,8 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
-    awardCeremonyKey, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
+    awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
+    localizeCeremonyAwards,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently, ENRICHMENT_RESULTS, ENRICHMENT_MAX_AGE_YEARS,
     enrichmentTooOldToRecheck, enrichmentRunAlarm, enrichmentProcessedCount, enrichmentFailureRate,
