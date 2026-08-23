@@ -473,6 +473,57 @@
     border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
   }
 
+  /* Sits left of "Вийти", same quiet chrome. */
+  #accountBtn {
+    position: fixed; top: 12px; right: 76px; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  #accountBtn:active, #logoutBtn:active { border-color: var(--accent2); }
+
+  /* ---------- account & onboarding ---------- */
+  .acc-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .acc-name { font-size: 16px; font-weight: 700; }
+  .acc-label { font-size: 12px; color: var(--text-muted); margin: 10px 0 4px; }
+  .acc-form input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 14px;
+    font-family: inherit; margin-bottom: 8px;
+  }
+  .acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  .onb-step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+  .onb-step-n {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--grad); color: var(--bg); font-weight: 800; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .onb-step p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text); }
+
+  /* The top-20 grid: compact posters, three across on a phone. */
+  .trend-updated { font-size: 11.5px; color: var(--text-muted); margin: 2px 0 10px; }
+  .trend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .trend-item { cursor: pointer; position: relative; }
+  .trend-item img, .trend-noposter {
+    width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface2); display: block;
+  }
+  .trend-noposter { display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 22px; }
+  .trend-rank {
+    position: absolute; top: 6px; left: 6px; min-width: 20px; height: 20px;
+    border-radius: 10px; padding: 0 5px; background: rgba(0,0,0,.65); color: #fff;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .trend-have {
+    position: absolute; top: 6px; right: 6px; height: 20px; border-radius: 10px;
+    padding: 0 7px; background: var(--accent3); color: var(--bg);
+    font-size: 10px; font-weight: 700; display: flex; align-items: center;
+  }
+  .trend-title { font-size: 11.5px; line-height: 1.25; margin-top: 5px; color: var(--text); }
+  .trend-year { font-size: 10.5px; color: var(--text-muted); }
+
   /* ---------- toast (save success/error banner) ---------- */
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
@@ -639,6 +690,10 @@
 </head>
 <body data-view="grid-m">
 <button id="logoutBtn" style="display:none">Вийти</button>
+<button id="accountBtn" style="display:none" title="Акаунт">
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  Акаунт
+</button>
 <div id="loginOverlay">
   <div class="login-box">
     <div class="brand-badge">
@@ -652,6 +707,7 @@
       <button type="submit" id="loginBtn">Увійти</button>
       <div class="login-error" id="loginError"></div>
     </form>
+    <div class="login-reset" id="registerToggle">Немає акаунта? Зареєструватися</div>
     <div class="login-reset" id="resetSessionBtn">Проблеми зі входом? Скинути сесію</div>
   </div>
 </div>
@@ -716,6 +772,12 @@
 </div>
 <div class="modal-overlay" id="addMovieOverlay">
   <div class="modal add-modal" id="addMovieBox"></div>
+</div>
+<div class="modal-overlay" id="accountOverlay">
+  <div class="modal add-modal" id="accountBox"></div>
+</div>
+<div class="modal-overlay" id="onboardOverlay">
+  <div class="modal add-modal" id="onboardBox"></div>
 </div>
 </div>
 
@@ -1831,6 +1893,129 @@ function fuzzyCatalogSuggestions(catalog, query, limit = 5) {
   return (catalog || []).filter(m => m && matches(m, q.toLowerCase())).slice(0, limit);
 }
 
+/* ---------- daily trending top-20 (the starter pack) ----------
+ * A new account looks at an unfamiliar catalog; the starter pack answers
+ * "what do film fans watch right now" with a daily-refreshed top-20. Two
+ * independent signals feed it: TMDb's weekly trending (what the film
+ * community views and rates — we already hold a key via the proxy) and the
+ * iTunes top-movies feed (what viewers actually pay for; open JSON, no
+ * key). Letterboxd, IMDb and Trakt were all tried first and are bot-gated —
+ * Cloudflare challenges or mandatory API registration — so a daily fetch
+ * from CI would be brittle theatre.
+ *
+ * Pure parsing/merging lives here so it is unit-tested; the network and
+ * database halves are scripts/update-trending.js.
+ */
+
+/** One film's cross-source identity: normalized title + year. */
+function trendingIdentity(title, year) {
+  const base = normTitleForDup(title);
+  const y = Number(year);
+  return Number.isFinite(y) && y > 0 ? `${base}|${y}` : base;
+}
+
+/** Firebase keys forbid . # $ / [ ] — the identity may carry any of them. */
+function trendingCacheKey(identity) {
+  return String(identity || '').replace(/[.#$/\[\]]/g, '_');
+}
+
+/** TMDb /trending/movie/week -> [{title, year, tmdb_id, poster_path}] */
+function parseTmdbTrending(data) {
+  return ((data && data.results) || [])
+    .filter(r => r && (r.title || r.original_title))
+    .map(r => ({
+      title: r.title || r.original_title,
+      year: Number((r.release_date || '').slice(0, 4)) || null,
+      tmdb_id: r.id || null,
+      poster_path: r.poster_path || null,
+    }));
+}
+
+/** iTunes top-movies RSS -> [{title, year}] */
+function parseItunesTopMovies(data) {
+  const entries = (data && data.feed && data.feed.entry) || [];
+  return entries
+    .map(e => {
+      let title = (e && e['im:name'] && e['im:name'].label || '').trim();
+      const year = Number(((e && e['im:releaseDate'] && e['im:releaseDate'].label) || '').slice(0, 4)) || null;
+      // iTunes sometimes bakes the year into the name — "Obsession (2026)" —
+      // which would break cross-source matching against TMDb's clean title.
+      if (year) title = title.replace(new RegExp(`\\s*\\(${year}\\)$`), '');
+      return { title, year };
+    })
+    .filter(e => e.title);
+}
+
+/**
+ * Merges ranked source lists into one top-N.
+ *
+ * Rank-based scoring (first place in a 25-item list is worth 25), summed
+ * across sources — so a film hot on BOTH lists beats a film hot on one.
+ * Cross-source identity is normalized title + year with one year of
+ * tolerance, because the sources disagree about years for the same reason
+ * TMDb and OMDb do (premiere vs release).
+ */
+function mergeTrendingSources(sources, limit = 20) {
+  const byIdentity = new Map();
+  for (const src of sources || []) {
+    const items = (src && src.items) || [];
+    items.forEach((item, idx) => {
+      if (!item || !item.title) return;
+      const year = Number(item.year) || null;
+      const base = normTitleForDup(item.title);
+      if (!base) return;
+      let identity = null;
+      for (const dy of [0, -1, 1]) {
+        const probe = year ? `${base}|${year + dy}` : base;
+        if (byIdentity.has(probe)) { identity = probe; break; }
+      }
+      if (!identity) identity = trendingIdentity(item.title, year);
+      const cur = byIdentity.get(identity) || {
+        identity, title: item.title, year, tmdb_id: null, poster_path: null, score: 0, sources: [],
+      };
+      cur.score += items.length - idx;
+      if (src.name && !cur.sources.includes(src.name)) cur.sources.push(src.name);
+      cur.tmdb_id = cur.tmdb_id || item.tmdb_id || null;
+      cur.poster_path = cur.poster_path || item.poster_path || null;
+      cur.year = cur.year || year;
+      byIdentity.set(identity, cur);
+    });
+  }
+  return [...byIdentity.values()]
+    .sort((a, b) => b.score - a.score || String(a.title).localeCompare(String(b.title)))
+    .slice(0, limit)
+    .map((m, i) => ({ ...m, rank: i + 1 }));
+}
+
+/**
+ * Where one merged entry's display data should come from, WITHOUT spending
+ * a request: the live catalog first (a film we already track carries its
+ * own Ukrainian title and poster), then the resolution cache from earlier
+ * runs. Only 'lookup' entries cost a TMDb call, and the list churns slowly,
+ * so most days cost zero lookups.
+ */
+function resolveTrendingEntry(entry, catalog, cache) {
+  const dup = findDuplicateMovie(catalog, entry.title, entry.title, entry.year);
+  if (dup) return { kind: 'catalog', movie: dup };
+  const cached = cache && cache[trendingCacheKey(entry.identity)];
+  if (cached) return { kind: 'cache', data: cached };
+  return { kind: 'lookup' };
+}
+
+/**
+ * Whether the stored list needs rewriting. Field-by-field on what the UI
+ * shows, so a re-run with identical results writes nothing — "перевірити,
+ * чи є зміни" rather than blindly overwrite.
+ */
+function trendingListChanged(oldMovies, newMovies) {
+  const strip = list => (list || []).map(m => ({
+    identity: m.identity, title_en: m.title_en, title_uk: m.title_uk, year: m.year,
+    poster_url: m.poster_url, in_catalog: m.in_catalog || null, rank: m.rank,
+    sources: [...(m.sources || [])].sort(),
+  }));
+  return JSON.stringify(strip(oldMovies)) !== JSON.stringify(strip(newMovies));
+}
+
 /* ---------- catalog migration safety ----------
  * The one-time movie migration wrote the whole of kino/movies in a single
  * set(), sourced from the static snapshot baked into src/movies-data.js.
@@ -2045,6 +2230,8 @@ if (typeof module !== 'undefined' && module.exports) {
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
+    trendingIdentity, trendingCacheKey, parseTmdbTrending, parseItunesTopMovies,
+    mergeTrendingSources, resolveTrendingEntry, trendingListChanged,
     TMDB_GENRE_MAP, mapGenre, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
@@ -2137,6 +2324,7 @@ auth.onAuthStateChanged(user => {
     loginOverlay.classList.add('hidden');
     appRoot.style.display = '';
     logoutBtn.style.display = '';
+    accountBtn.style.display = '';
     if (!syncedOnce) {
       syncedOnce = true;
       const watchedPath = userMarksPath(user.uid, 'watched');
@@ -2148,33 +2336,79 @@ auth.onAuthStateChanged(user => {
       attachSync(watchedRef, 'watched', localMarksKey(user.uid, 'watched'));
       attachSync(likedRef, 'liked', localMarksKey(user.uid, 'liked'));
       attachMovies();
+      // First visit on this account: the flag lives in the account's own
+      // subtree (not localStorage), so a new phone does not replay the
+      // guide for an account that has already seen it.
+      const marksPath = userMarksPath(user.uid, 'watched');
+      if (marksPath) {
+        db.ref(`kino/users/${user.uid}/onboarded`).once('value')
+          .then(snap => { if (!snap.val()) openOnboarding(); })
+          .catch(() => { /* offline: the guide can wait */ });
+      }
     }
   } else {
     loginOverlay.classList.remove('hidden');
     appRoot.style.display = 'none';
     logoutBtn.style.display = 'none';
+    accountBtn.style.display = 'none';
   }
 });
+
+// One form, two modes. Registration reuses the login fields because the
+// data is identical (username + password); only the submit call and the
+// error texts differ per mode.
+let authMode = 'login';
+const registerToggle = document.getElementById('registerToggle');
+function setAuthMode(mode) {
+  authMode = mode;
+  loginError.textContent = '';
+  const register = mode === 'register';
+  loginBtn.textContent = register ? 'Зареєструватися' : 'Увійти';
+  document.querySelector('.login-sub').textContent = register
+    ? 'Придумай ім\u02bcя користувача і пароль'
+    : 'Увійди у свій акаунт';
+  registerToggle.textContent = register
+    ? 'Уже є акаунт? Увійти'
+    : 'Немає акаунта? Зареєструватися';
+}
+registerToggle.addEventListener('click', () => setAuthMode(authMode === 'login' ? 'register' : 'login'));
+
+// Every code gets its own text because the generic fallback misleads: the
+// throttling case genuinely sent people to reset a password that was fine.
+function registerErrorText(err) {
+  const code = err && err.code;
+  if (code === 'auth/email-already-in-use') return 'Це ім\u02bcя вже зайняте — спробуй інше або увійди.';
+  if (code === 'auth/weak-password') return 'Пароль закороткий — потрібно щонайменше 6 символів.';
+  if (code === 'auth/operation-not-allowed') return 'Реєстрацію вимкнено адміністратором.';
+  if (code === 'auth/invalid-email') return 'Ім\u02bcя містить недозволені символи.';
+  return 'Не вдалося зареєструватися. Спробуй ще раз.';
+}
 
 loginForm.addEventListener('submit', e => {
   e.preventDefault();
   loginError.textContent = '';
+  const register = authMode === 'register';
   loginBtn.disabled = true;
-  loginBtn.textContent = 'Входимо…';
+  loginBtn.textContent = register ? 'Створюємо…' : 'Входимо…';
   const email = usernameToEmail(loginUser.value);
-  auth.signInWithEmailAndPassword(email, loginPass.value)
+  const call = register
+    ? auth.createUserWithEmailAndPassword(email, loginPass.value)
+    : auth.signInWithEmailAndPassword(email, loginPass.value);
+  call
     .catch(err => {
       // Firebase throttles an account after repeated sign-ins and returns
       // auth/too-many-requests. Swallowing the code and always saying
       // "wrong password" sent people to reset a password that was fine —
       // and made a throttled CI run look like broken credentials.
-      loginError.textContent = (err && err.code === 'auth/too-many-requests')
-        ? 'Забагато спроб входу. Спробуйте за кілька хвилин.'
-        : "Невірне ім'я користувача або пароль";
+      loginError.textContent = register
+        ? registerErrorText(err)
+        : ((err && err.code === 'auth/too-many-requests')
+          ? 'Забагато спроб входу. Спробуйте за кілька хвилин.'
+          : "Невірне ім'я користувача або пароль");
     })
     .finally(() => {
       loginBtn.disabled = false;
-      loginBtn.textContent = 'Увійти';
+      loginBtn.textContent = authMode === 'register' ? 'Зареєструватися' : 'Увійти';
     });
 });
 
@@ -3698,6 +3932,145 @@ async function deleteSelected() {
 deleteModeBtn.addEventListener('click', () => setDeleteMode(!deleteMode));
 deleteCancelBtn.addEventListener('click', () => setDeleteMode(false));
 deleteConfirmBtn.addEventListener('click', deleteSelected);
+
+/* ---------- account panel & onboarding (guide + daily top-20) ----------
+ * The top-20 is the answer to "a new account faces an unfamiliar catalog":
+ * a daily-refreshed list of what film fans watch right now, built by
+ * scripts/update-trending.js and read here from kino/trending — the app
+ * never calls the sources itself.
+ */
+const accountBtn = document.getElementById('accountBtn');
+const accountOverlay = document.getElementById('accountOverlay');
+const accountBox = document.getElementById('accountBox');
+const onboardOverlay = document.getElementById('onboardOverlay');
+const onboardBox = document.getElementById('onboardBox');
+
+function openAccount() {
+  const user = auth.currentUser;
+  const username = user && user.email ? user.email.split('@')[0] : '';
+  accountBox.innerHTML = `
+    <div class="acc-row"><span class="wordmark">SeenIt</span></div>
+    <div class="acc-name">${esc(username)}</div>
+    <div class="acc-label">Змінити пароль</div>
+    <form class="acc-form" id="accPassForm">
+      <input id="accCur" type="password" placeholder="Поточний пароль" autocomplete="current-password" required>
+      <input id="accNew" type="password" placeholder="Новий пароль (мінімум 6 символів)" autocomplete="new-password" required>
+      <button class="btn on-watched" type="submit" id="accPassBtn">Змінити пароль</button>
+    </form>
+    <div class="acc-actions">
+      <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>
+      <button class="btn" id="accCloseBtn">Закрити</button>
+    </div>`;
+  accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
+  accountBox.querySelector('#accGuideBtn').addEventListener('click', () => { closeAccount(); openOnboarding(); });
+  accountBox.querySelector('#accPassForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const cur = accountBox.querySelector('#accCur').value;
+    const next = accountBox.querySelector('#accNew').value;
+    const btn = accountBox.querySelector('#accPassBtn');
+    btn.disabled = true;
+    // Firebase requires a RECENT sign-in before a password change, so the
+    // current password is asked for and used to re-authenticate first —
+    // without it updatePassword() fails with requires-recent-login for
+    // anyone whose session is more than a few minutes old, i.e. everyone.
+    const user = auth.currentUser;
+    const cred = firebase.auth.EmailAuthProvider.credential(user.email, cur);
+    user.reauthenticateWithCredential(cred)
+      .then(() => user.updatePassword(next))
+      .then(() => { toast('success', 'Пароль змінено'); closeAccount(); })
+      .catch(err => {
+        const code = err && err.code;
+        toast('error', code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+          ? 'Поточний пароль невірний'
+          : code === 'auth/weak-password'
+            ? 'Новий пароль закороткий — мінімум 6 символів'
+            : 'Не вдалося змінити пароль');
+      })
+      .finally(() => { btn.disabled = false; });
+  });
+  accountOverlay.classList.add('open');
+  lockScroll();
+}
+function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(); }
+
+function openOnboarding() {
+  onboardBox.innerHTML = `
+    <div class="acc-row"><span class="wordmark">SeenIt</span></div>
+    <div class="onb-step"><div class="onb-step-n">1</div><p>Знайди фільм у каталозі або додай новий кнопкою <b>NEW</b> — рік, акторів, оцінки критиків і нагороди підтягнуться самі.</p></div>
+    <div class="onb-step"><div class="onb-step-n">2</div><p>Познач переглянуте оком, а те, що радиш іншим, — серцем. Вкладка «Дивився» ховає переглянуте, «Рекомендую» збирає твої поради.</p></div>
+    <div class="onb-step"><div class="onb-step-n">3</div><p>Не знаєш, з чого почати? Нижче — топ-20 фільмів, які фанати кіно дивляться просто зараз. Оновлюється щодня. Тисни на постер, щоб додати.</p></div>
+    <div class="acc-label">Топ-20 зараз</div>
+    <div class="trend-updated" id="trendUpdated"></div>
+    <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>
+    <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
+  onboardBox.querySelector('#onbDoneBtn').addEventListener('click', () => closeOnboarding());
+  renderTrending();
+  onboardOverlay.classList.add('open');
+  lockScroll();
+}
+
+function closeOnboarding() {
+  onboardOverlay.classList.remove('open');
+  unlockScroll();
+  // Recorded on close, not on open: an accidental flash of the overlay
+  // must not count as having read the guide.
+  const user = auth.currentUser;
+  if (user && userMarksPath(user.uid, 'watched')) {
+    db.ref(`kino/users/${user.uid}/onboarded`).set(true).catch(() => {});
+  }
+}
+
+function renderTrending() {
+  const grid = onboardBox.querySelector('#trendGrid');
+  db.ref('kino/trending').once('value').then(snap => {
+    const data = snap.val();
+    const movies = (data && data.movies) || [];
+    if (!movies.length) {
+      grid.innerHTML = '<div class="add-hint">Список ще формується — зазирни пізніше.</div>';
+      return;
+    }
+    const updated = onboardBox.querySelector('#trendUpdated');
+    if (updated && data.updated_at) {
+      updated.textContent = `Оновлено ${new Date(data.updated_at).toLocaleDateString('uk-UA')} · TMDb + iTunes`;
+    }
+    grid.innerHTML = movies.map((m, i) => `
+      <div class="trend-item" data-idx="${i}">
+        ${m.poster_url ? `<img src="${esc(m.poster_url)}" alt="" loading="lazy">` : '<div class="trend-noposter">🎬</div>'}
+        <div class="trend-rank">${m.rank}</div>
+        ${m.in_catalog ? '<div class="trend-have">Є</div>' : ''}
+        <div class="trend-title">${esc(m.title_uk || m.title_en || '')}</div>
+        <div class="trend-year">${m.year ? esc(String(m.year)) : ''}</div>
+      </div>`).join('');
+    grid.querySelectorAll('.trend-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const m = movies[Number(el.dataset.idx)];
+        if (!m) return;
+        closeOnboarding();
+        if (m.in_catalog) {
+          // Already ours: its full card, not a second add flow.
+          const own = MOVIES.find(x => x.id === m.in_catalog);
+          if (own) { openModal(own); return; }
+        }
+        // Route through the NORMAL add flow rather than saving the thin
+        // trending record directly: the flow fetches the description, cast
+        // and enrichment, and its duplicate check still applies.
+        openAddModal();
+        const input = addBox.querySelector('#addTitle');
+        if (input) {
+          input.value = m.title_en || m.title_uk || '';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          runSearch(input.value, m.year ? String(m.year) : '');
+        }
+      });
+    });
+  }).catch(() => {
+    grid.innerHTML = '<div class="add-hint">Не вдалося завантажити список. Спробуй пізніше.</div>';
+  });
+}
+
+accountBtn.addEventListener('click', openAccount);
+accountOverlay.addEventListener('click', e => { if (e.target === accountOverlay) closeAccount(); });
+onboardOverlay.addEventListener('click', e => { if (e.target === onboardOverlay) closeOnboarding(); });
 
 addBtn.addEventListener('click', openAddModal);
 addOverlay.addEventListener('click', e => { if (e.target === addOverlay) closeAddModal(); });
