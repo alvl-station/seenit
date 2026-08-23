@@ -248,15 +248,25 @@
      in app.js) — visible while scrolling/searching the grid, without
      reading the badges row under the title. Mirrors .tgl's look, opposite
      corner. Redundant with the modal's full award section, so grid-only. */
+  /* The ONLY award UI on a card (owner's call — the under-title badge row
+     showed a second trophy with a different tally and the pair read as a
+     contradiction). Wins only; tap opens the per-ceremony breakdown.
+     Sized and styled to match the watch/like toggles it shares the poster
+     with, so the top row reads as one family of controls. */
   .poster-award-badge {
     position: absolute; top: 8px; left: 8px; z-index: 2;
-    display: flex; align-items: center; gap: 3px;
+    display: flex; align-items: center; gap: 4px; height: 32px;
     background: rgba(15,17,21,.72); backdrop-filter: blur(4px);
-    color: var(--accent); font-size: 11px; font-weight: 700;
-    padding: 3px 7px; border-radius: 999px;
+    color: var(--accent); font-size: 12.5px; font-weight: 700;
+    padding: 0 11px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(240,185,92,.35);
   }
-  .poster-award-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
-  body[data-view="list"] .poster-award-badge { display: none; }
+  .poster-award-badge svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .poster-award-badge:active { transform: scale(.95); }
+  body[data-view="list"] .poster-award-badge {
+    position: static; height: 24px; font-size: 11px; padding: 0 8px;
+    display: inline-flex; margin-top: 4px;
+  }
   .tgl {
     width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
     background: rgba(15,17,21,.72); color: #cfd3da; font-size: 15px;
@@ -552,6 +562,13 @@
   }
   .trend-title { font-size: 11.5px; line-height: 1.25; margin-top: 5px; color: var(--text); }
   .trend-year { font-size: 10.5px; color: var(--text-muted); }
+
+  .pool-card { display: flex; gap: 12px; }
+  .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
+  .pool-body { min-width: 0; }
+  .pool-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; }
+  .pool-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 6px; }
 
   /* ---------- toast (save success/error banner) ---------- */
   .toast {
@@ -1063,6 +1080,26 @@ function localMarksKey(uid, list) {
   return uid ? `seenit_${uid}_${list}` : null;
 }
 
+/**
+ * The database path for one person's MOVIE CATALOG.
+ *
+ * The catalog itself is per-account now, not only the marks. It was shared
+ * first, by design — but a person who registers and sees 111 of somebody
+ * else's films has been given the wrong product: "мій список фільмів" is
+ * the entire premise of the app. The same blank-uid guard as the marks
+ * path, for the same reason: a collapsed path is a shared node.
+ */
+function userCatalogPath(uid) {
+  if (typeof uid !== 'string' || !uid.trim()) return null;
+  if (/[.$#[\]/]/.test(uid)) return null;
+  return `kino/users/${uid}/movies`;
+}
+
+/** Per-account offline cache of the catalog, mirroring localMarksKey. */
+function localCatalogKey(uid) {
+  return uid ? `seenit_${uid}_movies` : null;
+}
+
 /* ---------- rating / display helpers ---------- */
 function ratingNum(m) {
   const r = (m && m.rating) || '';
@@ -1293,12 +1330,12 @@ function extractCriticScore(omdbData) {
  * writing to a path we cannot name.
  */
 function deletionPaths(id, uid) {
-  const paths = [`kino/movies/${id}`];
-  // Only the signed-in person's own marks: the rules forbid writing into
-  // anyone else's subtree, and rightly so. Other accounts that marked this
-  // film are left with a mark pointing at nothing — which is exactly what
-  // the deploy-time sweep (scripts/sweep-orphan-marks.js) exists to clear,
-  // now that it walks every account and not just the legacy global lists.
+  // Catalog and marks both hang off the caller's uid now; with no usable
+  // uid there is NOTHING to delete — returning the legacy shared path here
+  // would let a signed-out state delete from a node other people read.
+  const catalog = userCatalogPath(uid);
+  if (!catalog) return [];
+  const paths = [`${catalog}/${id}`];
   for (const list of MARK_LISTS) {
     const path = userMarksPath(uid, list);
     if (path) paths.push(`${path}/${id}`);
@@ -1548,7 +1585,12 @@ function backupRejectionReason(data) {
   // points at credentials, the database URL or the ref path. Data that
   // exists but has no movies points at the data itself.
   if (!counts || Object.keys(counts).length === 0) return 'Read kino/ but got nothing back.';
-  if (!counts.movies) return 'Backup contains no kino/movies.';
+  // Movies live per-account now (kino/users/{uid}/movies); the legacy
+  // shared node may or may not still exist. A backup is acceptable if
+  // EITHER holds films — and worthless if neither does.
+  const perUserMovies = Object.values((data && data.users) || {})
+    .some(u => u && u.movies && Object.keys(u.movies).length);
+  if (!counts.movies && !perUserMovies) return 'Backup contains no movies (neither kino/movies nor any kino/users/*/movies).';
   return null;
 }
 
@@ -2044,7 +2086,7 @@ function resolveTrendingEntry(entry, catalog, cache) {
 function trendingListChanged(oldMovies, newMovies) {
   const strip = list => (list || []).map(m => ({
     identity: m.identity, title_en: m.title_en, title_uk: m.title_uk, year: m.year,
-    poster_url: m.poster_url, in_catalog: m.in_catalog || null, rank: m.rank,
+    poster_url: m.poster_url, rank: m.rank,
     sources: [...(m.sources || [])].sort(),
   }));
   return JSON.stringify(strip(oldMovies)) !== JSON.stringify(strip(newMovies));
@@ -2260,7 +2302,7 @@ function parseBatchLine(line) {
 // a plain <script>, where `module` is undefined, so this is a no-op there.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    MARK_LISTS, userMarksPath, localMarksKey,
+    MARK_LISTS, userMarksPath, localMarksKey, userCatalogPath, localCatalogKey,
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
@@ -2313,8 +2355,13 @@ const localStore = {
 };
 
 function attachSync(ref, targetSetName, localKey) {
-  if (!ref) return;
+  if (!ref) { window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 1; return; }
   ref.on('value', snap => {
+    // A readiness beacon, not app logic: the e2e fixture waits on it so a
+    // scenario's first "remember the count" read cannot race the marks
+    // arriving from the database — which produced remembered-null against
+    // a chip that filled in a moment later.
+    window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 1;
     const val = snap.val() || {};
     const ids = Object.keys(val).filter(id => val[id]);
     window[targetSetName] = new Set(ids);
@@ -2323,6 +2370,7 @@ function attachSync(ref, targetSetName, localKey) {
     localStore.set(localKey, ids); // keep an offline copy
     render();
   }, err => {
+    window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 1;
     // Offline / permission error: fall back to whatever was last saved locally
     const ids = localStore.get(localKey);
     if (targetSetName === 'watched') watched = new Set(ids);
@@ -2369,7 +2417,7 @@ auth.onAuthStateChanged(user => {
       likedRef = likedPath ? db.ref(likedPath) : null;
       attachSync(watchedRef, 'watched', localMarksKey(user.uid, 'watched'));
       attachSync(likedRef, 'liked', localMarksKey(user.uid, 'liked'));
-      attachMovies();
+      attachMovies(user.uid);
       // First visit on this account: the flag lives in the account's own
       // subtree (not localStorage), so a new phone does not replay the
       // guide for an account that has already seen it.
@@ -2679,7 +2727,7 @@ function ratingBadgeToast(anchorEl, ratingText) {
 // the start of its own render pass (see render()/openModal()) — otherwise
 // re-rendering the grid while a modal is open would invalidate the
 // modal's still-visible badge indices.
-let _cardAwardGroups = [];
+let _posterAwardMovies = [];
 let _modalAwardGroups = [];
 // Only the categories we actually know. Awards with no category detail (the
 // OMDb count-only shape, and the padding mergeAwardSources() adds for a
@@ -2725,9 +2773,19 @@ function awardGroupPopoverText(group) {
   return group.recognized ? null : header;
 }
 function awardGroupToast(anchorEl, registryName, idx) {
-  const group = (registryName === 'modal' ? _modalAwardGroups : _cardAwardGroups)[idx];
+  const group = _modalAwardGroups[idx];
   if (!group) return;
   const text = awardGroupPopoverText(group);
+  if (text) showInfoPopover(anchorEl, text);
+}
+// The poster trophy covers EVERY won ceremony at once (it is the only
+// award UI on a card now), so its popover joins the per-ceremony blocks
+// rather than showing one group's text.
+function posterAwardToast(anchorEl, idx) {
+  const m = _posterAwardMovies[idx];
+  if (!m) return;
+  const text = majorAwardGroups(m.awards_won)
+    .map(awardGroupPopoverText).filter(Boolean).join('\n\n');
   if (text) showInfoPopover(anchorEl, text);
 }
 // A badge is only tappable when the tap would actually reveal something.
@@ -2735,40 +2793,6 @@ function awardGroupToast(anchorEl, registryName, idx) {
 function awardBadgeAttrs(group, registryName, idx) {
   if (!awardGroupPopoverText(group)) return { cls: '', attrs: '' };
   return { cls: ' award-badge', attrs: ` data-award-registry="${registryName}" data-award-idx="${idx}"` };
-}
-// Compact award badges for the card grid: one badge per ceremony group
-// (won + nominated combined), capped so a long list doesn't take over the
-// card — the full list lives in the modal (see awardsSectionHtml below).
-const CARD_AWARDS_MAX = 3;
-function awardCountBadgesHtml(m) {
-  const all = [
-    ...majorAwardGroups(m.awards_won).map(g => ({ g, kind: 'won' })),
-    ...majorAwardGroups(m.awards_nominated).map(g => ({ g, kind: 'nom' })),
-  ];
-  if (!all.length) return '';
-  const badge = ({ g, kind }) => {
-    const icon = AWARD_ICONS[g.key] || (kind === 'won' ? ICON.trophy : ICON.star);
-    const cls = kind === 'won' ? 'badge--award-won' : 'badge--award-nom';
-    _cardAwardGroups.push(g);
-    // Name text only for a recognized ceremony (curated English name, see
-    // AWARD_INFO) — an unrecognized one's "name" is just a best-effort
-    // regex guess and could still be a category fragment, so icon-only
-    // there rather than risk showing that without a tap.
-    const label = g.recognized ? esc(g.name) : '';
-    const tap = awardBadgeAttrs(g, 'card', _cardAwardGroups.length - 1);
-    return `<span class="badge ${cls}${tap.cls}"${tap.attrs}>${icon}${label}${esc(awardCountSuffix(g.texts.length))}</span>`;
-  };
-  const shown = all.slice(0, CARD_AWARDS_MAX).map(badge).join('');
-  const overflow = all.length > CARD_AWARDS_MAX ? `<span class="badge">+${all.length - CARD_AWARDS_MAX}</span>` : '';
-  // Named per-ceremony pills need real width (e.g. "Golden Globe") — fine
-  // on grid-m/grid-l, but on a small grid-s card or a list row they'd wrap
-  // across several lines and stretch the card. Both versions are always
-  // rendered; CSS shows only one per view (view switching is pure CSS, no
-  // re-render — see the #viewToggle click handler) so the compact one
-  // (trophy + total count) takes over wherever there isn't room for names.
-  const totalCount = (m.awards_won || []).length + (m.awards_nominated || []).length;
-  return `<div class="badges-full">${shown}${overflow}</div>`
-    + `<div class="badges-compact">${ICON.trophy}<span>+${totalCount}</span></div>`;
 }
 // Full award list for the modal: won and nominated shown as their own
 // labeled groups of mini pill-badges (icon + name + count marker), each
@@ -2806,15 +2830,17 @@ function posterHtml(m, cls) {
   return `<div class="${cls} fallback" style="--hue:${hue(m)}"><span class="poster-initial">${esc((m.canonical_title_uk||'?')[0].toUpperCase())}</span></div>`;
 }
 
-// Quick-glance award count right on the poster thumbnail, so it shows up
-// while scrolling/searching the grid without needing to read the badges
-// row below the title (visible below the poster crop on a small card).
-// Wins only, not nominations — that's the more meaningful "at a glance"
-// signal, and matches the badge row already grouping wins separately.
+// The ONLY award UI on a card (owner's call: the under-title badge row
+// duplicated this with a different tally — wins here, wins-plus-nominations
+// there — and two trophies with two numbers on one card read as a
+// contradiction). Wins only, because "how many did it WIN" is the at-a-
+// glance signal; nominations live in the modal. Tappable: opens the
+// per-ceremony breakdown the badge row used to carry.
 function posterAwardBadgeHtml(m) {
   const wonCount = (m.awards_won || []).length;
   if (!wonCount) return '';
-  return `<div class="poster-award-badge">${ICON.trophy}${wonCount}</div>`;
+  _posterAwardMovies.push(m);
+  return `<div class="poster-award-badge" data-poster-award-idx="${_posterAwardMovies.length - 1}" role="button" tabindex="0">${ICON.trophy}<span>${wonCount}</span></div>`;
 }
 
 function cardHtml(m) {
@@ -2835,7 +2861,6 @@ function cardHtml(m) {
         ${m.rating ? `<span class="badge badge--rating rating-badge" data-rating="${esc(m.rating)}">${ICON.ratingStar} ${esc(m.rating)}</span>` : ''}
       </div>
       <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>
-      <div class="badges">${awardCountBadgesHtml(m)}</div>
       ${critic ? `<div class="critic-corner">${critic}</div>` : ''}
     </div>
   </div>`;
@@ -2844,7 +2869,7 @@ function cardHtml(m) {
 function render() {
   const main = document.getElementById('main');
   const items = visibleMovies();
-  _cardAwardGroups = [];
+  _posterAwardMovies = [];
 
   // Counted over the catalog, not over the raw sets: a mark can outlive the
   // movie it points at (nothing deletes marks when a title is removed), and
@@ -2856,9 +2881,14 @@ function render() {
   document.getElementById('nWatched').textContent = nWatched ? `(${nWatched})` : '';
 
   if (!items.length) {
-    main.innerHTML = moviesLoaded
-      ? '<div class="empty-msg">Нічого не знайдено</div>'
-      : '<div class="empty-msg">Завантажую каталог…</div>';
+    // Three different truths, three different sentences: still loading, an
+    // account whose catalog is genuinely empty (every new registration),
+    // and filters that matched nothing in a non-empty catalog.
+    main.innerHTML = !moviesLoaded
+      ? '<div class="empty-msg">Завантажую каталог…</div>'
+      : MOVIES.length === 0
+        ? '<div class="empty-msg">Твій каталог поки порожній.<br>Додай перший фільм кнопкою <b>NEW</b> — або відкрий «Акаунт → Гайд і Топ-20»: там щоденний топ-20 і випадкова рекомендація з добірки.</div>'
+        : '<div class="empty-msg">Нічого не знайдено</div>';
     return;
   }
 
@@ -2995,10 +3025,10 @@ function toggle(act, id) {
 
 /* ---------- events ---------- */
 document.getElementById('main').addEventListener('click', e => {
-  const awardBadge = e.target.closest('.award-badge');
-  if (awardBadge) {
+  const posterBadge = e.target.closest('.poster-award-badge');
+  if (posterBadge) {
     e.stopPropagation();
-    awardGroupToast(awardBadge, awardBadge.dataset.awardRegistry, Number(awardBadge.dataset.awardIdx));
+    posterAwardToast(posterBadge, Number(posterBadge.dataset.posterAwardIdx));
     return;
   }
   const criticBadge = e.target.closest('.critic-badge');
@@ -3175,20 +3205,39 @@ async function proxyHeaders(extra = {}) {
 }
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 
-const moviesRef = db.ref('kino/movies');
+// Per-account, like the marks: built after sign-in, because the path
+// depends on the uid. The catalog was shared first, by design — but a
+// person who registers and sees somebody else's 111 films has been handed
+// the wrong product, so each account now owns its list outright.
+let moviesRef = null;
 let moviesLoaded = false;
-// The catalog embedded in movies-data.js (baked in at build time) is used
-// as an instant first paint / offline fallback. Once Firebase responds,
-// its data becomes authoritative and fully replaces MOVIES' contents —
-// but only if it actually has something, so a not-yet-migrated or
-// temporarily unreachable database never wipes out the fallback catalog.
-function attachMovies() {
+// movies-data.js still ships a baked catalog, but it is NEVER shown any
+// more: it is the OWNER's old list, and painting it before the database
+// answers would flash another person's films at every new account. The
+// instant-paint role moved to a per-account localStorage cache instead.
+function attachMovies(uid) {
+  MOVIES.length = 0;
+  const cacheKey = localCatalogKey(uid);
+  const cached = cacheKey ? localStore.get(cacheKey) : [];
+  if (Array.isArray(cached) && cached.length) {
+    cached.forEach(m => { if (m && m.id) MOVIES.push(m); });
+    // The cache IS a loaded catalog as far as messaging goes. Without this,
+    // a search typed during the paint-from-cache window answered
+    // "Завантажую каталог…" to a person looking at a fully painted grid —
+    // e2e caught it on the first run after the per-account change.
+    moviesLoaded = true;
+    render();
+  }
+  const path = userCatalogPath(uid);
+  if (!path) { moviesLoaded = true; render(); return; }
+  moviesRef = db.ref(path);
   moviesRef.on('value', snap => {
     const val = snap.val();
-    if (val && Object.keys(val).length) {
-      MOVIES.length = 0;
-      Object.values(val).forEach(m => { if (m && m.id) MOVIES.push(m); });
-    }
+    // Authoritative INCLUDING emptiness: a new account's catalog is null,
+    // and that must render as "порожньо", never as a stale fallback.
+    MOVIES.length = 0;
+    if (val) Object.values(val).forEach(m => { if (m && m.id) MOVIES.push(m); });
+    if (cacheKey) localStore.set(cacheKey, MOVIES);
     moviesLoaded = true;
     renderChips();
     updateSubtitle();
@@ -3827,6 +3876,7 @@ function renderConfirmCard(movie) {
         ? { ...finalMovie, id: uniqueMovieId(finalMovie.id, MOVIES) }
         : finalMovie;
 
+    if (!moviesRef) { toast('error', 'Немає з\u02bcєднання з базою — увійди ще раз.'); return; }
     const saveBtn = resultsEl.querySelector(mode === 'copy' ? '#cfSaveCopy' : '#cfSave');
     const savedLabel = saveBtn.textContent;
     saveBtn.disabled = true;
@@ -3938,6 +3988,7 @@ function renderBatchRows(rows, recommendedBy) {
         delete movie._titleTranslated;
         if (recommendedBy) movie.recommended_by = recommendedBy;
         Object.keys(movie).forEach(k => movie[k] === undefined && delete movie[k]);
+        if (!moviesRef) throw new Error('not signed in');
         await moviesRef.child(movie.id).set(movie);
         saved++;
       } catch (err) { otherSkipped++; }
@@ -4095,9 +4146,12 @@ function openOnboarding() {
     <div class="acc-label">Топ-20 зараз</div>
     <div class="trend-updated" id="trendUpdated"></div>
     <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>
+    <div class="acc-label">Або випадкова рекомендація з добірки</div>
+    <div id="poolPick"><div class="add-hint">Завантажую…</div></div>
     <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
   onboardBox.querySelector('#onbDoneBtn').addEventListener('click', () => closeOnboarding());
   renderTrending();
+  rollPoolPick();
   onboardOverlay.classList.add('open');
   lockScroll();
 }
@@ -4130,7 +4184,7 @@ function renderTrending() {
       <div class="trend-item" data-idx="${i}">
         ${m.poster_url ? `<img src="${esc(m.poster_url)}" alt="" loading="lazy">` : '<div class="trend-noposter">🎬</div>'}
         <div class="trend-rank">${m.rank}</div>
-        ${m.in_catalog ? '<div class="trend-have">Є</div>' : ''}
+        ${findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year) ? '<div class="trend-have">Є</div>' : ''}
         <div class="trend-title">${esc(m.title_uk || m.title_en || '')}</div>
         <div class="trend-year">${m.year ? esc(String(m.year)) : ''}</div>
       </div>`).join('');
@@ -4139,11 +4193,11 @@ function renderTrending() {
         const m = movies[Number(el.dataset.idx)];
         if (!m) return;
         closeOnboarding();
-        if (m.in_catalog) {
-          // Already ours: its full card, not a second add flow.
-          const own = MOVIES.find(x => x.id === m.in_catalog);
-          if (own) { openModal(own); return; }
-        }
+        // Membership is decided against MY catalog at click time. The
+        // stored list cannot know it: catalogs are per-account, and one
+        // shared in_catalog flag would answer for the wrong person.
+        const own = findDuplicateMovie(MOVIES, m.title_uk, m.title_en, m.year);
+        if (own) { openModal(own); return; }
         // Route through the NORMAL add flow rather than saving the thin
         // trending record directly: the flow fetches the description, cast
         // and enrichment, and its duplicate check still applies.
@@ -4158,6 +4212,72 @@ function renderTrending() {
     });
   }).catch(() => {
     grid.innerHTML = '<div class="add-hint">Не вдалося завантажити список. Спробуй пізніше.</div>';
+  });
+}
+
+/* ---------- the shared recommendation pool ----------
+ * The legacy shared catalog (kino/movies) is not being deleted after all:
+ * it is a hundred-plus FULLY ENRICHED records — description, cast, critic
+ * score, awards — and that makes it a perfect ready-made recommendation
+ * pool for any account. "Випадковий фільм" deals one out; adding it is a
+ * straight copy of the complete record into the person's own catalog, so
+ * it costs zero TMDb/OMDb requests. The node is frozen read-only by the
+ * rules, which is exactly what a shared pool should be.
+ */
+let poolCache = null;
+function loadPool() {
+  if (poolCache) return Promise.resolve(poolCache);
+  return db.ref('kino/movies').once('value').then(snap => {
+    poolCache = Object.values(snap.val() || {}).filter(m => m && m.id);
+    return poolCache;
+  });
+}
+
+function rollPoolPick() {
+  const box = onboardBox.querySelector('#poolPick');
+  if (!box) return;
+  loadPool().then(pool => {
+    if (!pool.length) {
+      box.innerHTML = '<div class="add-hint">Добірка порожня.</div>';
+      return;
+    }
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    const own = findDuplicateMovie(MOVIES, m.canonical_title_uk, m.canonical_title_en, m.year);
+    box.innerHTML = `
+      <div class="pool-card" data-id="${esc(m.id)}">
+        ${m.poster_url ? `<img class="pool-poster" src="${esc(m.poster_url)}" alt="">` : '<div class="pool-poster trend-noposter">🎬</div>'}
+        <div class="pool-body">
+          <div class="pool-title">${esc(m.canonical_title_uk || m.canonical_title_en || '')}</div>
+          <div class="trend-year">${esc(m.type || '')}${m.year ? ` · ${esc(String(m.year))}` : ''}${m.rating ? ` · ${esc(m.rating)}` : ''}</div>
+          <div class="pool-desc">${esc((m.description_uk || '').slice(0, 140))}${(m.description_uk || '').length > 140 ? '…' : ''}</div>
+          <div class="acc-actions">
+            ${own
+              ? '<span class="add-hint">Уже у твоєму каталозі.</span>'
+              : `<button class="btn on-watched" id="poolAddBtn">Додати собі</button>`}
+            <button class="btn" id="poolRollBtn">Ще раз</button>
+          </div>
+        </div>
+      </div>`;
+    const addBtn = box.querySelector('#poolAddBtn');
+    if (addBtn) addBtn.addEventListener('click', () => {
+      if (!moviesRef) { toast('error', 'Немає з\u02bcєднання з базою — увійди ще раз.'); return; }
+      addBtn.disabled = true;
+      // The pool record is already complete and enriched — a straight copy,
+      // not a re-fetch. The only thing that must NOT travel is another
+      // person's recommendation note.
+      const record = { ...m };
+      delete record.recommended_by;
+      moviesRef.child(record.id).set(record).then(() => {
+        toast('success', `«${record.canonical_title_uk}» додано до твого каталогу`);
+        rollPoolPick();
+      }).catch(() => {
+        toast('error', 'Не вдалося додати — спробуй ще раз');
+        addBtn.disabled = false;
+      });
+    });
+    box.querySelector('#poolRollBtn').addEventListener('click', rollPoolPick);
+  }).catch(() => {
+    box.innerHTML = '<div class="add-hint">Добірка недоступна. Спробуй пізніше.</div>';
   });
 }
 
