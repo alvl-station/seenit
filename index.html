@@ -1655,23 +1655,11 @@ function buildWikidataAwardsQuery(imdbId) {
 // half on the rare award with no English label at all), category from the
 // Ukrainian label when one exists, else English's own category. Returns
 // null only if neither label was present at all.
-/**
- * Wikidata's label service returns the ENTITY ID when an item carries no
- * label in any requested language — so an award with neither an English
- * nor a Ukrainian name arrives as the literal string "Q118956281", and it
- * was stored and shown as though that were the ceremony. It is an
- * identifier, not a name, and there is nothing in it for a person to read.
- */
-function isWikidataEntityId(text) {
-  return /^Q\d+$/i.test(String(text || '').trim());
-}
-
 function combineWikidataAwardLabel(labelEn, labelUk) {
   const en = labelEn ? splitAwardLabel(labelEn) : null;
   const uk = labelUk ? splitAwardLabel(labelUk) : null;
   const name = (en && en.name) || (uk && uk.name) || '';
-  // A bare entity id is not a name — see isWikidataEntityId.
-  if (!name || isWikidataEntityId(name)) return null;
+  if (!name) return null;
   const category = (uk && uk.category) || (en && en.category) || null;
   return category ? `${name} за ${category}` : name;
 }
@@ -2728,7 +2716,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
-    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
+    buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
