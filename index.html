@@ -1969,6 +1969,31 @@ function enrichmentTooOldToRecheck(movie, now = Date.now(), years = ENRICHMENT_M
 const ENRICHMENT_MAX_AGE_YEARS = 2;
 
 /**
+ * Whether a film's critic score is worth asking about again.
+ *
+ * A stored score is never re-asked otherwise, so it freezes at whatever it
+ * was on the day it was first fetched. But it is a LIVE number: reviews keep
+ * landing for months after a release, and the sibling TMDb pass already says
+ * exactly this about vote_count and popularity — always overwritten, because
+ * "fill only if empty" would freeze them on import day. critic_score is the
+ * same kind of number that happens to be filled by a different script, and
+ * that is the only reason it was treated as a static fact.
+ *
+ * Bounded by age rather than ambition. A film past ENRICHMENT_MAX_AGE_YEARS
+ * has a settled score, and refreshing all 13,540 would be two weeks of the
+ * entire 1,000/day OMDb allowance; recent films are a small fraction of that.
+ *
+ * Bounded by the recency window too, so a refresh costs one call a month per
+ * film rather than one a night.
+ */
+function criticScoreWorthRefreshing(movie, now = Date.now()) {
+  const score = movie && movie.critic_score;
+  if (score === undefined || score === null) return false;   // a gap, not a refresh
+  if (enrichmentTooOldToRecheck(movie, now)) return false;
+  return !enrichmentCheckedRecently(movie, now);
+}
+
+/**
  * Whether a run's outcome looks wrong enough to stop and shout about.
  *
  * The failure this exists for: if the OMDb key expired, every request would
@@ -3052,6 +3077,7 @@ if (typeof module !== 'undefined' && module.exports) {
     majorAwardsOnly, hasCyrillic, needsUkTranslation, ensureUkrainian, awardCategoryNeedsTranslation, localizeAwardCategories,
     ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently, ENRICHMENT_RESULTS, ENRICHMENT_MAX_AGE_YEARS,
     enrichmentTooOldToRecheck, enrichmentRunAlarm, enrichmentProcessedCount, enrichmentFailureRate,
+    criticScoreWorthRefreshing,
     backupCounts, backupRejectionReason,
     TITLE_TRIGGER_WORDS, UI_JUNK_PHRASES,
     isJunkLine, cleanCandidate, isPlausibleTitle, extractTitleCandidates,
