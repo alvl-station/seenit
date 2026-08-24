@@ -1324,6 +1324,34 @@ function markUrl(base, list, tmdbId) {
   return `${base}/library/marks/${list}/${n}`;
 }
 
+/**
+ * A link to somebody else's collection, on my shelf.
+ *
+ * The pair is the whole address, and the reason sharing works by handing over
+ * a key rather than a name: two people can both own "my_films", so an id
+ * alone would point at whichever the server found first — most likely my own.
+ */
+function refUrl(base, ownerUid, collectionId) {
+  if (!ownerUid || !collectionId) return null;
+  return `${base}/library/refs/${encodeURIComponent(ownerUid)}/${encodeURIComponent(collectionId)}`;
+}
+
+/**
+ * Splits a shared key back into the pair it was made from.
+ *
+ * Returns null for anything that is not exactly owner/collection_id — a key
+ * with a stray slash would otherwise be read as some other collection
+ * entirely, and silently subscribe somebody to the wrong thing.
+ */
+function parseCollectionKey(key) {
+  const parts = String(key || '').trim().split('/');
+  if (parts.length !== 2) return null;
+  const [owner, collectionId] = parts.map(x => x.trim());
+  if (!owner || !collectionId) return null;
+  if (!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(collectionId)) return null;
+  return { owner, collectionId };
+}
+
 /** One film inside a collection I own. */
 function collectionFilmUrl(base, collectionId, tmdbId) {
   const n = Number(tmdbId);
@@ -3011,6 +3039,7 @@ if (typeof module !== 'undefined' && module.exports) {
     toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
     CATALOGUE_PAGE, MY_FILMS_ID, MY_FILMS_NAME,
     markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
+    refUrl, parseCollectionKey,
     localCatalogueKey, localCatalogueVersionKey,
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
@@ -5514,7 +5543,7 @@ function renderRecs() {
   recsBox.innerHTML = `
     <div class="acc-row"><span class="wordmark">SeenIt</span></div>
     <div class="add-tabs">
-      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'Добірки SeenIt')}
+      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'Добірки')}
     </div>
     <div id="recsbody"></div>
     <div class="acc-actions"><button class="btn" id="recsCloseBtn">Закрити</button></div>`;
@@ -5524,7 +5553,10 @@ function renderRecs() {
 
   const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
   if (recsSource === 'friends') {
-    body.innerHTML = '<div class="add-hint">Рекомендації від друзів з\u02bcявляться разом із підписками — вони в планах. Поки що зазирни в «Мої» або «Добірки SeenIt».</div>';
+    // Honest about what exists: a whole PERSON cannot be followed yet, but a
+    // single collection of theirs can — that is what the key on the
+    // "Добірки" tab is for.
+    body.innerHTML = '<div class="add-hint">Підписатися на людину цілком поки не можна — це в планах. Але окрему чужу добірку вже можна покласти на полицю: попроси ключ і додай його у вкладці «Добірки».</div>';
     return;
   }
   if (recsSource === 'mine') {
@@ -5564,12 +5596,79 @@ function renderRecs() {
       <div class="recs-lists">${list.map(c =>
         `<button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>`).join('')}</div></div>`;
   }).join('') || '<div class="add-hint">Тут поки порожньо.</div>';
+  // Adding somebody else's collection is done by KEY, because there is no
+  // directory of people to browse — and the key is the pair, which is the
+  // only thing that identifies a collection unambiguously.
+  body.insertAdjacentHTML('beforeend', `
+    <div class="recs-group">
+      <div class="cf-label">Додати чужу добірку</div>
+      <div class="add-hint">Встав ключ, який тобі дали — виглядає як <code>хтось/my_films</code>.</div>
+      <input id="recsLinkKey" type="text" placeholder="власник/добірка" autocomplete="off">
+      <div class="acc-actions"><button class="btn" id="recsLinkBtn">Додати на полицю</button></div>
+    </div>`);
+  body.querySelector('#recsLinkBtn').addEventListener('click', () => linkCollection(body));
+
   body.querySelectorAll('[data-key]').forEach(el =>
     el.addEventListener('click', () => {
       openCollectionKey = el.dataset.key;
       openCollectionFilms = [];
       renderRecs();
     }));
+}
+
+/**
+ * Puts somebody else's collection on my shelf — a LINK, not a copy.
+ *
+ * They add a film and I see it; they delete the collection and it drops off
+ * my shelf with no ghost left behind. The Worker refuses a link to my own,
+ * which would otherwise show the same list twice.
+ */
+async function linkCollection(body) {
+  const input = body.querySelector('#recsLinkKey');
+  const pair = parseCollectionKey(input.value);
+  if (!pair) {
+    toast('error', 'Ключ має виглядати як «власник/добірка».');
+    return;
+  }
+  const btn = body.querySelector('#recsLinkBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(refUrl(API_PROXY, pair.owner, pair.collectionId), {
+      method: 'PUT',
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    input.value = '';
+    toast('success', 'Добірку додано на полицю');
+    // Re-read rather than guess at the name and count: only the server knows
+    // what is actually in somebody else's collection.
+    await loadShelf();
+    renderRecs();
+  } catch (err) {
+    toast('error', err.message || 'Не вдалося додати добірку');
+    btn.disabled = false;
+  }
+}
+
+/** Takes a linked collection back off my shelf. The owner keeps it. */
+async function unlinkCollection(col) {
+  if (!window.confirm(`Прибрати «${col.name}» з полиці? Сама добірка лишиться у власника.`)) return;
+  try {
+    const res = await fetch(refUrl(API_PROXY, col.owner, col.collection_id), {
+      method: 'DELETE',
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    openCollectionKey = null;
+    await loadShelf();
+    renderRecs();
+    toast('ok', `«${col.name}» прибрано з полиці`);
+  } catch (err) {
+    toast('err', 'Не вдалося прибрати — спробуй ще раз');
+  }
 }
 
 /**
@@ -5594,6 +5693,8 @@ function renderOpenCollection(body) {
       <div class="acc-actions">
         <button class="btn" id="recsBackBtn">Усі добірки</button>
         <span class="add-hint">${esc(col.name)} · ${col.count} ${pluralFilms(col.count)}</span>
+        ${isMine ? '<button class="btn" id="recsShareBtn">Поділитися</button>' : ''}
+        ${col.source === 'linked' ? '<button class="btn" id="recsUnlinkBtn">Прибрати з полиці</button>' : ''}
       </div>
       ${col.count === 0
         ? '<div class="add-hint">Ця добірка порожня.</div>'
@@ -5610,6 +5711,19 @@ function renderOpenCollection(body) {
       openCollectionKey = null;
       renderRecs();
     });
+    const shareBtn = body.querySelector('#recsShareBtn');
+    if (shareBtn) shareBtn.addEventListener('click', () => {
+      // The key, not a URL: the app has no route for a collection, and a
+      // link that 404s is worse than a string somebody can paste.
+      const done = () => toast('success', `Ключ скопійовано: ${col.key}`);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(col.key).then(done).catch(() => window.prompt('Ключ добірки:', col.key));
+      } else {
+        window.prompt('Ключ добірки:', col.key);
+      }
+    });
+    const unlinkBtn = body.querySelector('#recsUnlinkBtn');
+    if (unlinkBtn) unlinkBtn.addEventListener('click', () => unlinkCollection(col));
     const more = body.querySelector('#recsMoreBtn');
     if (more) more.addEventListener('click', () => loadCollectionPage(col, body, paint));
     body.querySelectorAll('.trend-item').forEach(el => {
