@@ -1294,28 +1294,6 @@ function poolListUrl(base, { limit = CATALOGUE_PAGE, after = 0 } = {}) {
   return `${base}/pool/list?limit=${Number(limit)}&after=${Number(after) || 0}`;
 }
 
-/**
- * The marker that says whether the catalogue has changed.
- *
- * One row read on the server. Asked before anything else on open: if it
- * matches what the cached copy was stored under, all 13,546 films are already
- * here and not one page needs requesting.
- */
-function poolVersionUrl(base) {
-  return `${base}/pool/version`;
-}
-
-/**
- * What the cached catalogue was the catalogue AT.
- *
- * Kept beside the copy rather than inside it, because it has to survive being
- * read when the copy itself is unusable — a half-written cache must not be
- * mistaken for a current one.
- */
-function localCatalogueVersionKey() {
-  return 'seenit_catalogue_version';
-}
-
 /** One mark on one film. The list name is in the path, the film is the id. */
 function markUrl(base, list, tmdbId) {
   if (!MARK_LISTS.includes(list)) return null;
@@ -3010,8 +2988,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged, belongsInToplist,
     toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
     CATALOGUE_PAGE, MY_FILMS_ID, MY_FILMS_NAME,
-    markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
-    localCatalogueKey, localCatalogueVersionKey,
+    markKey, isMarked, poolListUrl, markUrl, collectionFilmUrl, localCatalogueKey,
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
     PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
@@ -4222,35 +4199,6 @@ async function loadCatalog() {
     render();
   }
 
-  // Ask whether anything changed before fetching anything that did not.
-  //
-  // The catalogue changes once a night, when the sync runs, and re-fetching
-  // all 13,546 films on every open is the largest waste left in the app —
-  // fourteen requests and several megabytes for an answer that is almost
-  // always "the same as last time". One row read replaces all of it.
-  //
-  // Guarded on MOVIES.length, not just on the version matching: a stored
-  // version with an empty or unreadable cache would otherwise leave the
-  // reader looking at nothing, confidently.
-  let liveVersion = null;
-  try {
-    const res = await fetch(poolVersionUrl(API_PROXY), { headers: await proxyHeaders({ accept: 'application/json' }) });
-    if (res.ok) liveVersion = (await res.json()).version || null;
-  } catch (err) {
-    // Unanswerable is not the same as changed: fall through and re-fetch,
-    // which is simply what the app did before this existed.
-  }
-  const cachedVersion = localStore.get(localCatalogueVersionKey());
-  if (liveVersion && cachedVersion === liveVersion && MOVIES.length) {
-    moviesLoaded = true;
-    window.__catalogueLoaded = true;
-    renderChips();
-    updateSubtitle();
-    updateRecommenderFilter();
-    render();
-    return;
-  }
-
   const collected = [];
   try {
     let after = 0;
@@ -4285,10 +4233,6 @@ async function loadCatalog() {
       after = next;
     }
     localStore.set(cacheKey, collected);
-    // Written only after the whole walk succeeded. Stamping a version onto a
-    // partial copy would make the next open trust half a catalogue and never
-    // fetch the rest.
-    if (liveVersion) localStore.set(localCatalogueVersionKey(), liveVersion);
     window.__catalogueLoaded = true;
   } catch (err) {
     // Offline, or the token expired: whatever the cache held is still on
