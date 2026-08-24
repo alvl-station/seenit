@@ -3063,22 +3063,32 @@ let liked = new Set();
  */
 let mine = new Set();
 
-/** My own films, out of the shelf the Worker assembles in one round trip. */
+/**
+ * Every collection on my shelf — my own, the shared ones, and the ones I
+ * subscribed to — in the single round trip the Worker assembles them in.
+ *
+ * Each carries `source` ('own' | 'default' | 'linked') and a `key` of the
+ * form owner/collection_id. That pair is the address: somebody else's
+ * "my_films" can sit on the same shelf as mine, and an id alone cannot tell
+ * them apart.
+ */
+let shelf = [];
+
 async function loadShelf() {
   try {
     const res = await fetch(`${API_PROXY}/library/collections`, { headers: await proxyHeaders({ accept: 'application/json' }) });
     if (!res.ok) throw new Error(`shelf ${res.status}`);
     const data = await res.json();
-    // A collection is addressed by the PAIR (owner, id): somebody else's
-    // "my_films" can sit on the same shelf as mine, so matching on the id
-    // alone would fold their films into my count.
-    const own = (data.collections || []).find(c => c.source === 'own' && c.collection_id === MY_FILMS_ID);
+    shelf = data.collections || [];
+    const own = shelf.find(c => c.source === 'own' && c.collection_id === MY_FILMS_ID);
     mine = new Set((own && own.film_ids ? own.film_ids : []).map(String));
     render({ keepDrawn: true });
+    if (recsOverlay.classList.contains('open')) renderRecs();
   } catch (err) {
     // An empty shelf is the safe failure: it offers to add a film that is
     // already there (harmless — the add is idempotent) rather than refusing
     // to add one that is not.
+    shelf = [];
     mine = new Set();
   }
 }
@@ -5472,8 +5482,14 @@ const recsBtn = document.getElementById('recsBtn');
 const recsOverlay = document.getElementById('recsOverlay');
 const recsBox = document.getElementById('recsBox');
 let recsSource = 'seenit';
-let recsListKey = 'all';
-let toplistsCache = null;
+
+// The collection being read, as the pair owner/collection_id — never the id
+// alone, which cannot tell my "my_films" from somebody else's.
+let openCollectionKey = null;
+// Films of the open collection. A collection can hold thousands of ids; only
+// what is on screen is ever fetched, and how many there are in total comes
+// from the collection itself rather than from counting what arrived.
+let openCollectionFilms = [];
 
 function openRecs() {
   renderRecs();
@@ -5527,39 +5543,123 @@ function renderRecs() {
       el.addEventListener('click', () => { closeRecs(); openModal(recommended[Number(el.dataset.idx)]); }));
     return;
   }
-  // SeenIt collections
-  body.innerHTML = '<div class="add-hint">Завантажую добірки…</div>';
-  const paint = (data) => {
-    const lists = (data && data.lists) || {};
-    const keys = TOPLIST_DEFS.map(d => d.key).filter(k => lists[k]);
-    if (!keys.length) {
-      body.innerHTML = '<div class="add-hint">Добірки ще формуються — зазирни пізніше.</div>';
-      return;
-    }
-    if (!lists[recsListKey]) recsListKey = keys[0];
-    const current = lists[recsListKey];
+  // Collections — mine, the shared ones, and the ones I linked. All three
+  // arrive from /library/collections in one round trip, which is why they
+  // render as one list rather than three screens: the shelf IS the answer.
+  if (openCollectionKey) { renderOpenCollection(body); return; }
+
+  if (!shelf.length) {
+    body.innerHTML = '<div class="add-hint">Добірки ще формуються — зазирни пізніше.</div>';
+    return;
+  }
+  const groups = [
+    ['own', 'Мої добірки'],
+    ['default', 'Добірки SeenIt'],
+    ['linked', 'Від інших'],
+  ];
+  body.innerHTML = groups.map(([source, title]) => {
+    const list = shelf.filter(c => c.source === source);
+    if (!list.length) return '';
+    return `<div class="recs-group"><div class="cf-label">${esc(title)}</div>
+      <div class="recs-lists">${list.map(c =>
+        `<button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>`).join('')}</div></div>`;
+  }).join('') || '<div class="add-hint">Тут поки порожньо.</div>';
+  body.querySelectorAll('[data-key]').forEach(el =>
+    el.addEventListener('click', () => {
+      openCollectionKey = el.dataset.key;
+      openCollectionFilms = [];
+      renderRecs();
+    }));
+}
+
+/**
+ * One collection, opened.
+ *
+ * Films are fetched a page at a time out of the id list the collection holds
+ * — a collection can carry thousands, and only what is shown is ever asked
+ * for. The server also re-imposes the collection's OWN order, which SQL
+ * would otherwise return in whatever order it liked.
+ */
+function renderOpenCollection(body) {
+  const col = shelf.find(c => c.key === openCollectionKey);
+  if (!col) { openCollectionKey = null; renderRecs(); return; }
+  const isMine = col.source === 'own';
+
+  const paint = () => {
+    const items = openCollectionFilms.map(m => ({
+      title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
+      year: m.year, poster_url: m.poster_url,
+    }));
     body.innerHTML = `
-      <div class="recs-lists">${keys.map(k =>
-        `<button class="recs-list-chip ${k === recsListKey ? 'active' : ''}" data-list="${k}">${esc(lists[k].title)}</button>`).join('')}</div>
-      ${data.updated_at ? `<div class="trend-updated">Оновлено ${new Date(data.updated_at).toLocaleDateString('uk-UA')} · за оцінками TMDb</div>` : ''}
-      ${pickGridHtml(current.movies || [], { ranks: true })}`;
-    body.querySelectorAll('[data-list]').forEach(el =>
-      el.addEventListener('click', () => { recsListKey = el.dataset.list; renderRecs(); }));
-    body.querySelectorAll('.trend-item').forEach(el =>
-      el.addEventListener('click', () => {
-        const m = (current.movies || [])[Number(el.dataset.idx)];
-        if (!m) return;
-        closeRecs();
-        openExternalPick(m);
-      }));
+      <div class="acc-actions">
+        <button class="btn" id="recsBackBtn">Усі добірки</button>
+        <span class="add-hint">${esc(col.name)} · ${col.count} ${pluralFilms(col.count)}</span>
+      </div>
+      ${col.count === 0
+        ? '<div class="add-hint">Ця добірка порожня.</div>'
+        : pickGridHtml(items)}
+      ${isMine && openCollectionFilms.length
+        // Removal lives INSIDE a collection, never in the catalogue: there is
+        // one catalogue and no one person empties the shelf everybody reads.
+        ? '<div class="add-hint">Натисни й потримай картку, щоб прибрати фільм із добірки.</div>'
+        : ''}
+      ${openCollectionFilms.length < col.count
+        ? '<div class="acc-actions"><button class="btn" id="recsMoreBtn">Показати ще</button></div>'
+        : ''}`;
+    body.querySelector('#recsBackBtn').addEventListener('click', () => {
+      openCollectionKey = null;
+      renderRecs();
+    });
+    const more = body.querySelector('#recsMoreBtn');
+    if (more) more.addEventListener('click', () => loadCollectionPage(col, body, paint));
+    body.querySelectorAll('.trend-item').forEach(el => {
+      const film = openCollectionFilms[Number(el.dataset.idx)];
+      if (!film) return;
+      el.addEventListener('click', () => { closeRecs(); openModal(film); });
+      if (!isMine) return;
+      // Long-press rather than a delete control on every poster: removal is
+      // rare and irreversible enough to deserve a deliberate gesture, and a
+      // row of them turns a browsing screen into an editing one.
+      let timer = null;
+      const arm = () => { timer = setTimeout(() => removeFromOpenCollection(col, film, body, paint), 550); };
+      const disarm = () => { if (timer) clearTimeout(timer); timer = null; };
+      el.addEventListener('pointerdown', arm);
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => el.addEventListener(ev, disarm));
+    });
   };
-  if (toplistsCache) { paint(toplistsCache); return; }
-  db.ref('kino/toplists').once('value').then(snap => {
-    toplistsCache = snap.val();
-    paint(toplistsCache);
-  }).catch(() => {
-    body.innerHTML = '<div class="add-hint">Не вдалося завантажити добірки. Спробуй пізніше.</div>';
-  });
+
+  if (openCollectionFilms.length || col.count === 0) { paint(); return; }
+  body.innerHTML = '<div class="add-hint">Завантажую добірку…</div>';
+  loadCollectionPage(col, body, paint);
+}
+
+async function loadCollectionPage(col, body, paint) {
+  try {
+    const url = `${API_PROXY}/library/collections/${encodeURIComponent(col.owner)}/${encodeURIComponent(col.collection_id)}/films`
+      + `?limit=50&offset=${openCollectionFilms.length}`;
+    const res = await fetch(url, { headers: await proxyHeaders({ accept: 'application/json' }) });
+    if (!res.ok) throw new Error(`collection ${res.status}`);
+    const data = await res.json();
+    openCollectionFilms = openCollectionFilms.concat(data.films || []);
+    paint();
+  } catch (err) {
+    body.innerHTML = '<div class="add-hint">Не вдалося завантажити добірку. Спробуй пізніше.</div>';
+  }
+}
+
+async function removeFromOpenCollection(col, film, body, paint) {
+  const title = film.canonical_title_uk || film.canonical_title_en || '';
+  if (!window.confirm(`Прибрати «${title}» з добірки «${col.name}»?`)) return;
+  try {
+    await removeFilmFromMine(film, col.collection_id);
+    openCollectionFilms = openCollectionFilms.filter(m => markKey(m) !== markKey(film));
+    col.count = Math.max(col.count - 1, 0);
+    col.film_ids = (col.film_ids || []).filter(id => String(id) !== markKey(film));
+    toast('ok', `«${title}» прибрано з «${col.name}»`);
+    paint();
+  } catch (err) {
+    toast('err', 'Не вдалося прибрати — спробуй ще раз');
+  }
 }
 
 recsBtn.addEventListener('click', openRecs);
