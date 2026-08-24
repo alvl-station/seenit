@@ -398,36 +398,6 @@
      the video or force it wider than its column. align-self opts it out. */
   .modal-trailer { width: 240px; min-width: 240px; align-self: flex-start; background: #000; }
   .modal-trailer iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: 0; }
-
-  /* Marks where the next batch of cards loads in. Occupies a little height so
-     it can actually cross the viewport and trigger — a zero-height element
-     inside a collapsed layout may never intersect. */
-  .render-sentinel { height: 1px; margin-top: 8px; }
-
-  /* The poster/trailer column, which "Де подивитись" shares. Its children set
-     their own width, so the column itself only needs to stop stretching. */
-  .modal-side { display: flex; flex-direction: column; align-self: flex-start; }
-  .modal-providers { width: 240px; padding: 12px 14px 14px; }
-  .modal-providers .lbl {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--text-muted); margin-bottom: 8px;
-  }
-  .prov-row { display: flex; flex-direction: column; gap: 6px; }
-  .prov {
-    display: flex; align-items: center; gap: 9px; text-decoration: none;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 6px 9px; color: var(--text);
-  }
-  .prov--owned { border-color: var(--accent2); }
-  @media (hover: hover) { a.prov:hover { border-color: var(--accent2); } }
-  .prov-logo { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; flex: none; background: #000; }
-  .prov-logo--none {
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: var(--text-muted); background: var(--surface);
-  }
-  .prov-text { display: flex; flex-direction: column; min-width: 0; }
-  .prov-name { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
-  .prov-kind { font-size: 11px; color: var(--text-muted); }
   .modal-body { padding: 22px 24px; flex: 1; }
   .modal-body h2 { margin: 0 0 2px; font-size: 22px; overflow-wrap: break-word; }
   .modal-body .title-en { color: var(--text-muted); font-style: italic; font-size: 13px; margin-bottom: 10px; }
@@ -575,14 +545,6 @@
   }
   .acc-hint { font-size: 11.5px; color: var(--text-muted); margin: -2px 0 8px; line-height: 1.4; }
   .acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .acc-services { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
-  .svc {
-    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 999px; padding: 5px 11px; font-size: 12.5px;
-  }
-  .svc--on { border-color: var(--accent2); color: var(--accent2); }
-  .svc input { accent-color: var(--accent2); margin: 0; }
 
   .onb-step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
   .onb-step-n {
@@ -666,12 +628,6 @@
     .modal-poster { width: 100%; min-width: 0; max-height: 340px; }
     .modal-poster img { max-height: 340px; object-fit: contain; background: #000; }
     .modal-trailer { width: 100%; min-width: 0; align-self: auto; }
-    .modal-side { width: 100%; align-self: auto; }
-    .modal-providers { width: 100%; }
-    /* Room for a thumb: the provider rows sit side by side rather than in a
-       narrow stack once the column is full-width. */
-    .prov-row { flex-direction: row; flex-wrap: wrap; }
-    .prov { flex: 1 1 46%; min-width: 0; }
 
     header { padding: 18px 16px 12px; }
     main { padding-left: 16px; padding-right: 16px; }
@@ -1201,23 +1157,6 @@ function userMarksPath(uid, list) {
 function localMarksKey(uid, list) {
   if (!MARK_LISTS.includes(list)) return null;
   return uid ? `seenit_${uid}_${list}` : null;
-}
-
-/**
- * Where one person's "services I already pay for" list lives.
- *
- * This is a PREFERENCE, not a connection. Netflix has had no public consumer
- * API since 2014 and Megogo's is a B2B partner programme, so there is nothing
- * to authenticate against — and nothing that could ever charge this person.
- * All the app does with this list is sort a service to the top of "Де
- * подивитись" and mark it "у вас є".
- *
- * Same blank-uid guard as userMarksPath(), for the same reason.
- */
-function userServicesPath(uid) {
-  if (typeof uid !== 'string' || !uid.trim()) return null;
-  if (/[.$#[\]/]/.test(uid)) return null;
-  return `kino/users/${uid}/services`;
 }
 
 /**
@@ -2702,14 +2641,6 @@ function slugify(titleEn, titleUk, year) {
   return `${base || 'film'}-${year || 'x'}`;
 }
 
-/** Same rule the whole app has always used: a YouTube trailer first, or
- * any YouTube video for the film if TMDb never tagged one as "Trailer". */
-function pickTrailer(videos) {
-  const list = videos || [];
-  return list.find(v => v.site === 'YouTube' && v.type === 'Trailer') ||
-    list.find(v => v.site === 'YouTube');
-}
-
 /* ---------- trailer embedding ----------
  * trailer_url is stored as a full youtube.com/watch?v=... URL (see
  * fetchMovieDetails() in app.js) \u2014 never an embeddable one \u2014 so the modal
@@ -2739,72 +2670,6 @@ function youtubeVideoId(url) {
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
   return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0` : null;
-}
-
-/* ---------- where to watch ---------- */
-
-// Every offer kind we may have on file, and how it reads in the UI.
-//
-// `unknown` is Megogo's, and it is deliberately vague: a Megogo match comes
-// from their sitemap, which proves only that the title exists there — their
-// page carries no price or offer data at all. Saying "Передплата" would be a
-// guess, and a guess about money is the wrong kind to make.
-const PROVIDER_KINDS = {
-  flatrate: 'Передплата',
-  free: 'Безкоштовно',
-  ads: 'Безкоштовно з рекламою',
-  rent: 'Оренда',
-  buy: 'Купівля',
-  unknown: 'Є в каталозі',
-};
-
-// Megogo is absent from TMDb entirely, so there is no logo_path for it.
-// Inlined (their own favicon, ~0.9KB) rather than hotlinked, so that opening
-// a modal never pings megogo.net.
-const MEGOGO_LOGO = 'data:image/svg+xml,' + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 152 152"><path fill="#22C3B1" d="M0 71.47C0 47.31 0 35.23 6.21 29c2.63-2.64 5.91-4.54 9.52-5.51 8.49-2.31 19 3.68 40.03 15.64l1.77 1.01c7.71 4.39 11.56 6.58 15.72 7.12a23 23 0 0 0 5.5 0c4.15-.54 8-2.73 15.71-7.12l1.77-1.01c21.03-11.96 31.54-17.94 40.03-15.64 3.6.98 6.88 2.88 9.52 5.52 6.21 6.22 6.21 18.3 6.21 42.47v17.2c0 16.18 0 24.27-3.89 30.08a19.6 19.6 0 0 1-6.37 6.36c-5.82 3.88-13.93 3.88-30.14 3.88H40.4c-16.21 0-24.32 0-30.14-3.88a19.6 19.6 0 0 1-6.37-6.36C0 112.95 0 104.86 0 88.68V71.47Z"/></svg>');
-
-/** The provider's own logo, from TMDb's image CDN or the inlined Megogo mark. */
-function providerLogoUrl(provider) {
-  if (!provider) return null;
-  if (provider.logo) return `https://image.tmdb.org/t/p/w92${provider.logo}`;
-  return provider.name === 'Megogo' ? MEGOGO_LOGO : null;
-}
-
-/** "Передплата" / "Оренда" / … for a stored offer kind. */
-function providerKindLabel(kind) {
-  return PROVIDER_KINDS[kind] || PROVIDER_KINDS.unknown;
-}
-
-/**
- * Where to send someone who taps a provider.
- *
- * A provider carries its own `url` only where an exact title page was
- * resolved (Megogo). TMDb never returns a per-provider link — only the
- * region page on TMDb itself — so everything else falls back to that shared
- * link. Returning null rather than inventing a search URL is the point: a
- * wrong link here lands a person on the wrong film's buy page.
- */
-function providerLinkUrl(provider, regionLink) {
-  return (provider && provider.url) || regionLink || null;
-}
-
-/**
- * Subscription offers first, then free, then things that cost money.
- *
- * Ordering by cost rather than alphabetically means "you can already watch
- * this" is the first thing read, and a purchase is never the top row.
- */
-const PROVIDER_KIND_ORDER = ['flatrate', 'free', 'ads', 'unknown', 'rent', 'buy'];
-function sortProviders(providers, owned = []) {
-  const mine = new Set(owned || []);
-  return (providers || []).slice().sort((a, b) => {
-    // Services the person already pays for outrank everything else.
-    const ownedDiff = (mine.has(b.name) ? 1 : 0) - (mine.has(a.name) ? 1 : 0);
-    if (ownedDiff) return ownedDiff;
-    const kindDiff = PROVIDER_KIND_ORDER.indexOf(a.kind) - PROVIDER_KIND_ORDER.indexOf(b.kind);
-    return kindDiff || String(a.name).localeCompare(String(b.name));
-  });
 }
 
 /* ---------- OCR title-candidate extraction ---------- */
@@ -2892,7 +2757,7 @@ function parseBatchLine(line) {
 // a plain <script>, where `module` is undefined, so this is a no-op there.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    MARK_LISTS, userMarksPath, localMarksKey, userCatalogPath, localCatalogKey, userServicesPath,
+    MARK_LISTS, userMarksPath, localMarksKey, userCatalogPath, localCatalogKey,
     usernameToEmail, ratingNum, hue, criticScoreColor, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively,
@@ -2901,8 +2766,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged, belongsInToplist,
     toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
-    pickTrailer, youtubeVideoId, youtubeEmbedUrl,
-    PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
+    youtubeVideoId, youtubeEmbedUrl,
     hasCJKScript, pickLatinPersonName,
     AWARD_INFO, matchAward, groupAwards, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, deletionPaths, deleteConfirmMessage, pluralFilms,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
@@ -2964,17 +2828,14 @@ function attachSync(ref, targetSetName, localKey) {
     if (targetSetName === 'watched') watched = window.watched;
     if (targetSetName === 'liked') liked = window.liked;
     localStore.set(localKey, ids); // keep an offline copy
-    // keepDrawn: marks arriving from the database (this tab's own write
-    // echoing back, or another device's) must not scroll the reader to the
-    // top of the catalogue.
-    render({ keepDrawn: true });
+    render();
   }, err => {
     window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 1;
     // Offline / permission error: fall back to whatever was last saved locally
     const ids = localStore.get(localKey);
     if (targetSetName === 'watched') watched = new Set(ids);
     if (targetSetName === 'liked') liked = new Set(ids);
-    render({ keepDrawn: true });
+    render();
   });
 }
 /* ---------- auth: each person logs in with their own username + password ---------- */
@@ -3017,7 +2878,6 @@ auth.onAuthStateChanged(user => {
       attachSync(watchedRef, 'watched', localMarksKey(user.uid, 'watched'));
       attachSync(likedRef, 'liked', localMarksKey(user.uid, 'liked'));
       attachMovies(user.uid);
-      loadServices(user.uid);
       // First visit on this account: the flag lives in the account's own
       // subtree (not localStorage), so a new phone does not replay the
       // guide for an account that has already seen it.
@@ -3474,109 +3334,10 @@ function cardHtml(m) {
   </div>`;
 }
 
-/**
- * How many cards one render pass draws before waiting for the reader.
- *
- * The catalogue used to be drawn WHOLE, every pass. That was fine at a
- * hundred films; after the genome import an account holds 13,000, so every
- * filter change, every mark, and every entry into delete mode rebuilt
- * thirteen thousand cards in one innerHTML write. On a phone that is a long
- * freeze; in CI it made clicking a card time out, which failed the smoke
- * suite and rolled live releases back.
- *
- * 200 is generous enough that a filtered view — watched, liked, one genre —
- * almost always arrives complete in the first pass, while still being ~65x
- * less work than the whole catalogue.
- */
-const RENDER_BATCH = 200;
-// How many cards the current view should hold. Grows as the reader scrolls,
-// and is preserved across re-renders that only change how cards LOOK.
-let _drawnTarget = RENDER_BATCH;
-let _renderQueue = [];         // films grouped but not yet drawn
-let _batchObserver = null;
-
-/**
- * Appends the next films from _renderQueue, reusing a genre section when one
- * is already on the page instead of rewriting it.
- *
- * Append-only on purpose: redrawing what is already there is the cost this
- * whole mechanism exists to avoid.
- */
-function drawQueuedCards(main, budget) {
-  while (budget > 0 && _renderQueue.length) {
-    const head = _renderQueue[0];
-    const take = head.movies.splice(0, budget);
-    budget -= take.length;
-    let grid = main.querySelector(`.genre-section[data-group="${cssAttr(head.group)}"] .grid`);
-    if (!grid) {
-      const section = document.createElement('section');
-      section.className = 'genre-section';
-      section.dataset.group = head.group;
-      // The count is the group's TOTAL, not what is drawn so far — it answers
-      // "how many are there", which does not change as you scroll.
-      section.innerHTML = `<h2>${esc(head.group)} <span class="count">${head.total}</span></h2><div class="grid"></div>`;
-      main.appendChild(section);
-      grid = section.querySelector('.grid');
-    }
-    grid.insertAdjacentHTML('beforeend', take.map(cardHtml).join(''));
-    if (!head.movies.length) _renderQueue.shift();
-  }
-  placeBatchSentinel(main);
-}
-
-/** Escapes a group name for use inside a [data-group="..."] selector. */
-function cssAttr(value) {
-  return String(value).replace(/["\\]/g, '\\$&');
-}
-
-/**
- * Keeps a sentinel as the last child of the grid while films remain.
- *
- * Where IntersectionObserver is unavailable — jsdom, which every page test
- * runs in — there is nothing to trigger the next batch, so the rest is drawn
- * immediately. Those fixtures hold a handful of films, so drawing them all is
- * both correct and free.
- */
-function placeBatchSentinel(main) {
-  const existing = document.getElementById('renderSentinel');
-  if (!_renderQueue.length) {
-    if (existing) existing.remove();
-    return;
-  }
-  if (typeof IntersectionObserver === 'undefined') {
-    if (existing) existing.remove();
-    drawQueuedCards(main, Infinity);
-    return;
-  }
-  const sentinel = existing || document.createElement('div');
-  sentinel.id = 'renderSentinel';
-  sentinel.className = 'render-sentinel';
-  sentinel.setAttribute('aria-hidden', 'true');
-  main.appendChild(sentinel);   // moves it back to last if it already existed
-  if (!_batchObserver) {
-    _batchObserver = new IntersectionObserver(entries => {
-      if (!entries.some(e => e.isIntersecting)) return;
-      const el = document.getElementById('main');
-      _drawnTarget += RENDER_BATCH;
-      drawQueuedCards(el, RENDER_BATCH);
-    // Start the next batch before the reader reaches the end, so the grid
-    // does not visibly stall at the bottom.
-    }, { rootMargin: '800px' });
-  }
-  _batchObserver.observe(sentinel);
-}
-
-/**
- * @param {{keepDrawn?: boolean}} opts keepDrawn re-renders the same number of
- *   cards the view already held. Use it when only the APPEARANCE of cards
- *   changed (delete mode, a mark) — resetting to the first batch there would
- *   yank the page out from under someone who had scrolled.
- */
-function render(opts = {}) {
+function render() {
   const main = document.getElementById('main');
   const items = visibleMovies();
   _posterAwardMovies = [];
-  if (!opts.keepDrawn) _drawnTarget = RENDER_BATCH;
 
   // Counted over the catalog, not over the raw sets: a mark can outlive the
   // movie it points at (nothing deletes marks when a title is removed), and
@@ -3591,7 +3352,6 @@ function render(opts = {}) {
     // Three different truths, three different sentences: still loading, an
     // account whose catalog is genuinely empty (every new registration),
     // and filters that matched nothing in a non-empty catalog.
-    _renderQueue = [];
     main.innerHTML = !moviesLoaded
       ? '<div class="empty-msg">Завантажую каталог…</div>'
       : MOVIES.length === 0
@@ -3607,14 +3367,16 @@ function render(opts = {}) {
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(m);
   }
-  _renderQueue = [];
+  let html = '';
   for (const g of GENRE_ORDER) {
     if (!groups.has(g)) continue;
     const list = groups.get(g).slice().sort(sortFn);
-    _renderQueue.push({ group: g, total: list.length, movies: list });
+    html += `<section class="genre-section">
+      <h2>${esc(g)} <span class="count">${list.length}</span></h2>
+      <div class="grid">${list.map(cardHtml).join('')}</div>
+    </section>`;
   }
-  main.innerHTML = '';
-  drawQueuedCards(main, _drawnTarget);
+  main.innerHTML = html;
 }
 
 /* ---------- scroll lock (shared by every overlay/modal) ---------- */
@@ -3640,77 +3402,12 @@ function unlockScroll() {
   }
 }
 
-/* ---------- "my services" ---------- */
-
-// The services this person says they already pay for. A PREFERENCE, never a
-// connection: see userServicesPath() in logic.js for why no real provider
-// account can be linked, and why that is also what makes an accidental
-// purchase impossible.
-//
-// Offered here rather than free-typed so the names match what TMDb returns
-// and the sort in providersHtml() can compare them directly.
-const KNOWN_SERVICES = ['Netflix', 'Megogo', 'HBO Max', 'Apple TV', 'Crunchyroll', 'MUBI', 'Amazon Prime Video'];
-let _services = [];
-function myServices() { return _services; }
-function loadServices(uid) {
-  const path = userServicesPath(uid);
-  if (!path) { _services = []; return; }
-  db.ref(path).on('value', snap => {
-    _services = Object.keys(snap.val() || {});
-    // A modal open at the time still shows the old order otherwise.
-    if (overlay.classList.contains('open') && _modalMovie) openModal(_modalMovie);
-  });
-}
-function toggleService(name, on) {
-  const uid = auth.currentUser && auth.currentUser.uid;
-  const path = userServicesPath(uid);
-  if (!path) return Promise.resolve();
-  return db.ref(`${path}/${name}`).set(on ? true : null);
-}
-
 /* ---------- modal ---------- */
 const overlay = document.getElementById('modalOverlay');
 const modalBox = document.getElementById('modalBox');
-// Remembered so a services change can re-render the open modal in place.
-let _modalMovie = null;
-
-/**
- * "Де подивитись" — the provider row under the trailer.
- *
- * Every entry is a plain link that opens the provider's TITLE page in a new
- * tab. This app has no account connection to any provider and never posts
- * anywhere, so it cannot rent, buy or subscribe to anything on a person's
- * behalf — deliberately, and the links avoid checkout/"buy" deep links so a
- * misplaced tap can't start a purchase either.
- *
- * Providers a person marked as already paid for (see myServices) are shown
- * first with a "у вас є" marker, since those cost nothing extra to watch.
- */
-function providersHtml(m) {
-  const list = sortProviders(m.providers || [], myServices());
-  if (!list.length) return '';
-  const rows = list.map(p => {
-    const href = providerLinkUrl(p, m.providers_link);
-    const logo = providerLogoUrl(p);
-    const owned = myServices().includes(p.name);
-    const inner = `
-      ${logo ? `<img class="prov-logo" src="${esc(logo)}" alt="" loading="lazy">`
-             : `<span class="prov-logo prov-logo--none" aria-hidden="true">${esc(p.name.slice(0, 1))}</span>`}
-      <span class="prov-text">
-        <span class="prov-name">${esc(p.name)}</span>
-        <span class="prov-kind">${esc(providerKindLabel(p.kind))}${owned ? ' · у вас є' : ''}</span>
-      </span>`;
-    // No href -> render the same row as static text rather than a dead link.
-    return href
-      ? `<a class="prov${owned ? ' prov--owned' : ''}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
-      : `<span class="prov${owned ? ' prov--owned' : ''}">${inner}</span>`;
-  }).join('');
-  return `<div class="modal-providers"><div class="lbl">Де подивитись</div><div class="prov-row">${rows}</div></div>`;
-}
 
 function openModal(m) {
   _modalAwardGroups = [];
-  _modalMovie = m;
   const isW = watched.has(m.id), isL = liked.has(m.id);
   // The trailer plays where the poster would sit, muted+autoplay (YouTube's
   // own control lets a person unmute), rather than a button that opens a new
@@ -3723,13 +3420,8 @@ function openModal(m) {
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
     : posterHtml(m, 'modal-poster');
   const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
-  // The poster/trailer and "Де подивитись" share one column: .modal is a flex
-  // row on desktop, so a third direct child would become a third column.
   modalBox.innerHTML = `
-    <div class="modal-side">
-      ${posterOrTrailer}
-      ${providersHtml(m)}
-    </div>
+    ${posterOrTrailer}
     <div class="modal-body">
       <h2>${esc(m.canonical_title_uk)} ${m.year ? `<span style="color:var(--text-muted);font-weight:400;font-size:16px">(${m.year})</span>` : ''}</h2>
       ${m.canonical_title_en && m.canonical_title_en.toLowerCase() !== (m.canonical_title_uk||'').toLowerCase() ? `<div class="title-en">${esc(m.canonical_title_en)}</div>` : ''}
@@ -3755,7 +3447,6 @@ function openModal(m) {
 }
 function closeModal() {
   overlay.classList.remove('open');
-  _modalMovie = null;
   unlockScroll();
 }
 overlay.addEventListener('click', e => {
@@ -3792,12 +3483,9 @@ function toggle(act, id) {
   if (!ref) return;   // not signed in yet: nothing to write to
   const willBeOn = !set.has(id);
 
-  // Optimistic local update for instant feedback.
-  // keepDrawn: a mark can change WHICH films are listed (the "Дивився"
-  // isolation filter), so this still re-renders — but it keeps the reader
-  // where they were instead of jumping back to the top of the catalogue.
+  // Optimistic local update for instant feedback
   willBeOn ? set.add(id) : set.delete(id);
-  render({ keepDrawn: true });
+  render();
 
   // Persist to Firebase; the 'value' listener will reconcile state
   // for this tab and push the change to everyone else in real time.
@@ -4054,9 +3742,11 @@ async function tmdbSearch(query, year) {
     .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
     .slice(0, 6);
 }
-// pickTrailer() now lives in src/logic.js — it is pure (no DOM/fetch) and
-// scripts/backfill-trailer-links.js needs the exact same selection rule
-// Node-side, so it moved rather than being copied.
+function pickTrailer(videos) {
+  const list = videos || [];
+  return list.find(v => v.site === 'YouTube' && v.type === 'Trailer') ||
+    list.find(v => v.site === 'YouTube');
+}
 // critic_score/awards data source (see extractCriticScore()/
 // parseOmdbAwardsSummary() in src/logic.js) — TMDb has neither. Best-effort:
 // a title OMDb doesn't have, or a network hiccup, just leaves these fields
@@ -4826,25 +4516,14 @@ function setDeleteMode(on) {
   deleteModeBtn.setAttribute('aria-pressed', String(on));
   deleteBar.hidden = !on;
   renderDeleteBar();
-  // keepDrawn: entering the mode changes how cards LOOK, not which films are
-  // listed, so someone who had scrolled keeps their place.
-  render({ keepDrawn: true });
+  render();
 }
 
 function toggleDeleteSelection(id) {
   if (!id) return;
-  const on = !selectedForDelete.has(id);
-  on ? selectedForDelete.add(id) : selectedForDelete.delete(id);
+  selectedForDelete.has(id) ? selectedForDelete.delete(id) : selectedForDelete.add(id);
   renderDeleteBar();
-  // One card changed, so touch one card. This used to re-render the whole
-  // catalogue to flip a single checkmark — thirteen thousand cards rebuilt
-  // per tap once an account held that many, which is what made selecting a
-  // card time out in CI.
-  const card = document.querySelector(`.card[data-id="${cssAttr(id)}"]`);
-  if (!card) return;
-  card.classList.toggle('is-selected', on);
-  const mark = card.querySelector('.card-select-mark');
-  if (mark) mark.innerHTML = on ? ICON.check : '';
+  render();
 }
 
 function renderDeleteBar() {
@@ -4914,27 +4593,10 @@ function openAccount() {
       <div class="acc-hint">Пароль: щонайменше 8 символів, велика й мала літери, цифра і символ.</div>
       <button class="btn on-watched" type="submit" id="accPassBtn">Змінити пароль</button>
     </form>`}
-    <div class="acc-label">Мої сервіси</div>
-    <div class="acc-hint">Познач, за що вже платиш — ці сервіси будуть першими в «Де подивитись».
-      Це лише позначка: додаток не підключається до сервісів і нічого не оплачує.</div>
-    <div class="acc-services" id="accServices">
-      ${KNOWN_SERVICES.map(name => `
-        <label class="svc${myServices().includes(name) ? ' svc--on' : ''}">
-          <input type="checkbox" data-service="${esc(name)}" ${myServices().includes(name) ? 'checked' : ''}>
-          <span>${esc(name)}</span>
-        </label>`).join('')}
-    </div>
     <div class="acc-actions">
       <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>
       <button class="btn" id="accCloseBtn">Закрити</button>
     </div>`;
-  accountBox.querySelector('#accServices').addEventListener('change', e => {
-    const box = e.target.closest('input[data-service]');
-    if (!box) return;
-    box.closest('.svc').classList.toggle('svc--on', box.checked);
-    toggleService(box.dataset.service, box.checked)
-      .catch(() => { box.checked = !box.checked; toast('error', 'Не вдалося зберегти'); });
-  });
   accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
   accountBox.querySelector('#accGuideBtn').addEventListener('click', () => { closeAccount(); openOnboarding(); });
   const passForm = accountBox.querySelector('#accPassForm');
@@ -5032,36 +4694,33 @@ function renderTrending() {
   });
 }
 
-/* ---------- the shared recommendation pool (D1) ----------
- * Used to be the WHOLE kino/movies node — 13,000+ Firebase records pulled
- * into browser memory just to pick ONE random entry (a standing ROADMAP
- * item). The Worker's D1 mirror of that same pool does the random pick
- * server-side instead (ORDER BY RANDOM() LIMIT 1 — see /pool/random in
- * seenit-backend), so the browser fetches exactly one film.
- *
- * This is the ONLY thing that moved. The pool is read-only reference data
- * here (description, cast, critic score, awards already enriched) — never
- * written from the browser. Everything that IS written from the browser —
- * the person's own catalog, watched/liked marks, auth — stays Firebase,
- * unchanged. Firebase also stays where the pool itself is authored (nightly
- * enrichment, genome import); a sync job mirrors it into D1, and this only
- * changes where the APP reads it from.
+/* ---------- the shared recommendation pool ----------
+ * The legacy shared catalog (kino/movies) is not being deleted after all:
+ * it is a hundred-plus FULLY ENRICHED records — description, cast, critic
+ * score, awards — and that makes it a perfect ready-made recommendation
+ * pool for any account. "Випадковий фільм" deals one out; adding it is a
+ * straight copy of the complete record into the person's own catalog, so
+ * it costs zero TMDb/OMDb requests. The node is frozen read-only by the
+ * rules, which is exactly what a shared pool should be.
  */
+let poolCache = null;
+function loadPool() {
+  if (poolCache) return Promise.resolve(poolCache);
+  return db.ref('kino/movies').once('value').then(snap => {
+    poolCache = Object.values(snap.val() || {}).filter(m => m && m.id);
+    return poolCache;
+  });
+}
+
 function rollPoolPick() {
   const box = onboardBox.querySelector('#poolPick');
   if (!box) return;
-  // Every roll is a network round-trip now (there is no whole-pool cache to
-  // pick from locally any more), so the button needs a visible "it's doing
-  // something" state instead of looking stuck between click and response.
-  box.innerHTML = '<div class="add-hint">Підбираю…</div>';
-  proxyHeaders().then(headers => fetch(`${API_PROXY}/pool/random?count=1`, { headers }))
-    .then(res => { if (!res.ok) throw new Error(`pool/random -> HTTP ${res.status}`); return res.json(); })
-    .then(data => {
-    const m = data.films && data.films[0];
-    if (!m) {
+  loadPool().then(pool => {
+    if (!pool.length) {
       box.innerHTML = '<div class="add-hint">Добірка порожня.</div>';
       return;
     }
+    const m = pool[Math.floor(Math.random() * pool.length)];
     const own = findDuplicateMovie(MOVIES, m.canonical_title_uk, m.canonical_title_en, m.year);
     box.innerHTML = `
       <div class="pool-card" data-id="${esc(m.id)}">
