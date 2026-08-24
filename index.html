@@ -1278,14 +1278,20 @@ function isMarked(set, movie) {
 }
 
 /**
- * One page of the catalogue.
+ * One page of the catalogue, addressed by a CURSOR.
  *
  * Paged rather than fetched whole because 13,546 films is a response no
  * single request should hold, and because the grid can start drawing after
  * the first page instead of after the last.
+ *
+ * `after` is the last tmdb_id of the previous page, not a row offset. OFFSET
+ * charges for every row it walks past and throws away, over a sort with no
+ * index to ride — fourteen pages of that read ~190,000 rows per app-open and
+ * put D1 at 72.8 million against a 5,000,000 daily limit. A cursor reads
+ * exactly one page.
  */
-function poolListUrl(base, { limit = CATALOGUE_PAGE, offset = 0 } = {}) {
-  return `${base}/pool/list?limit=${Number(limit)}&offset=${Number(offset)}`;
+function poolListUrl(base, { limit = CATALOGUE_PAGE, after = 0 } = {}) {
+  return `${base}/pool/list?limit=${Number(limit)}&after=${Number(after) || 0}`;
 }
 
 /** One mark on one film. The list name is in the path, the film is the id. */
@@ -4195,16 +4201,18 @@ async function loadCatalog() {
 
   const collected = [];
   try {
-    for (let offset = 0; ; offset += CATALOGUE_PAGE) {
-      const res = await fetch(poolListUrl(API_PROXY, { limit: CATALOGUE_PAGE, offset }),
+    let after = 0;
+    for (let first = true; ; first = false) {
+      const res = await fetch(poolListUrl(API_PROXY, { limit: CATALOGUE_PAGE, after }),
         { headers: await proxyHeaders({ accept: 'application/json' }) });
       if (!res.ok) throw new Error(`catalogue ${res.status}`);
-      const page = (await res.json()).films || [];
+      const body = await res.json();
+      const page = body.films || [];
       collected.push(...page.filter(m => m && m.id));
       // Replace the cached copy on the FIRST page and append after it: the
       // fresh answer is authoritative, and half of it drawn beats a stale
       // copy held until the last page lands.
-      if (offset === 0) MOVIES.length = 0;
+      if (first) MOVIES.length = 0;
       page.forEach(m => { if (m && m.id) MOVIES.push(m); });
       moviesLoaded = true;
       renderChips();
@@ -4212,8 +4220,17 @@ async function loadCatalog() {
       updateRecommenderFilter();
       // keepDrawn: later pages must not scroll a reader who has already
       // started browsing back to the top.
-      render({ keepDrawn: offset > 0 });
+      render({ keepDrawn: !first });
       if (page.length < CATALOGUE_PAGE) break;
+      // The server hands back the cursor rather than us deriving it: which
+      // column orders the page is its business, and a caller guessing wrong
+      // would skip films in silence.
+      const next = Number(body.next_after) || Number(page[page.length - 1] && page[page.length - 1].tmdb_id) || 0;
+      // A cursor that has not moved would fetch the same page for ever —
+      // which is exactly what an older Worker, one that ignores `after` and
+      // still pages by offset, would produce. Stopping beats spinning.
+      if (next <= after) break;
+      after = next;
     }
     localStore.set(cacheKey, collected);
     window.__catalogueLoaded = true;
