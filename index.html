@@ -3788,35 +3788,25 @@ function youtubeVideoId(url) {
 // null when the URL isn't a recognisable YouTube link \u2014 the caller's cue to
 // fall back to the static poster instead of an iframe with nothing to show.
 /**
- * The quietest player YouTube actually allows.
+ * The embed the card plays, and a note about what CANNOT be changed here.
  *
- * The card wants a moving frame, not a video site: it has its own sound
- * control on the title plate, and everything else YouTube draws on top is
- * somebody else's interface appearing inside ours.
+ * enablejsapi: the film card's own sound button drives mute/unMute over
+ * postMessage — without it the iframe ignores every command.
  *
- * What each one buys, and it is worth writing down because they look
- * interchangeable and are not:
- *   controls=0        no play bar, no title bar, no logo button
- *   modestbranding=1  drops the watermark that remains without controls
- *   iv_load_policy=3  no annotations or cards over the picture
- *   disablekb=1       the keyboard belongs to the page, not to the embed
- *   fs=0              no fullscreen button; the card is the frame
- *   playsinline=1     iOS plays it in place instead of seizing the screen
- *   rel=0             what follows comes from the same channel, not the feed
- *   enablejsapi=1     the sound button drives mute/unMute over postMessage
+ * An attempt to strip YouTube's interface (controls=0, modestbranding,
+ * iv_load_policy, fs=0, disablekb, on -nocookie) was shipped and reverted on
+ * 2026-08-25. It did NOT deliver what it promised: a tap still surfaced the
+ * title, the channel and the YouTube logo, because that overlay is not the
+ * controls and controls=0 does not remove it. It also cost the sound —
+ * unMute over postMessage stopped working, and the card's own switch is the
+ * one control the design actually depends on.
  *
- * It cannot be made completely bare, and pretending otherwise would be a
- * promise the embed breaks by itself: a tap can still surface the title and
- * a way to open YouTube, which is YouTube's to require and not ours to
- * remove. -nocookie only changes what is stored until the video plays; it is
- * not a way around any of that.
+ * So: the plain embed. If the branding has to go, the answer is not a
+ * parameter list — it is not serving the video from YouTube at all.
  */
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
-  if (!id) return null;
-  const params = 'autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3'
-    + '&disablekb=1&fs=0&playsinline=1&rel=0&enablejsapi=1';
-  return `https://www.youtube-nocookie.com/embed/${id}?${params}`;
+  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1` : null;
 }
 
 /* ---------- where to watch ---------- */
