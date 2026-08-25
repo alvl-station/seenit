@@ -4137,12 +4137,42 @@ const logoutBtn = document.getElementById('logoutBtn');
 const bootSplash = document.getElementById('bootSplash');
 let authAnswered = false;
 let bootLifted = false;
+/**
+ * Raise the mark again for a SECOND boot.
+ *
+ * Signing in is one: until that moment the splash had already been spent
+ * showing the login screen, so the app came up behind it with nothing to
+ * cover the assembly — an empty grid, «Завантажую каталог…», then cards and
+ * posters arriving one after another in full view (owner-reported: "after
+ * logging in I do not want to see that").
+ *
+ * Everything the gate needs is reset with it, including the content
+ * deadline: this wait has only just started and must not inherit a clock
+ * that began at page load.
+ */
+function raiseBoot() {
+  bootLifted = false;
+  _contentDeadline = 0;
+  bootSplash.hidden = false;
+  // Two frames' worth of separation, so the browser has the element back in
+  // the layout before the class that fades it out is removed — otherwise the
+  // transition has nothing to transition from and the mark snaps in.
+  requestAnimationFrame(() => bootSplash.classList.remove('out'));
+  setTimeout(() => bootSplash.classList.remove('out'), 32);
+}
+
 function finishBoot() {
   if (bootLifted) return;
   bootLifted = true;
   if (!authAnswered) loginOverlay.classList.remove('hidden');
   bootSplash.classList.add('out');
-  setTimeout(() => { bootSplash.hidden = true; }, 220);
+  // Guarded, because this fires 220ms from now and the splash can be RAISED
+  // again in between — signing in does exactly that. An unguarded timer from
+  // the first boot then hid the mark the second boot had just put back, and
+  // the gate below went on politely waiting for posters behind a
+  // display:none element. bootLifted is the same flag raiseBoot() clears, so
+  // a stale timer simply finds the world moved on and does nothing.
+  setTimeout(() => { if (bootLifted) bootSplash.hidden = true; }, 220);
 }
 /**
  * Signed in, so the next thing worth showing is FILMS — not an empty grid
@@ -4155,12 +4185,61 @@ function finishBoot() {
  * splash lifts anyway and render() tells the truth about why the grid is
  * empty. Nothing here can strand the screen.
  */
+/**
+ * Are the posters a person will ACTUALLY see already drawn?
+ *
+ * Only the first screen, and that is not a shortcut — the posters carry
+ * `loading="lazy"`, so the ones below the fold are never fetched until they
+ * are scrolled to. Waiting for "all posters" would wait for images the
+ * browser has decided not to request, and the splash would turn for ever.
+ *
+ * `complete` is true for a poster that FAILED as well as one that arrived,
+ * which is what we want: a dead image URL costs the boot nothing. A card
+ * without a poster at all renders the initial instead and has no <img> to
+ * wait on, so a screen of those is ready immediately.
+ */
+function firstScreenPostersReady() {
+  const cards = document.querySelectorAll('#main .card');
+  if (!cards.length) return false;
+  const vh = window.innerHeight || 800;
+  for (const card of cards) {
+    if (card.getBoundingClientRect().top > vh) break;
+    const img = card.querySelector('.poster img');
+    if (img && !img.complete) return false;
+  }
+  return true;
+}
+
+/**
+ * The splash comes down when there is something WORTH showing.
+ *
+ * Waiting for the catalogue data alone was not enough (owner-reported: the
+ * mark goes away too early and you watch the posters arrive afterwards).
+ * Data means the grid can be laid out; it says nothing about whether the
+ * pictures in it have landed.
+ *
+ * Two deadlines, and they answer different questions. The 8s one below is
+ * about AUTH: if Firebase never says who you are, the login screen is the
+ * honest thing to show. Once it HAS answered, that question is settled and
+ * the only thing left is content — which gets its own, longer allowance,
+ * because a slow connection loading real pictures is not a failure and
+ * should not be cut off at the same moment a dead Firebase would be.
+ *
+ * Neither can strand the screen: whichever comes first, the splash lifts and
+ * render() then tells the truth about whatever did or did not arrive.
+ */
+const CONTENT_WAIT_MS = 12000;
+let _contentDeadline = 0;
 function finishBootWhenFilmsShow() {
   if (bootLifted) return;
-  if (moviesLoaded) { finishBoot(); return; }
+  if (!_contentDeadline) _contentDeadline = Date.now() + CONTENT_WAIT_MS;
+  if (moviesLoaded && firstScreenPostersReady()) { finishBoot(); return; }
+  if (Date.now() >= _contentDeadline) { finishBoot(); return; }
   setTimeout(finishBootWhenFilmsShow, 120);
 }
-setTimeout(finishBoot, 8000);
+// Auth only. It used to fire regardless, which would have cut the content
+// wait above short at eight seconds no matter how healthy the load was.
+setTimeout(() => { if (!authAnswered) finishBoot(); }, 8000);
 
 let syncedOnce = false;
 auth.onAuthStateChanged(user => {
@@ -4173,10 +4252,16 @@ auth.onAuthStateChanged(user => {
   }
   authAnswered = true;
   if (user) {
+    // Arriving from the LOGIN SCREEN, not from a restored session: the splash
+    // is already down, and without raising it the person watches the app
+    // build itself. bootLifted is what tells the two apart — a restored
+    // session reaches here while the splash is still up.
+    const cameFromLogin = bootLifted;
     loginOverlay.classList.add('hidden');
     appRoot.style.display = '';
     logoutBtn.style.display = '';
     accountBtn.style.display = '';
+    if (cameFromLogin) raiseBoot();
     if (!syncedOnce) {
       syncedOnce = true;
       // Films come from D1, the person stays on Firebase. Both start at once
