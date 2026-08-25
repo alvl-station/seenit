@@ -858,7 +858,13 @@
      somebody who is in no list of yours becomes someone you can follow.
      There is no button — typing is the search — so the field stands alone
      and the suggestions drop under it. */
-  .friend-find { position: relative; margin: 4px 0 20px; }
+  /* Below the lists and separated from them: it is the way to somebody NEW,
+     and standing flush under the people you already have made it read as
+     part of that list. */
+  .friend-find {
+    position: relative; margin: 20px 0 0;
+    padding-top: 18px; border-top: 1px solid var(--border);
+  }
   .friend-find input {
     width: 100%; box-sizing: border-box; height: var(--control-h);
     background: var(--coal2); border: 1px solid var(--border); border-radius: 3px;
@@ -1090,7 +1096,7 @@
      touch the edges); the add flow gets its padding from .add-form. These
      two boxes have no such wrapper, so without this their content sits
      flush against the border. */
-  #accountBox, #onboardBox { padding: 20px 22px; }
+  #accountBox, #onboardBox, #friendsBox, #recsBox { padding: 20px 22px; }
 
   /* The account screen speaks the same language as the rest: mono labels,
      fields with the label ABOVE them (as on the login screen), and services
@@ -7684,7 +7690,7 @@ function openRecs() {
   recsOverlay.classList.add('open');
   lockScroll(recsOverlay);
 }
-function closeRecs() { recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); }
+function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); }
 
 function pickGridHtml(items, { ranks = false } = {}) {
   return `<div class="trend-grid">${items.map((m, i) => `
@@ -7777,8 +7783,16 @@ function renderFriends() {
   // and «Налаштування» do (owner's call). Without it a panel that opens over
   // the catalogue is just a floating list — you can tell what it holds but
   // not what you opened.
+  // The search sits at the BOTTOM (owner's call), under the people you
+  // already have: those are what the screen is for most of the time, and a
+  // field above them pushed them down to serve the rarer errand. Its results
+  // open under it, where the thumb already is.
   friendsBox.innerHTML = `
     <div class="sheet-title">Друзі</div>
+    <div class="add-tabs">
+      ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
+    </div>
+    <div id="friendsBody"></div>
     <div class="friend-find">
       <div class="field-clear-wrap">
         <input id="friendFind" type="text" placeholder="Знайти людину за імʼям" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -7786,10 +7800,6 @@ function renderFriends() {
       </div>
       <div id="friendFindOut" class="friend-suggest" hidden></div>
     </div>
-    <div class="add-tabs">
-      ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
-    </div>
-    <div id="friendsBody"></div>
     <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
   friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
@@ -7880,14 +7890,17 @@ async function showFriend(username) {
   renderFriends();
 }
 
-function renderFriendDetail(body) {
-  const p = openFriend;
+/**
+ * One person's open collections, drawn the same on both screens that show
+ * them — «Друзі» and «Добірки» → «Від друзів». Two renderings of the same
+ * thing drift, and the «+» is the part that must not.
+ */
+function friendColsHtml(cols) {
   // Already on the shelf is not an error and not a second «+» — the row says
   // so and stops offering. linkedKeys is the shelf's own truth, so a
   // collection added from anywhere else reads as added here too.
   const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
-  const cols = p.collections || [];
-  const colsHtml = cols.length
+  return (cols || []).length
     ? `<div class="friend-cols">${cols.map(c => {
         const have = linkedKeys.has(c.key);
         return `<div class="friend-col${have ? ' is-have' : ''}">
@@ -7898,6 +7911,11 @@ function renderFriendDetail(body) {
           </div>`;
       }).join('')}</div>`
     : '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+}
+
+function renderFriendDetail(body) {
+  const p = openFriend;
+  const colsHtml = friendColsHtml(p.collections);
   const recHtml = p.recommended_public && (p.recommended || []).length
     ? `<div class="cf-label" style="margin-top:14px">Рекомендує</div>${pickGridHtml((p.recommended || []).map(m => ({
         title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
@@ -7950,6 +7968,7 @@ async function addPersonCollection(key, btn) {
     toast('ok', 'Добірку додано на полицю');
     await loadShelf();
     if (friendsOverlay.classList.contains('open')) renderFriends();
+    if (recsOverlay.classList.contains('open')) renderRecs();
   } catch (err) {
     toast('error', 'Не вдалося додати добірку — спробуй ще раз');
     if (btn) btn.disabled = false;
@@ -7958,6 +7977,42 @@ async function addPersonCollection(key, btn) {
 
 friendsBtn.addEventListener('click', () => openFriends());
 friendsOverlay.addEventListener('click', e => { if (e.target === friendsOverlay) closeFriends(); });
+
+/* One person, opened inside «Добірки» → «Від друзів»: their open
+ * collections and nothing else. The «Друзі» screen is where a PERSON is
+ * managed — followed, unfollowed, searched for; this is where their shelf is
+ * borrowed from, so it carries the collections and the way back, and leaves
+ * the rest alone. */
+let _recsFriend = null;
+async function openRecsFriend(username) {
+  const body = recsBox.querySelector('#recsbody');
+  if (body) body.innerHTML = '<div class="add-hint">Відкриваю…</div>';
+  try {
+    const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(username)}`, {
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _recsFriend = await res.json();
+  } catch (err) {
+    _recsFriend = null;
+    if (body) body.innerHTML = '<div class="add-hint">Не вдалося відкрити — перевір звʼязок і спробуй ще раз.</div>';
+    return;
+  }
+  renderRecs();
+}
+
+function renderRecsFriend(body) {
+  const p = _recsFriend;
+  body.innerHTML = `
+    <div class="friend-head">
+      <button class="btn-ghost friend-back" id="recsFriendBack" type="button">← Усі</button>
+      <span class="friend-title">${esc(p.username)}</span>
+    </div>
+    ${friendColsHtml(p.collections)}`;
+  body.querySelector('#recsFriendBack').addEventListener('click', () => { _recsFriend = null; renderRecs(); });
+  body.querySelectorAll('[data-add-col]').forEach(el =>
+    el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
+}
 
 function renderRecs() {
   const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
@@ -7969,23 +8024,24 @@ function renderRecs() {
     <div id="recsbody"></div>
     <div class="acc-actions"><button class="btn-ghost" id="recsCloseBtn">Закрити</button></div>`;
   recsBox.querySelectorAll('[data-recs-src]').forEach(el =>
-    el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; renderRecs(); }));
+    el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; _recsFriend = null; renderRecs(); }));
   recsBox.querySelector('#recsCloseBtn').addEventListener('click', closeRecs);
 
   const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
   if (recsSource === 'friends') {
-    // Honest about what exists: a whole PERSON cannot be followed yet, but a
-    // single collection of theirs can — that is what the key on the
-    // "Добірки" tab is for.
-    // Subscriptions exist now. This tab is the doorway to them, not an
-    // apology: the people, then the way to find more.
+    // A tap OPENS the person here, in place (owner's call). It used to close
+    // this screen and reopen «Друзі» on them, which is a long way round to
+    // the one thing the tab is for: this tab is about their COLLECTIONS, and
+    // sending you to a screen about people to see them read as being thrown
+    // somewhere else.
+    if (_recsFriend) { renderRecsFriend(body); return; }
     body.innerHTML = subs.subscriptions.length
       ? `<div class="recs-group"><div class="cf-label">Ти підписаний на</div>
            <div class="friend-list">${subs.subscriptions.map(personRowHtml).join('')}</div></div>
          <div class="add-hint" style="margin-top:12px">Тапни людину, щоб побачити її відкриті добірки й покласти будь-яку собі.</div>`
-      : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину за імʼям у «Додати» → «Друг»: там видно її відкриті добірки, і звідти ж можна підписатися.</div>';
+      : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину в «Друзях» — там пошук за імʼям, і звідти ж можна підписатися.</div>';
     body.querySelectorAll('[data-person]').forEach(el =>
-      el.addEventListener('click', () => { closeRecs(); openFriends(el.dataset.person); }));
+      el.addEventListener('click', () => openRecsFriend(el.dataset.person)));
     return;
   }
   if (recsSource === 'mine') {
