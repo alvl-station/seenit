@@ -618,50 +618,34 @@
      16:9, or the poster full height. Either way the TITLE lies over the
      frame on a translucent plate — it never vanishes under the video. */
   .film-head { position: relative; background: #000; }
-  /* aspect-ratio here too, matching the iframe's: a percentage height on an
-     absolutely positioned child (the edge strips below) needs this box's
-     own height to be explicit, not merely inherited from the iframe's —
-     Safari would not resolve it otherwise (owner-reported). */
-  .modal-trailer { position: relative; aspect-ratio: 16 / 9; }
+  .modal-trailer { position: relative; }
   .modal-trailer iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: 0; }
   /* Our own cover, over YouTube's, until the video is really there. Coal
      rather than black: the card's ground, so it reads as part of the app
-     and not as a hole in it. */
+     and not as a hole in it.
+
+     One cover over the whole frame, and nothing else. An attempt to also
+     hold two strips over the top and bottom edges — where YouTube's own
+     title and controls live — past the moment the video starts was shipped
+     and reverted: the strips rendered under YouTube's elements on the
+     owner's iPhone rather than over them, and the extra machinery was not
+     worth what it was buying. Covering somebody else's chrome for longer is
+     not a fight this card needs to win. */
   .trailer-veil {
     position: absolute; inset: 0; z-index: 2;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    /* Nudged up off dead center: the title plate sits along the bottom edge
+       of this same frame, so a mark centred on the box reads as centred low
+       against what you actually see. */
+    padding-bottom: 34px;
     background: var(--coal2);
     transition: opacity .25s ease;
-    /* iOS Safari owner-reported bug: an <iframe allowfullscreen> can get
-       promoted to its own compositor layer and paint over sibling z-index
-       content regardless of stacking order. Forcing this cover onto a layer
-       of its own too is what actually wins that fight. */
-    transform: translateZ(0);
   }
   .trailer-veil .boot-mark { width: 72px; }
   .trailer-veil .boot-word { font-size: 10px; }
   /* Gone, not merely transparent: a veil that keeps its layer would swallow
      every tap meant for the player underneath it. */
   .trailer-veil.out { opacity: 0; pointer-events: none; }
-  /* The center of the frame proves the trailer is playing well before
-     YouTube's own title/controls chrome has finished fading off the top and
-     bottom edges — so once PLAYING fires, the middle opens right away while
-     these two strips keep covering exactly where that chrome lives, a beat
-     longer. Faded rather than flat: solid at the screen edge, transparent by
-     the inner edge, so the strip blends into the video instead of reading as
-     a second hard-edged bar once the center is already showing through. */
-  .trailer-veil-edge {
-    position: absolute; left: 0; right: 0; z-index: 2;
-    height: 20%; transition: opacity .25s ease;
-    transform: translateZ(0);
-  }
-  .trailer-veil-edge-top {
-    top: 0; background: linear-gradient(to bottom, var(--coal2) 0%, var(--coal2) 35%, transparent 100%);
-  }
-  .trailer-veil-edge-bottom {
-    bottom: 0; background: linear-gradient(to top, var(--coal2) 0%, var(--coal2) 35%, transparent 100%);
-  }
-  .trailer-veil-edge.out { opacity: 0; pointer-events: none; }
   .modal-poster { width: 100%; background: var(--surface2); }
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
@@ -1270,17 +1254,30 @@
   .to-top {
     position: fixed; z-index: 40;
     right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    width: var(--control-h); height: var(--control-h);
+    /* The glyph alone — no plate, no border (owner's call). It keeps the
+       control-height box so the tap target stays a thumb's worth, but that
+       box is invisible: a red chevron this heavy needs nothing behind it to
+       be found, and a framed button in the corner reads as furniture.
+       Flash rather than blood — blood is nearly black against this ground,
+       which is the opposite of the point. */
+    /* Bigger than a control, because it is no longer shaped like one: with
+       the plate gone the glyph IS the target, so the box grows with it.
+       The stroke thins as the glyph grows — 3.5 at 34px was weight against a
+       small mark, and kept at 68px it would read as a slab. */
+    width: 72px; height: 72px;
     display: flex; align-items: center; justify-content: center;
-    background: var(--coal2); color: var(--dust);
-    border: 1px solid var(--border); border-radius: 3px;
+    background: none; border: 0; padding: 0;
+    color: var(--flash);
+    /* Nothing behind it any more, and what it floats over is posters — so
+       the glyph carries its own contrast rather than borrowing a plate's. */
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.85));
     cursor: pointer; -webkit-tap-highlight-color: transparent;
     opacity: 0; transform: translateY(6px);
-    transition: opacity .18s ease, transform .18s ease, border-color .15s;
+    transition: opacity .18s ease, transform .18s ease, color .15s;
   }
   .to-top[hidden] { display: none; }
   .to-top.in { opacity: 1; transform: none; }
-  @media (hover: hover) { .to-top:hover { border-color: var(--blood); color: var(--paper); } }
+  @media (hover: hover) { .to-top:hover { color: var(--paper); } }
 
   .dlg-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.55); }
   .dlg {
@@ -1772,7 +1769,7 @@
      on the first screen it would be a button that does nothing, and one of
      those on every screen is how a corner fills up with furniture. -->
 <button class="to-top" id="toTopBtn" type="button" title="Догори" aria-label="Догори" hidden>
-  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg viewBox="0 0 24 24" width="68" height="68" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="18 15 12 9 6 15"/>
   </svg>
 </button>
@@ -5394,9 +5391,7 @@ function openModal(m) {
   const veil = `<div class="trailer-veil">
       <div class="boot-mark" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>
       <div class="boot-word">Завантажується</div>
-    </div>
-    <div class="trailer-veil-edge trailer-veil-edge-top" aria-hidden="true"></div>
-    <div class="trailer-veil-edge trailer-veil-edge-bottom" aria-hidden="true"></div>`;
+    </div>`;
   const frame = embedUrl
     ? `<div class="modal-trailer">${veil}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
@@ -5478,59 +5473,37 @@ function openModal(m) {
 }
 
 /**
- * Take the veil away once there is a picture behind it.
+ * Hold the mark until the trailer is actually playing behind it.
  *
- * `load` on the iframe is necessary and not sufficient: it fires when
- * YouTube's page has arrived, which is a beat before the video paints. The
- * short wait after it is the difference between the mark dissolving into a
- * playing trailer and dissolving into YouTube's cover — which is the whole
- * thing this veil exists to hide.
- *
- * A ceiling as well as a floor: if the frame never loads at all, the mark
- * must not sit there for ever pretending something is coming.
- */
-/**
- * Hold the mark until YouTube's own furniture is off the screen.
- *
- * `load` was the wrong signal and the previous version used it: it fires
- * when YouTube's page arrives, which is BEFORE the video starts and long
- * before the title, the channel and the play button fade off it. The veil
- * lifted onto exactly the thing it exists to hide (owner-reported).
+ * `load` was the wrong signal and an earlier version used it: it fires when
+ * YouTube's page arrives, which is BEFORE the video starts. The veil lifted
+ * onto exactly the thing it exists to hide (owner-reported).
  *
  * The right signal is the player's own. With enablejsapi=1 it will report
- * its state over postMessage once asked to — so we ask, wait for PLAYING,
- * and only then start counting.
+ * its state over postMessage once asked to — so we ask, and wait for
+ * PLAYING.
  *
- * PLAYING is not the finish line, and this is the part worth being honest
- * about. What has to be gone before the veil lifts is YouTube's FURNITURE —
- * the title, the channel, the play button — and that moment cannot be
- * observed from here at all: the chrome fades on YouTube's own timer, inside
- * a cross-origin frame whose DOM we may not read, and there is no event for
- * "the title is gone". Any claim to detect it would be a lie in code.
+ * PLAYING is the ONLY signal that lifts it, and there is deliberately
+ * nothing else — no tuned wait after it, and no ceiling that lifts on a
+ * timer regardless.
  *
- * So the count after PLAYING is a TUNED WAIT, deliberately set past the fade
- * YouTube performs when nothing is touching the player — which is our case
- * exactly, since nobody is. Erring long on purpose (owner's call): a second
- * of our own mark is cheaper than a second of somebody else's interface
- * inside our card. If it ever feels slow, this number is the only thing to
- * change.
+ * Both were tried and both were reverted (owner's call). A tuned wait past
+ * PLAYING was an attempt to also outlast YouTube's own furniture — the
+ * title, the channel, the play button — fading off the frame. That moment
+ * cannot be observed from here at all: the chrome fades on YouTube's timer,
+ * inside a cross-origin frame whose DOM we may not read, on an easing curve
+ * that visibly slows near the end, so any number picked for it is a guess.
+ * A pair of strips held over the top and bottom edges instead of one guessed
+ * number fared worse still: they rendered UNDER YouTube's elements on the
+ * owner's iPhone. Covering somebody else's chrome for longer is not a fight
+ * this card needs to win.
  *
- * The wait is also, unavoidably, a guess at a moment we cannot observe —
- * YouTube's chrome fades on an easing curve that visibly slows near the end,
- * so there is no crisp instant to time against (owner-reported). Rather than
- * lean harder on one guessed number, the veil now lifts in two pieces: the
- * CENTER — proof the trailer is actually playing — opens almost immediately,
- * while two edge strips keep covering exactly where YouTube's title and
- * controls live, for the full tuned wait. A late chrome-fade then falls
- * behind an edge that is already there instead of behind nothing.
- *
- * Both ends are guarded. If the player never speaks — blocked, offline, an
- * API that changed — the ceiling lifts everything anyway, because a mark
- * that waits for ever is worse than a glimpse of a logo.
+ * The ceiling went for the opposite reason. Lifting on a timer when the
+ * player never speaks does not reveal a playing trailer — it reveals a
+ * stopped one, which is exactly what the owner saw. Waiting is the honest
+ * answer there: if the video never starts, "Завантажується" is true, and a
+ * cover that stays is better than one that lifts onto a paused frame.
  */
-const CENTER_REVEAL_MS = 600;
-const CHROME_FADE_MS = 6500;
-const VEIL_CEILING_MS = 14000;
 let _veilTimers = [];
 let _playerListener = null;
 
@@ -5540,11 +5513,8 @@ function liftTrailerVeil() {
   if (!box) return;
   const iframe = box.querySelector('iframe');
   const veil = box.querySelector('.trailer-veil');
-  const edges = box.querySelectorAll('.trailer-veil-edge');
   if (!iframe || !veil) return;
-  const revealCenter = () => veil.classList.add('out');
-  const liftEdges = () => edges.forEach(el => el.classList.add('out'));
-  const liftAll = () => { revealCenter(); liftEdges(); };
+  const lift = () => veil.classList.add('out');
 
   // Subscribing is a message too: the player stays silent until something
   // says it is listening.
@@ -5570,13 +5540,11 @@ function liftTrailerVeil() {
     const state = msg.event === 'onStateChange' ? msg.info
       : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
     if (state === 1) {   // PLAYING
-      _veilTimers.push(setTimeout(revealCenter, CENTER_REVEAL_MS));
-      _veilTimers.push(setTimeout(liftEdges, CHROME_FADE_MS));
+      lift();
       clearPlayerListener();
     }
   };
   window.addEventListener('message', _playerListener);
-  _veilTimers.push(setTimeout(liftAll, VEIL_CEILING_MS));
 }
 
 function clearPlayerListener() {
