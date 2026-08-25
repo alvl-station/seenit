@@ -237,7 +237,11 @@
   }
   .tab.active { color: var(--paper); border-bottom-color: var(--blood); }
   .tab .n { font-family: var(--font-mono); font-size: 10px; color: var(--slate); }
-  .filter-word.filter-on { color: var(--blood); }
+  /* No state colour on the word (owner's call). It used to go blood while
+     anything in the drawer was non-default, which meant it changed back to
+     ash the moment sorting returned to «За рейтингом» — a word that flickers
+     between two colours as you sort reads as a bug, not as a hint. The
+     drawer says what is in it; the word only opens it. */
 
   /* The genre ribbon: ONE scrollable line under the navigation (§07). The
      scrollbar is hidden — the cut-off chip at the edge says "more". */
@@ -839,6 +843,63 @@
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   /* ---------- login screen ---------- */
+  /* ---------- Друзі ----------
+     A person is a ROW, not a chip: a name plus what is behind it, and the
+     whole row is the target — 44px of it, per CONVENTIONS. Chips are for
+     things you toggle; this you walk into. */
+  .friend-list { display: flex; flex-direction: column; gap: 1px; }
+  .friend-row {
+    display: flex; align-items: baseline; gap: 10px;
+    width: 100%; min-height: var(--control-h);
+    padding: 10px 12px; text-align: left;
+    background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
+    color: var(--dust); cursor: pointer;
+  }
+  .friend-row:hover { border-color: var(--steel); }
+  .friend-name {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--paper);
+  }
+  .friend-meta { font-size: 10.5px; letter-spacing: .04em; color: var(--slate); white-space: nowrap; }
+
+  /* The person's own screen: back, name, and the one button that changes
+     anything. */
+  .friend-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .friend-back { flex: none; }
+  .friend-title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
+    font-size: 18px; color: var(--paper);
+  }
+
+  .friend-cols { display: flex; flex-direction: column; gap: 1px; }
+  .friend-col {
+    display: flex; align-items: center; gap: 10px;
+    min-height: var(--control-h); padding: 6px 6px 6px 12px;
+    background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
+  }
+  .friend-col-name {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--dust);
+  }
+  /* The «+» is an icon at 15px inside a 44px target, like every other icon
+     in the app — the drawing is small, the tappable area never is. */
+  .friend-col-add {
+    flex: none; width: var(--control-h); height: var(--control-h);
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: 3px;
+    color: var(--flash); cursor: pointer;
+  }
+  .friend-col-add svg { width: 15px; height: 15px; }
+  .friend-col-add:hover { background: rgba(0, 0, 0, .25); }
+  .friend-col-add[disabled] { opacity: .4; cursor: default; }
+  .friend-col-have {
+    flex: none; padding-right: 12px;
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--slate);
+  }
+  .friend-col.is-have .friend-col-name { color: var(--ash); }
+
   /* ---------- boot splash ----------
      Covers everything until the session is known, so the login screen never
      flashes at somebody who is already signed in. */
@@ -854,16 +915,20 @@
      one place that is not a contradiction — flash is forbidden as a colour
      of REST, and a spinner is the opposite of rest. On coal, blood alone
      nearly disappeared. */
-  .boot-spin {
-    width: 96px; height: 96px; border-radius: 50%;
-    border: 4px solid var(--coal2); border-top-color: var(--flash);
-    animation: boot-spin .9s linear infinite;
+  /* The mark breathes instead of spinning: same sentence as every empty
+     screen, in the same words. */
+  #bootSplash { flex-direction: column; gap: 18px; }
+  .boot-mark { width: 130px; animation: boot-breathe 1.8s ease-in-out infinite; }
+  .boot-mark svg { width: 100%; height: auto; display: block; }
+  .boot-word {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--ash);
   }
-  @keyframes boot-spin { to { transform: rotate(360deg); } }
+  @keyframes boot-breathe { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
   /* Reduced motion still needs to say "working" — it just says it slower,
-     rather than freezing into a ring that reads as a broken page. */
+     rather than freezing into a mark that reads as a painted-on logo. */
   @media (prefers-reduced-motion: reduce) {
-    .boot-spin { animation-duration: 2.4s; }
+    .boot-mark { animation-duration: 4s; }
   }
 
   /* ---------- the login screen (step-2 mockup «Екрани Афіші», 01) ----------
@@ -1354,7 +1419,15 @@
      decides that beat except waiting for it, so the wait gets a face: the
      screen holds this spinner until onAuthStateChanged says which way to
      go. Inline in <head>'s stylesheet, so it paints on the first frame. -->
-<div id="bootSplash" role="status" aria-label="Завантаження"><div class="boot-spin"></div></div>
+<!-- The mark, not a spinner (owner's call): the app already says
+     «Завантажую» under its own mark on every empty screen, and a red ring
+     was a second, unrelated vocabulary for the same sentence. It is inlined
+     rather than cloned from #markTemplate below because this has to paint on
+     the very first frame, before any script runs. -->
+<div id="bootSplash" role="status" aria-label="Завантажую">
+  <div class="boot-mark" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m2d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#F2F3F6"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
+  <div class="boot-word">Завантажую</div>
+</div>
 <!-- The login screen, to the step-2 mockup («Екрани Афіші», 01): no box —
      the form stands on the ground itself. The mark is the ONE place it keeps
      its full height, because there is nothing else on the screen; the word
@@ -1477,6 +1550,11 @@
 <div class="sheet" id="menuSheet" aria-hidden="true">
   <div class="sheet-title">Меню</div>
   <button class="sheet-row" id="recsBtn" type="button">Добірки</button>
+  <!-- Hidden until there is somebody to show: a row that opens an empty
+       screen is a promise the app cannot keep. It appears with the first
+       subscription and with the first follower alike — being followed is
+       news too. -->
+  <button class="sheet-row" id="friendsBtn" type="button" style="display:none">Друзі</button>
   <button class="sheet-row" id="accountBtn" type="button" style="display:none">Акаунт</button>
   <button class="sheet-row" id="settingsBtn" type="button">Налаштування</button>
   <!-- Inactive on the main screen (owner's call): the catalogue here is
@@ -1557,7 +1635,7 @@
      zero size rather than display:none: the clones reference THIS copy's
      filter ids, and a browser ignores SVG filters that live in a
      display:none subtree — which flattened the stack to a plain silhouette. -->
-<div id="markTemplate" class="svg-stash" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m2d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#F2F3F6"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m2d)"><g fill="#F2F3F6"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
+<div id="markTemplate" class="svg-stash" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m3d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#F2F3F6"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
 <main id="main"></main>
 <footer>Клікни на картку — повна інформація · <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg> — переглянуто · <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-2px"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.3 1.6 6.9 4.4 5.3c2.3-1.3 5-.7 6.6 1.3l1 1.2 1-1.2c1.6-2 4.3-2.6 6.6-1.3 2.8 1.6 3.4 5 1.7 7.6C18.7 16.65 12 21 12 21z"/></svg> — рекомендую</footer>
 
@@ -1588,6 +1666,9 @@
 </div>
 <div class="modal-overlay" id="recsOverlay">
   <div class="modal add-modal" id="recsBox"></div>
+</div>
+<div class="modal-overlay" id="friendsOverlay">
+  <div class="modal add-modal" id="friendsBox"></div>
 </div>
 </div>
 
@@ -3935,6 +4016,26 @@ let mine = new Set();
  */
 let shelf = [];
 
+/* People, not films: who I follow and who follows me. Both arrive in one
+ * answer because the friends screen shows them as two tabs of one screen —
+ * fetching the second tab on open made its count appear a beat late. */
+let subs = { subscriptions: [], followers: [] };
+async function loadSubs() {
+  try {
+    const res = await fetch(`${API_PROXY}/library/subs`, { headers: await proxyHeaders({ accept: 'application/json' }) });
+    if (!res.ok) throw new Error(`subs ${res.status}`);
+    const data = await res.json();
+    subs = { subscriptions: data.subscriptions || [], followers: data.followers || [] };
+  } catch (err) {
+    // Nobody, rather than a broken screen: the row stays hidden and the rest
+    // of the app is untouched. This is the same failure shape loadShelf()
+    // chose, and for the same reason.
+    subs = { subscriptions: [], followers: [] };
+  }
+  syncFriendsRow();
+  if (friendsOverlay.classList.contains('open')) renderFriends();
+}
+
 async function loadShelf() {
   try {
     const res = await fetch(`${API_PROXY}/library/collections`, { headers: await proxyHeaders({ accept: 'application/json' }) });
@@ -4043,6 +4144,22 @@ function finishBoot() {
   bootSplash.classList.add('out');
   setTimeout(() => { bootSplash.hidden = true; }, 220);
 }
+/**
+ * Signed in, so the next thing worth showing is FILMS — not an empty grid
+ * with «Завантажую каталог…» under a second copy of the same mark
+ * (owner-reported: after signing in you watch the app assemble itself). The
+ * splash stays until the first page of the catalogue has painted, and then
+ * the person lands on a screen that already has something on it.
+ *
+ * The 8s failsafe below still applies: if the catalogue never arrives, the
+ * splash lifts anyway and render() tells the truth about why the grid is
+ * empty. Nothing here can strand the screen.
+ */
+function finishBootWhenFilmsShow() {
+  if (bootLifted) return;
+  if (moviesLoaded) { finishBoot(); return; }
+  setTimeout(finishBootWhenFilmsShow, 120);
+}
 setTimeout(finishBoot, 8000);
 
 let syncedOnce = false;
@@ -4068,6 +4185,7 @@ auth.onAuthStateChanged(user => {
       loadCatalog();
       loadMarks(user.uid);
       loadShelf();
+      loadSubs();
       loadServices(user.uid);
       // First visit on this account: the flag lives in the account's own
       // subtree (not localStorage), so a new phone does not replay the
@@ -4085,7 +4203,9 @@ auth.onAuthStateChanged(user => {
     logoutBtn.style.display = 'none';
     accountBtn.style.display = 'none';
   }
-  finishBoot();
+  // Signed out lands on the login screen at once; signed in waits for the
+  // films, so the app is never watched assembling itself.
+  if (user) finishBootWhenFilmsShow(); else finishBoot();
 });
 
 // One form, two modes. Registration reuses the login fields because the
@@ -4825,7 +4945,27 @@ function resetFilters() {
 // pin the body in place and restore the exact scroll position on unlock.
 let _lockedScrollY = 0;
 let _scrollLockCount = 0;
-function lockScroll() {
+/**
+ * Who is holding the lock, not just how many holds there are.
+ *
+ * The count alone could not tell a SECOND overlay from the SAME overlay
+ * asking twice, and the difference froze the app: openModal() is also how
+ * an open card re-draws itself after a mark, so every tap on the eye or the
+ * heart added a hold that nothing would ever release — closeModal() releases
+ * one. Two holds, one release, and the body kept `position: fixed` after the
+ * card was gone: no scrolling, no taps, reload the only way out
+ * (owner-reported). A double-tap on any overlay's opener did the same thing.
+ *
+ * Keyed by the element, so re-opening what is already open is a no-op and
+ * releasing what is not held is a no-op too — the second protecting other
+ * overlays from a close() that runs twice.
+ */
+const _scrollLockOwners = new Set();
+function lockScroll(owner = null) {
+  if (owner) {
+    if (_scrollLockOwners.has(owner)) return;
+    _scrollLockOwners.add(owner);
+  }
   if (_scrollLockCount === 0) {
     _lockedScrollY = window.scrollY || window.pageYOffset || 0;
     document.body.style.top = `-${_lockedScrollY}px`;
@@ -4833,9 +4973,17 @@ function lockScroll() {
   }
   _scrollLockCount++;
 }
-function unlockScroll() {
+function unlockScroll(owner = null) {
+  if (owner) {
+    if (!_scrollLockOwners.has(owner)) return;
+    _scrollLockOwners.delete(owner);
+  }
   _scrollLockCount = Math.max(0, _scrollLockCount - 1);
   if (_scrollLockCount === 0) {
+    // Belt and braces: if a caller without an owner ever unbalanced the
+    // count, the owners set would keep stale entries and the next lock from
+    // the same overlay would silently do nothing.
+    _scrollLockOwners.clear();
     document.body.classList.remove('scroll-locked');
     document.body.style.top = '';
     window.scrollTo(0, _lockedScrollY);
@@ -5001,13 +5149,27 @@ function openModal(m) {
       ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}
     </div>
     <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+  // Lock ONCE per opening, not once per render.
+  //
+  // openModal() is also how the card re-draws itself after a mark: the eye
+  // and the heart call it again to show their new state (see the toggle
+  // handler). It used to lockScroll() unconditionally, so every tap on a
+  // mark inside an open card added a lock nobody would ever release —
+  // closeModal() releases exactly one. Two taps, one release, and the count
+  // never reached zero: body kept `position: fixed` after the card was
+  // gone, and the page stopped scrolling and stopped taking taps. The only
+  // way out was a reload (owner-reported), which is what a frozen page
+  // looks like from the outside.
+  //
+  // The guard reads the state BEFORE the class is set, because the class is
+  // what "already open" means.
   overlay.classList.add('open');
-  lockScroll();
+  lockScroll(overlay);
 }
 function closeModal() {
   overlay.classList.remove('open');
   _modalMovie = null;
-  unlockScroll();
+  unlockScroll(overlay);
 }
 overlay.addEventListener('click', e => {
   if (e.target === overlay || e.target.closest('.modal-close')) { closeModal(); return; }
@@ -5293,13 +5455,13 @@ function wireSheet(sheetId, backdropId) {
     backdrop.hidden = false;
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
-    lockScroll();
+    lockScroll(sheet);
   };
   const close = () => {
     backdrop.hidden = true;
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
-    unlockScroll();
+    unlockScroll(sheet);
   };
   backdrop.addEventListener('click', close);
   return { open, close };
@@ -5386,12 +5548,17 @@ document.getElementById('menuSheet').addEventListener('click', e => {
   if (row && row.getAttribute('aria-disabled') !== 'true') menuSheet.close();
 });
 
-/* The word ФІЛЬТР glows blood while anything inside the drawer is
- * non-default — that is how a closed drawer admits it is not empty. */
+/* The word ФІЛЬТР keeps ONE colour, whatever is set inside the drawer
+ * (owner's call). It used to glow blood while anything was non-default, so
+ * returning the sort to «За рейтингом» turned it back to ash — the word
+ * changing colour as you sorted read as a fault rather than as a hint.
+ *
+ * Kept as a function rather than deleted at eight call sites: those calls
+ * mark the places that CHANGE the filter state, and that is worth keeping
+ * findable if the drawer ever needs to admit its contents again.
+ */
 function updateFilterGlow() {
-  document.getElementById('filterBtn').classList.toggle(
-    'filter-on', state.sort !== 'rating' || state.recommender !== 'all'
-      || state.hideAwards || state.hideScores || state.type !== 'all');
+  document.getElementById('filterBtn').classList.remove('filter-on');
 }
 
 /* Films vs series (§07). A second tap on the chosen one clears it (U-6). */
@@ -6215,7 +6382,15 @@ async function searchFriend() {
            year: m.year, poster_url: m.poster_url,
          })))}`
       : '';
-    out.innerHTML = colsHtml + recHtml;
+    // Following belongs HERE, at the moment you have just found the person
+    // and can see what they keep — not on a later screen you would have to
+    // be told about. `following === null` is yourself: no button, because
+    // there is no version of it that means anything.
+    const followHtml = data.following === null || data.following === undefined
+      ? ''
+      : `<div class="opts" style="margin-top:10px"><button class="opt${data.following ? ' active' : ''}" type="button"
+           data-follow="${esc(data.username)}" data-following="${data.following ? '1' : ''}">${data.following ? 'Ви підписані' : 'Підписатися'}</button></div>`;
+    out.innerHTML = followHtml + colsHtml + recHtml;
   } catch (err) {
     out.innerHTML = '<div class="add-hint">Не вдалося пошукати — перевір звʼязок і спробуй ще раз.</div>';
   }
@@ -6335,6 +6510,12 @@ function addModalHome() {
   addBox.querySelector('#friendSearchBtn').addEventListener('click', () => searchFriend());
   addBox.querySelector('#friendName').addEventListener('keydown', e => { if (e.key === 'Enter') searchFriend(); });
   addBox.querySelector('#friendResults').addEventListener('click', async e => {
+    const followBtn = e.target.closest('[data-follow]');
+    if (followBtn) {
+      await togglePersonFollow(followBtn.dataset.follow, !followBtn.dataset.following, followBtn);
+      searchFriend();   // redraw from the server's own answer, not from a guess
+      return;
+    }
     const chip = e.target.closest('[data-friend-col]');
     if (chip) {
       // Adding a friend's public collection is the same ref link the key
@@ -6376,11 +6557,51 @@ function addModalHome() {
     });
     addBox.querySelector('#addResults').innerHTML = '';
   }));
-  addBox.querySelector('#addSearchBtn').addEventListener('click', () => {
-    const title = addBox.querySelector('#addTitle').value.trim();
-    const year = addBox.querySelector('#addYear').value.trim();
+  /* The same search everywhere (owner's call). The header's field filters
+   * as you type and needs no button; this one asked you to type, then find
+   * the button, then press it — and Enter, the one key everybody presses in
+   * a search field, did nothing at all.
+   *
+   * It cannot be literally the same: the header filters what is ALREADY on
+   * screen (free), while this asks TMDb (a request per call). So typing
+   * searches on a pause instead of on a keystroke, and Enter does not wait
+   * for the pause. The button stays — it costs nothing and it is what a
+   * finger reaches for after the on-screen keyboard covers the results. */
+  const addTitleEl = addBox.querySelector('#addTitle');
+  const addYearEl = addBox.querySelector('#addYear');
+  let _addSearchTimer = 0;
+  let _addSearchLast = '';
+  const runAddSearch = () => {
+    clearTimeout(_addSearchTimer);
+    const title = addTitleEl.value.trim();
+    const year = addYearEl.value.trim();
     recommenderPrefill = addBox.querySelector('#addRecBy').value.trim();
-    if (title) runSearch(title, year);
+    if (!title) return;
+    _addSearchLast = `${title}|${year}`;
+    runSearch(title, year);
+  };
+  const scheduleAddSearch = () => {
+    clearTimeout(_addSearchTimer);
+    const title = addTitleEl.value.trim();
+    // Two characters is where a title search stops being every film at once.
+    // Repeating the query already on screen is skipped: leaving the year
+    // field, or a stray keystroke that changes nothing, must not re-ask.
+    if (title.length < 2) return;
+    _addSearchTimer = setTimeout(() => {
+      if (`${title}|${addYearEl.value.trim()}` === _addSearchLast) return;
+      runAddSearch();
+    }, 450);
+  };
+  addBox.querySelector('#addSearchBtn').addEventListener('click', runAddSearch);
+  [addTitleEl, addYearEl].forEach(el => {
+    el.addEventListener('input', scheduleAddSearch);
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      // Enter must not submit anything or reload the page — the form here is
+      // a set of fields, not a <form>, and on a phone Enter is the button.
+      e.preventDefault();
+      runAddSearch();
+    });
   });
   addBox.querySelector('#addFile').addEventListener('change', async e => {
     const file = e.target.files[0];
@@ -6573,16 +6794,8 @@ function renderConfirmCard(movie) {
         <input id="cfTitleUk" type="text" value="${movie.canonical_title_uk.replace(/"/g, '&quot;')}">
         <label class="cf-label">Оригінальна назва</label>
         <input id="cfTitleEn" type="text" value="${(movie.canonical_title_en || '').replace(/"/g, '&quot;')}" placeholder="Оригінальна назва">
-        <div class="confirm-row">
-          <div>
-            <label class="cf-label">Тип</label>
-            <select id="cfType"><option value="фільм" ${movie.type==='фільм'?'selected':''}>фільм</option><option value="серіал" ${movie.type==='серіал'?'selected':''}>серіал</option></select>
-          </div>
-          <div>
-            <label class="cf-label">Жанр</label>
-            <select id="cfGroup">${GENRE_ORDER.map(g => `<option ${g===movie.genre_group?'selected':''}>${g}</option>`).join('')}</select>
-          </div>
-        </div>
+        <label class="cf-label">Тип</label>
+        <select id="cfType"><option value="фільм" ${movie.type==='фільм'?'selected':''}>фільм</option><option value="серіал" ${movie.type==='серіал'?'selected':''}>серіал</option></select>
         <label class="cf-label">Опис</label>
         ${movie._overviewTranslated ? '<div class="add-hint">Автоматичний переклад з англійської — можна відредагувати.</div>' : ''}
         <textarea id="cfDesc" rows="4">${movie.description_uk}</textarea>
@@ -6592,9 +6805,16 @@ function renderConfirmCard(movie) {
         <div class="src-divider"><span>З джерела · не редагується</span></div>
         <div class="confirm-row">
           <div>
+            <label class="cf-label">Жанр</label>
+            <div class="cf-readonly" id="cfGroupRead">${esc(movie.genre_group || 'Інше')}</div>
+          </div>
+          <div>
             <label class="cf-label">Рік</label>
             <div class="cf-readonly">${movie.year ? esc(String(movie.year)) : '<span class="cf-empty">не вказано</span>'}</div>
           </div>
+        </div>
+        <div class="confirm-row">
+          <div style="display:none"></div>
           <div>
             <label class="cf-label">Рейтинг</label>
             <div class="cf-readonly">${movie.rating ? esc(movie.rating) : '<span class="cf-empty">не знайдено</span>'}</div>
@@ -6651,7 +6871,11 @@ function renderConfirmCard(movie) {
       canonical_title_en: resultsEl.querySelector('#cfTitleEn').value.trim() || undefined,
       year: movie.year || undefined,
       type: resultsEl.querySelector('#cfType').value,
-      genre_group: resultsEl.querySelector('#cfGroup').value,
+      // From the source, like year, rating and cast (owner's call): the
+      // genre decides which section of the catalogue a film lands in, and a
+      // hand-picked one made the same film sit in different places depending
+      // on who added it. It is shown, not offered.
+      genre_group: movie.genre_group || 'Інше',
       rating: movie.rating || undefined,
       critic_score: criticScore,
       description_uk: resultsEl.querySelector('#cfDesc').value.trim(),
@@ -6802,8 +7026,8 @@ function renderBatchRows(rows, recommendedBy) {
   });
 }
 
-function openAddModal() { addModalHome(); addOverlay.classList.add('open'); lockScroll(); }
-function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(); }
+function openAddModal() { addModalHome(); addOverlay.classList.add('open'); lockScroll(addOverlay); }
+function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(addOverlay); }
 /* ---------- delete mode ----------
  * Entering the mode does not select anything and does not touch data; the
  * only irreversible step is the confirm, and it happens once for the whole
@@ -6867,13 +7091,13 @@ function confirmDeletion(chosen) {
   backdrop.hidden = false;
   dlg.classList.add('open');
   dlg.setAttribute('aria-hidden', 'false');
-  lockScroll();
+  lockScroll(dlg);
   return new Promise(resolve => {
     const done = ok => {
       backdrop.hidden = true;
       dlg.classList.remove('open');
       dlg.setAttribute('aria-hidden', 'true');
-      unlockScroll();
+      unlockScroll(dlg);
       go.removeEventListener('click', onGo);
       cancel.removeEventListener('click', onCancel);
       backdrop.removeEventListener('click', onCancel);
@@ -7092,9 +7316,9 @@ function openAccount() {
       .finally(() => { btn.disabled = false; });
   });
   accountOverlay.classList.add('open');
-  lockScroll();
+  lockScroll(accountOverlay);
 }
-function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(); }
+function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); }
 
 function openOnboarding() {
   onboardBox.innerHTML = `
@@ -7117,12 +7341,12 @@ function openOnboarding() {
   renderTrending();
   rollPoolPick();
   onboardOverlay.classList.add('open');
-  lockScroll();
+  lockScroll(onboardOverlay);
 }
 
 function closeOnboarding() {
   onboardOverlay.classList.remove('open');
-  unlockScroll();
+  unlockScroll(onboardOverlay);
   // Recorded on close, not on open: an accidental flash of the overlay
   // must not count as having read the guide.
   const user = auth.currentUser;
@@ -7365,9 +7589,9 @@ let likedPublic = false;
 function openRecs() {
   renderRecs();
   recsOverlay.classList.add('open');
-  lockScroll();
+  lockScroll(recsOverlay);
 }
-function closeRecs() { recsOverlay.classList.remove('open'); unlockScroll(); }
+function closeRecs() { recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); }
 
 function pickGridHtml(items, { ranks = false } = {}) {
   return `<div class="trend-grid">${items.map((m, i) => `
@@ -7379,6 +7603,178 @@ function pickGridHtml(items, { ranks = false } = {}) {
       <div class="trend-year">${m.year ? esc(String(m.year)) : ''}</div>
     </div>`).join('')}</div>`;
 }
+
+/* ---------- Друзі ----------
+ *
+ * Following is one-directional and needs nobody's permission, so the screen
+ * has two tabs rather than one list: «Підписки» is what I chose, and
+ * «Підписники» is what happened to me. A person in either tab opens the
+ * same way — their public collections, each with a «+» that links it onto
+ * my shelf. The «+» is the ref link the key form and the friend search both
+ * already make: a POINTER to their collection, never a copy, so it keeps
+ * changing when they change it.
+ */
+const friendsOverlay = document.getElementById('friendsOverlay');
+const friendsBox = document.getElementById('friendsBox');
+const friendsBtn = document.getElementById('friendsBtn');
+let friendsTab = 'subscriptions';
+let openFriend = null;   // { username, collections, recommended, following }
+
+function syncFriendsRow() {
+  const anybody = subs.subscriptions.length || subs.followers.length;
+  friendsBtn.style.display = anybody ? '' : 'none';
+}
+
+function openFriends(username = null) {
+  openFriend = null;
+  friendsOverlay.classList.add('open');
+  // Named, like every other overlay: this screen re-renders itself while it
+  // is open (a tab, a person, a «+» that reloads the shelf), and an unnamed
+  // hold would be added again on each one and released only once — the
+  // freeze that closeModal() paid for.
+  lockScroll(friendsOverlay);
+  renderFriends();
+  if (username) showFriend(username);
+}
+function closeFriends() {
+  friendsOverlay.classList.remove('open');
+  openFriend = null;
+  unlockScroll(friendsOverlay);
+}
+
+function personRowHtml(p) {
+  const count = p.public_collections
+    ? `${p.public_collections} ${p.public_collections === 1 ? 'добірка' : (p.public_collections < 5 ? 'добірки' : 'добірок')}`
+    : 'без відкритих добірок';
+  return `<button class="friend-row" type="button" data-person="${esc(p.username)}">
+      <span class="friend-name">${esc(p.username)}</span>
+      <span class="friend-meta">${count}${p.mutual ? ' · взаємно' : ''}</span>
+    </button>`;
+}
+
+function renderFriends() {
+  const tab = (id, label, n) =>
+    `<button class="add-tab ${friendsTab === id ? 'active' : ''}" data-friends-tab="${id}">${label}${n ? ` (${n})` : ''}</button>`;
+  friendsBox.innerHTML = `
+    <div class="add-tabs">
+      ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
+    </div>
+    <div id="friendsBody"></div>
+    <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
+  friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
+    el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
+  friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
+  const body = friendsBox.querySelector('#friendsBody');
+
+  if (openFriend) { renderFriendDetail(body); return; }
+
+  const list = friendsTab === 'subscriptions' ? subs.subscriptions : subs.followers;
+  if (!list.length) {
+    body.innerHTML = friendsTab === 'subscriptions'
+      ? '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину за імʼям у «Додати» → «Друг» — і підпишись звідти.</div>'
+      : '<div class="add-hint">На тебе ще ніхто не підписався. Щоб тебе було видно, відкрий бодай одну добірку — приватні не показуються нікому.</div>';
+    return;
+  }
+  body.innerHTML = `<div class="friend-list">${list.map(personRowHtml).join('')}</div>`;
+  body.querySelectorAll('[data-person]').forEach(el =>
+    el.addEventListener('click', () => showFriend(el.dataset.person)));
+}
+
+async function showFriend(username) {
+  const body = friendsBox.querySelector('#friendsBody');
+  if (body) body.innerHTML = '<div class="add-hint">Відкриваю…</div>';
+  try {
+    const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(username)}`, {
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    openFriend = await res.json();
+  } catch (err) {
+    openFriend = null;
+    if (body) body.innerHTML = '<div class="add-hint">Не вдалося відкрити — перевір звʼязок і спробуй ще раз.</div>';
+    return;
+  }
+  renderFriends();
+}
+
+function renderFriendDetail(body) {
+  const p = openFriend;
+  // Already on the shelf is not an error and not a second «+» — the row says
+  // so and stops offering. linkedKeys is the shelf's own truth, so a
+  // collection added from anywhere else reads as added here too.
+  const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
+  const cols = p.collections || [];
+  const colsHtml = cols.length
+    ? `<div class="friend-cols">${cols.map(c => {
+        const have = linkedKeys.has(c.key);
+        return `<div class="friend-col${have ? ' is-have' : ''}">
+            <span class="friend-col-name">${esc(c.name)}${c.count ? ` · ${c.count}` : ''}</span>
+            ${have
+              ? '<span class="friend-col-have">вже в тебе</span>'
+              : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
+          </div>`;
+      }).join('')}</div>`
+    : '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+  const recHtml = p.recommended_public && (p.recommended || []).length
+    ? `<div class="cf-label" style="margin-top:14px">Рекомендує</div>${pickGridHtml((p.recommended || []).map(m => ({
+        title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
+        year: m.year, poster_url: m.poster_url,
+      })))}`
+    : '';
+  body.innerHTML = `
+    <div class="friend-head">
+      <button class="btn-ghost friend-back" id="friendBack" type="button">← Усі</button>
+      <span class="friend-title">${esc(p.username)}</span>
+      ${p.following === null ? '' : `<button class="opt${p.following ? ' active' : ''}" id="friendFollow" type="button">${p.following ? 'Ви підписані' : 'Підписатися'}</button>`}
+    </div>
+    ${colsHtml}${recHtml}`;
+  body.querySelector('#friendBack').addEventListener('click', () => { openFriend = null; renderFriends(); });
+  const follow = body.querySelector('#friendFollow');
+  if (follow) follow.addEventListener('click', () => togglePersonFollow(p.username, !p.following, follow));
+  body.querySelectorAll('[data-add-col]').forEach(el =>
+    el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
+}
+
+/** Follow or unfollow, from wherever the button was drawn. */
+async function togglePersonFollow(username, on, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_PROXY}/library/subs/${encodeURIComponent(username)}`, {
+      method: on ? 'PUT' : 'DELETE',
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (openFriend && openFriend.username === username) openFriend.following = on;
+    toast('ok', on ? `Ти підписався на ${username}` : `Підписку на ${username} знято`);
+    await loadSubs();
+    if (friendsOverlay.classList.contains('open')) renderFriends();
+  } catch (err) {
+    toast('error', 'Не вдалося змінити підписку — спробуй ще раз');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/** The «+»: link one of their collections onto my shelf. */
+async function addPersonCollection(key, btn) {
+  if (btn) btn.disabled = true;
+  const [owner, id] = String(key).split('/');
+  try {
+    const url = refUrl(API_PROXY, owner, id);
+    if (!url) throw new Error('bad key');
+    const res = await fetch(url, { method: 'PUT', headers: await proxyHeaders({ accept: 'application/json' }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    toast('ok', 'Добірку додано на полицю');
+    await loadShelf();
+    if (friendsOverlay.classList.contains('open')) renderFriends();
+  } catch (err) {
+    toast('error', 'Не вдалося додати добірку — спробуй ще раз');
+    if (btn) btn.disabled = false;
+  }
+}
+
+friendsBtn.addEventListener('click', () => openFriends());
+friendsOverlay.addEventListener('click', e => { if (e.target === friendsOverlay) closeFriends(); });
 
 function renderRecs() {
   const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
@@ -7397,7 +7793,15 @@ function renderRecs() {
     // Honest about what exists: a whole PERSON cannot be followed yet, but a
     // single collection of theirs can — that is what the key on the
     // "Добірки" tab is for.
-    body.innerHTML = '<div class="add-hint">Підписатися на людину цілком поки не можна — це в планах. Але окрему чужу добірку вже можна покласти на полицю: попроси ключ і додай його у вкладці «SeenIt».</div>';
+    // Subscriptions exist now. This tab is the doorway to them, not an
+    // apology: the people, then the way to find more.
+    body.innerHTML = subs.subscriptions.length
+      ? `<div class="recs-group"><div class="cf-label">Ти підписаний на</div>
+           <div class="friend-list">${subs.subscriptions.map(personRowHtml).join('')}</div></div>
+         <div class="add-hint" style="margin-top:12px">Тапни людину, щоб побачити її відкриті добірки й покласти будь-яку собі.</div>`
+      : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину за імʼям у «Додати» → «Друг»: там видно її відкриті добірки, і звідти ж можна підписатися.</div>';
+    body.querySelectorAll('[data-person]').forEach(el =>
+      el.addEventListener('click', () => { closeRecs(); openFriends(el.dataset.person); }));
     return;
   }
   if (recsSource === 'mine') {
