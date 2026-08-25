@@ -5427,15 +5427,90 @@ function openModal(m) {
  * A ceiling as well as a floor: if the frame never loads at all, the mark
  * must not sit there for ever pretending something is coming.
  */
+/**
+ * Hold the mark until YouTube's own furniture is off the screen.
+ *
+ * `load` was the wrong signal and the previous version used it: it fires
+ * when YouTube's page arrives, which is BEFORE the video starts and long
+ * before the title, the channel and the play button fade off it. The veil
+ * lifted onto exactly the thing it exists to hide (owner-reported).
+ *
+ * The right signal is the player's own. With enablejsapi=1 it will report
+ * its state over postMessage once asked to — so we ask, wait for PLAYING,
+ * and only then start counting.
+ *
+ * PLAYING is not the finish line, and this is the part worth being honest
+ * about. What has to be gone before the veil lifts is YouTube's FURNITURE —
+ * the title, the channel, the play button — and that moment cannot be
+ * observed from here at all: the chrome fades on YouTube's own timer, inside
+ * a cross-origin frame whose DOM we may not read, and there is no event for
+ * "the title is gone". Any claim to detect it would be a lie in code.
+ *
+ * So the count after PLAYING is a TUNED WAIT, deliberately set past the fade
+ * YouTube performs when nothing is touching the player — which is our case
+ * exactly, since nobody is. Erring long on purpose (owner's call): a second
+ * of our own mark is cheaper than a second of somebody else's interface
+ * inside our card. If it ever feels slow, this number is the only thing to
+ * change.
+ *
+ * Both ends are guarded. If the player never speaks — blocked, offline, an
+ * API that changed — the ceiling lifts the veil anyway, because a mark that
+ * waits for ever is worse than a glimpse of a logo.
+ */
+const CHROME_FADE_MS = 4500;
+const VEIL_CEILING_MS = 12000;
+let _veilTimers = [];
+let _playerListener = null;
+
 function liftTrailerVeil() {
+  clearVeilWatch();
   const box = modalBox.querySelector('.modal-trailer');
   if (!box) return;
   const iframe = box.querySelector('iframe');
   const veil = box.querySelector('.trailer-veil');
   if (!iframe || !veil) return;
   const lift = () => veil.classList.add('out');
-  iframe.addEventListener('load', () => setTimeout(lift, 700), { once: true });
-  setTimeout(lift, 6000);
+
+  // Subscribing is a message too: the player stays silent until something
+  // says it is listening.
+  const subscribe = () => {
+    if (!iframe.contentWindow) return;
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 'seenit-trailer', channel: 'widget' }), '*');
+  };
+  iframe.addEventListener('load', () => {
+    subscribe();
+    // Asked more than once on purpose: the frame's load and the player's
+    // readiness inside it are not the same moment, and a subscription sent
+    // into the gap is simply dropped.
+    _veilTimers.push(setTimeout(subscribe, 400), setTimeout(subscribe, 1200));
+  }, { once: true });
+
+  _playerListener = (e) => {
+    if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin || 'https://x.invalid').hostname || '')) return;
+    let msg = null;
+    try { msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch (err) { return; }
+    if (!msg) return;
+    // Two shapes, because YouTube has used both: a named event with `info`,
+    // and infoDelivery carrying playerState inside it.
+    const state = msg.event === 'onStateChange' ? msg.info
+      : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
+    if (state === 1) {   // PLAYING
+      _veilTimers.push(setTimeout(lift, CHROME_FADE_MS));
+      clearPlayerListener();
+    }
+  };
+  window.addEventListener('message', _playerListener);
+  _veilTimers.push(setTimeout(lift, VEIL_CEILING_MS));
+}
+
+function clearPlayerListener() {
+  if (_playerListener) window.removeEventListener('message', _playerListener);
+  _playerListener = null;
+}
+function clearVeilWatch() {
+  _veilTimers.forEach(clearTimeout);
+  _veilTimers = [];
+  clearPlayerListener();
 }
 
 /**
@@ -5487,11 +5562,13 @@ function closeModal() {
   // fade, so nothing visibly empties on the way out.
   const frame = modalBox.querySelector('.modal-trailer iframe');
   if (frame) frame.remove();
-  // The pending unmute attempts go with it: a command aimed at a player that
-  // no longer exists is harmless, but a timer that outlives the card is the
+  // The pending unmute attempts go with it, and so does the watch on the
+  // player: a command aimed at a player that no longer exists is harmless,
+  // but a timer — or a window-level listener — that outlives the card is the
   // same shape of leak the scroll lock had.
   _unmuteTimers.forEach(clearTimeout);
   _unmuteTimers = [];
+  clearVeilWatch();
   _modalMovie = null;
   unlockScroll(overlay);
 }
