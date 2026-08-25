@@ -3753,6 +3753,37 @@ function slugify(titleEn, titleUk, year) {
   return `${base || 'film'}-${year || 'x'}`;
 }
 
+/**
+ * An id for a collection, from the name a person just typed.
+ *
+ * The server's rule is narrow — /^[a-z0-9][a-z0-9_-]{0,39}$/ — and most
+ * names here are Ukrainian, which that rule cannot hold a single letter of.
+ * So: use the latin part when there IS one («Noir 2024» -> «noir-2024»,
+ * which is what somebody sharing a key would hope to see), and fall back to
+ * a stamped id when there is not. Transliterating instead was the other
+ * option and is a table with its own edge cases; the NAME is what the app
+ * shows everywhere, and the id only has to be valid, stable and unique.
+ *
+ * `taken` are the ids already used by this person's own collections. A
+ * clash is not an error — two collections may honestly be «Комедії» — so it
+ * numbers rather than refuses.
+ */
+function collectionIdFrom(name, { taken = [], at = 0 } = {}) {
+  const latin = String(name || '').toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+  const stamp = (Number(at) || 0).toString(36).slice(-6);
+  const base = latin || `col-${stamp || '0'}`;
+  const used = new Set(taken || []);
+  if (!used.has(base)) return base;
+  for (let n = 2; n < 100; n++) {
+    const next = `${base}-${n}`.slice(0, 40);
+    if (!used.has(next)) return next;
+  }
+  return `${base}-${stamp}`.slice(0, 40);
+}
+
 /** Same rule the whole app has always used: a YouTube trailer first, or
  * any YouTube video for the film if TMDb never tagged one as "Trailer". */
 function pickTrailer(videos) {
@@ -4015,7 +4046,7 @@ if (typeof module !== 'undefined' && module.exports) {
     markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
     refUrl, parseCollectionKey,
     localCatalogueKey, localCatalogueVersionKey,
-    TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify,
+    TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify, collectionIdFrom,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
     PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
     hasCJKScript, pickLatinPersonName,
@@ -6543,7 +6574,6 @@ async function cropToTextRegion(file, words) {
  * until the Worker's user_collections write routes land (step 9): the
  * shared list shows only what is NOT yet on this device's shelf, your own
  * list is read-only here — the Добірки screen is where they open. */
-const LOCAL_COLLECTIONS_KEY = 'seenit_local_collections';
 /* Somebody else's collections and somebody else's films are reached from
  * «Друзі» now, not from here: the add screen sends you there rather than
  * carrying a second copy of the search. See wireFriendFind().
@@ -6644,18 +6674,37 @@ function addModalHome() {
     addBox.querySelector('#addModeCollection').style.display = tab.dataset.m === 'collection' ? '' : 'none';
     if (tab.dataset.m === 'collection') showColRoutes();
   }));
-  addBox.querySelector('#createColBtn').addEventListener('click', () => {
+  addBox.querySelector('#createColBtn').addEventListener('click', async () => {
     const input = addBox.querySelector('#newColName');
+    const btn = addBox.querySelector('#createColBtn');
     const name = input.value.trim();
     if (!name) { toast('error', 'Дай добірці назву.'); return; }
-    const drafts = localStore.get(LOCAL_COLLECTIONS_KEY);
-    drafts.push({ name, createdAt: Date.now() });
-    localStore.set(LOCAL_COLLECTIONS_KEY, drafts);
+    // It goes to the SERVER now. It used to be written to this device only,
+    // with a toast promising it would travel «із релізом добірок» — a
+    // release that has since happened, leaving the promise stale and the
+    // collection nowhere: the local list that showed those drafts is gone
+    // too, so a person named a collection and watched it vanish
+    // (owner-reported).
+    const taken = shelf.filter(c => c.source === 'own').map(c => c.collection_id);
+    const id = collectionIdFrom(name, { taken, at: Date.now() });
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: await proxyHeaders({ accept: 'application/json', 'content-type': 'application/json' }),
+        body: JSON.stringify({ name, film_ids: [] }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    } catch (err) {
+      toast('error', 'Не вдалося створити добірку — спробуй ще раз');
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    await loadShelf();
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    // Honest about where it lives: the Worker's create route lands with
-    // the collections release — until then the draft is this device's.
-    toast('success', `Добірку «${name}» створено — запишеться на сервер із релізом добірок`);
+    toast('success', `Добірку «${name}» створено`);
     input.value = '';
     showColRoutes();
   });
