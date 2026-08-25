@@ -843,6 +843,25 @@
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   /* ---------- login screen ---------- */
+  /* The way IN. It sits above the two lists because it belongs to neither:
+     it is how somebody who is in no list of yours becomes someone you can
+     follow. On a narrow phone the button drops under the field rather than
+     squeezing it. */
+  .friend-find { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .friend-find .field-clear-wrap { flex: 1; min-width: 0; }
+  .friend-find input {
+    width: 100%; box-sizing: border-box; height: var(--control-h);
+    background: var(--coal2); border: 1px solid var(--border); border-radius: 3px;
+    color: var(--dust); font-family: var(--font-mono); font-size: 16px;
+    padding: 0 34px 0 10px; letter-spacing: .02em;
+  }
+  .friend-find input:focus { outline: none; border-color: var(--accent2); }
+  .friend-find #friendFindBtn { flex: none; height: var(--control-h); }
+  @media (max-width: 400px) {
+    .friend-find { flex-wrap: wrap; }
+    .friend-find #friendFindBtn { width: 100%; }
+  }
+
   /* ---------- Друзі ----------
      A person is a ROW, not a chip: a name plus what is behind it, and the
      whole row is the target — 44px of it, per CONVENTIONS. Chips are for
@@ -5764,6 +5783,12 @@ document.getElementById('tabs').addEventListener('click', e => {
     state.showWatched = false;
   } else if (e.target.closest('#watchedToggle')) {
     state.showWatched = !state.showWatched;
+    // Turning «Дивився» ON clears «Рекомендую» (owner's call). The two read
+    // as one row of choices, so leaving both lit showed the intersection —
+    // watched AND recommended — while the screen looked like it was showing
+    // everything watched. Switching OFF leaves the tab alone: you are
+    // returning to whatever you were looking at before, not resetting it.
+    if (state.showWatched) state.tab = 'all';
   } else {
     const b = e.target.closest('.tab[data-tab]'); if (!b) return;
     // Tapping the active tab deselects it — back to «Усе» (U-6).
@@ -7719,9 +7744,22 @@ const friendsBtn = document.getElementById('friendsBtn');
 let friendsTab = 'subscriptions';
 let openFriend = null;   // { username, collections, recommended, following }
 
+/**
+ * Always shown — and the earlier rule was a mistake worth naming.
+ *
+ * It used to appear only once you already had a subscription or a follower,
+ * on the reasoning that a row opening an empty screen promises something it
+ * cannot keep. That reasoning had the feature backwards: the only way to get
+ * a first friend was to find a person, and finding one lived inside «Додати»
+ * → «Друг», where nobody would look for it. The doorway was hidden behind
+ * the thing it was the doorway to (owner-reported: "where is the friends tab
+ * — to add and find friends?").
+ *
+ * So the screen carries the search itself, and an empty screen is not an
+ * empty promise: it is the place where you start.
+ */
 function syncFriendsRow() {
-  const anybody = subs.subscriptions.length || subs.followers.length;
-  friendsBtn.style.display = anybody ? '' : 'none';
+  friendsBtn.style.display = '';
 }
 
 function openFriends(username = null) {
@@ -7754,7 +7792,18 @@ function personRowHtml(p) {
 function renderFriends() {
   const tab = (id, label, n) =>
     `<button class="add-tab ${friendsTab === id ? 'active' : ''}" data-friends-tab="${id}">${label}${n ? ` (${n})` : ''}</button>`;
+  // The search sits ABOVE the tabs, not inside one of them: it belongs to
+  // neither list — it is how a person who is in neither becomes someone you
+  // can follow. The name is the app's own login name; there is nothing else
+  // to search people by (see PR-5).
   friendsBox.innerHTML = `
+    <div class="friend-find">
+      <div class="field-clear-wrap">
+        <input id="friendFind" type="text" placeholder="Імʼя людини у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>
+      </div>
+      <button class="btn-ghost" id="friendFindBtn" type="button">Знайти</button>
+    </div>
     <div class="add-tabs">
       ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
     </div>
@@ -7763,6 +7812,14 @@ function renderFriends() {
   friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
   friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
+  const findEl = friendsBox.querySelector('#friendFind');
+  const runFind = () => {
+    const name = (findEl.value || '').trim().toLowerCase();
+    if (name) showFriend(name);
+  };
+  friendsBox.querySelector('#friendFindBtn').addEventListener('click', runFind);
+  findEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runFind(); } });
+  wireClearButtons(friendsBox);
   const body = friendsBox.querySelector('#friendsBody');
 
   if (openFriend) { renderFriendDetail(body); return; }
@@ -7786,11 +7843,16 @@ async function showFriend(username) {
     const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(username)}`, {
       headers: await proxyHeaders({ accept: 'application/json' }),
     });
+    if (res.status === 404) { const e = new Error('no such person'); e.notFound = true; throw e; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     openFriend = await res.json();
   } catch (err) {
     openFriend = null;
-    if (body) body.innerHTML = '<div class="add-hint">Не вдалося відкрити — перевір звʼязок і спробуй ще раз.</div>';
+    if (body) {
+      body.innerHTML = err && err.notFound
+        ? '<div class="add-hint">Такої людини не знайдено. Імʼя — те, з яким вона входить у SeenIt; акаунт через Google без імені не шукається.</div>'
+        : '<div class="add-hint">Не вдалося відкрити — перевір звʼязок і спробуй ще раз.</div>';
+    }
     return;
   }
   renderFriends();
