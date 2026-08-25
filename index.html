@@ -634,6 +634,24 @@
   /* Gone, not merely transparent: a veil that keeps its layer would swallow
      every tap meant for the player underneath it. */
   .trailer-veil.out { opacity: 0; pointer-events: none; }
+  /* The center of the frame proves the trailer is playing well before
+     YouTube's own title/controls chrome has finished fading off the top and
+     bottom edges — so once PLAYING fires, the middle opens right away while
+     these two strips keep covering exactly where that chrome lives, a beat
+     longer. Faded rather than flat: solid at the screen edge, transparent by
+     the inner edge, so the strip blends into the video instead of reading as
+     a second hard-edged bar once the center is already showing through. */
+  .trailer-veil-edge {
+    position: absolute; left: 0; right: 0; z-index: 2;
+    height: 20%; transition: opacity .25s ease;
+  }
+  .trailer-veil-edge-top {
+    top: 0; background: linear-gradient(to bottom, var(--coal2) 0%, var(--coal2) 35%, transparent 100%);
+  }
+  .trailer-veil-edge-bottom {
+    bottom: 0; background: linear-gradient(to top, var(--coal2) 0%, var(--coal2) 35%, transparent 100%);
+  }
+  .trailer-veil-edge.out { opacity: 0; pointer-events: none; }
   .modal-poster { width: 100%; background: var(--surface2); }
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
@@ -3885,7 +3903,9 @@ function youtubeVideoId(url) {
  */
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
-  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1` : null;
+  // loop=1 alone loops a PLAYLIST, not a video — for a single video YouTube
+  // requires playlist to repeat the same id, or it just stops at the end.
+  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
 }
 
 /* ---------- where to watch ---------- */
@@ -5364,7 +5384,9 @@ function openModal(m) {
   const veil = `<div class="trailer-veil">
       <div class="boot-mark" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>
       <div class="boot-word">Завантажується</div>
-    </div>`;
+    </div>
+    <div class="trailer-veil-edge trailer-veil-edge-top" aria-hidden="true"></div>
+    <div class="trailer-veil-edge trailer-veil-edge-bottom" aria-hidden="true"></div>`;
   const frame = embedUrl
     ? `<div class="modal-trailer">${veil}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
@@ -5483,12 +5505,22 @@ function openModal(m) {
  * inside our card. If it ever feels slow, this number is the only thing to
  * change.
  *
+ * The wait is also, unavoidably, a guess at a moment we cannot observe —
+ * YouTube's chrome fades on an easing curve that visibly slows near the end,
+ * so there is no crisp instant to time against (owner-reported). Rather than
+ * lean harder on one guessed number, the veil now lifts in two pieces: the
+ * CENTER — proof the trailer is actually playing — opens almost immediately,
+ * while two edge strips keep covering exactly where YouTube's title and
+ * controls live, for the full tuned wait. A late chrome-fade then falls
+ * behind an edge that is already there instead of behind nothing.
+ *
  * Both ends are guarded. If the player never speaks — blocked, offline, an
- * API that changed — the ceiling lifts the veil anyway, because a mark that
- * waits for ever is worse than a glimpse of a logo.
+ * API that changed — the ceiling lifts everything anyway, because a mark
+ * that waits for ever is worse than a glimpse of a logo.
  */
-const CHROME_FADE_MS = 4500;
-const VEIL_CEILING_MS = 12000;
+const CENTER_REVEAL_MS = 600;
+const CHROME_FADE_MS = 6500;
+const VEIL_CEILING_MS = 14000;
 let _veilTimers = [];
 let _playerListener = null;
 
@@ -5498,8 +5530,11 @@ function liftTrailerVeil() {
   if (!box) return;
   const iframe = box.querySelector('iframe');
   const veil = box.querySelector('.trailer-veil');
+  const edges = box.querySelectorAll('.trailer-veil-edge');
   if (!iframe || !veil) return;
-  const lift = () => veil.classList.add('out');
+  const revealCenter = () => veil.classList.add('out');
+  const liftEdges = () => edges.forEach(el => el.classList.add('out'));
+  const liftAll = () => { revealCenter(); liftEdges(); };
 
   // Subscribing is a message too: the player stays silent until something
   // says it is listening.
@@ -5525,12 +5560,13 @@ function liftTrailerVeil() {
     const state = msg.event === 'onStateChange' ? msg.info
       : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
     if (state === 1) {   // PLAYING
-      _veilTimers.push(setTimeout(lift, CHROME_FADE_MS));
+      _veilTimers.push(setTimeout(revealCenter, CENTER_REVEAL_MS));
+      _veilTimers.push(setTimeout(liftEdges, CHROME_FADE_MS));
       clearPlayerListener();
     }
   };
   window.addEventListener('message', _playerListener);
-  _veilTimers.push(setTimeout(lift, VEIL_CEILING_MS));
+  _veilTimers.push(setTimeout(liftAll, VEIL_CEILING_MS));
 }
 
 function clearPlayerListener() {
