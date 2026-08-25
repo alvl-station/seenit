@@ -3787,11 +3787,36 @@ function youtubeVideoId(url) {
 }
 // null when the URL isn't a recognisable YouTube link \u2014 the caller's cue to
 // fall back to the static poster instead of an iframe with nothing to show.
+/**
+ * The quietest player YouTube actually allows.
+ *
+ * The card wants a moving frame, not a video site: it has its own sound
+ * control on the title plate, and everything else YouTube draws on top is
+ * somebody else's interface appearing inside ours.
+ *
+ * What each one buys, and it is worth writing down because they look
+ * interchangeable and are not:
+ *   controls=0        no play bar, no title bar, no logo button
+ *   modestbranding=1  drops the watermark that remains without controls
+ *   iv_load_policy=3  no annotations or cards over the picture
+ *   disablekb=1       the keyboard belongs to the page, not to the embed
+ *   fs=0              no fullscreen button; the card is the frame
+ *   playsinline=1     iOS plays it in place instead of seizing the screen
+ *   rel=0             what follows comes from the same channel, not the feed
+ *   enablejsapi=1     the sound button drives mute/unMute over postMessage
+ *
+ * It cannot be made completely bare, and pretending otherwise would be a
+ * promise the embed breaks by itself: a tap can still surface the title and
+ * a way to open YouTube, which is YouTube's to require and not ours to
+ * remove. -nocookie only changes what is stored until the video plays; it is
+ * not a way around any of that.
+ */
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
-  // enablejsapi: the film card's own sound button drives mute/unMute over
-  // postMessage — without it the iframe ignores every command.
-  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1` : null;
+  if (!id) return null;
+  const params = 'autoplay=1&mute=1&controls=0&modestbranding=1&iv_load_policy=3'
+    + '&disablekb=1&fs=0&playsinline=1&rel=0&enablejsapi=1';
+  return `https://www.youtube-nocookie.com/embed/${id}?${params}`;
 }
 
 /* ---------- where to watch ---------- */
@@ -5330,6 +5355,17 @@ function openModal(m) {
 }
 function closeModal() {
   overlay.classList.remove('open');
+  // The card only ever stopped being VISIBLE. The iframe stayed in the DOM
+  // and the trailer went on playing behind it — audible, if the sound button
+  // had been used (owner-reported). Removing the element is what stops
+  // YouTube; hiding its container does not, and neither does pausing over
+  // postMessage, which leaves a player running in an invisible overlay for
+  // as long as the page lives.
+  //
+  // Only the iframe goes: the rest of the card stays put through the closing
+  // fade, so nothing visibly empties on the way out.
+  const frame = modalBox.querySelector('.modal-trailer iframe');
+  if (frame) frame.remove();
   _modalMovie = null;
   unlockScroll(overlay);
 }
