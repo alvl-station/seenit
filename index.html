@@ -386,6 +386,11 @@
     transition: transform .22s ease-out, visibility 0s linear .22s;
   }
   .sheet.open { transform: none; visibility: visible; transition: transform .22s ease-out; }
+  /* A screen that opens OVER the catalogue needs more room under its name
+     than a sheet does — there is no edge above it to separate it from what
+     it covers. */
+  .add-modal > .sheet-title,
+  .add-form > .sheet-title { margin-bottom: 14px; }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; }
   .sheet-head .sheet-title { margin-bottom: 0; }
   .sheet-title {
@@ -843,6 +848,12 @@
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   /* ---------- login screen ---------- */
+  /* Three doors on the «Додати добірку» screen. Rows, not chips: each one
+     leads somewhere rather than toggling something, and the whole row is
+     the target. */
+  .col-routes { display: flex; flex-direction: column; gap: 1px; }
+  .col-routes .sheet-row { border-radius: 2px; }
+
   /* The way IN, above both lists because it belongs to neither: it is how
      somebody who is in no list of yours becomes someone you can follow.
      There is no button — typing is the search — so the field stands alone
@@ -6500,79 +6511,33 @@ async function cropToTextRegion(file, words) {
  * until the Worker's user_collections write routes land (step 9): the
  * shared list shows only what is NOT yet on this device's shelf, your own
  * list is read-only here — the Добірки screen is where they open. */
-const ADDED_COLLECTIONS_KEY = 'seenit_added_collections';
 const LOCAL_COLLECTIONS_KEY = 'seenit_local_collections';
-/* The friend flow: look a person up by name, see everything they made
- * visible — their public collections (tap = the same ref link the key form
- * makes) and their recommended films. Private stays behind the key. */
-let _friendFilms = [];
-async function searchFriend() {
-  const input = addBox.querySelector('#friendName');
-  const out = addBox.querySelector('#friendResults');
-  const name = (input.value || '').trim().toLowerCase();
-  if (!name) { out.innerHTML = ''; return; }
-  out.innerHTML = '<div class="add-hint">Шукаю…</div>';
-  try {
-    const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(name)}`, {
-      headers: await proxyHeaders({ accept: 'application/json' }),
-    });
-    if (res.status === 404) { out.innerHTML = '<div class="add-hint">Такої людини не знайдено. Імʼя — те, з яким вона входить у SeenIt.</div>'; return; }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    _friendFilms = data.recommended || [];
-    const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
-    const cols = (data.collections || []).filter(c => !linkedKeys.has(c.key));
-    const colsHtml = cols.length
-      ? `<div class="cf-label" style="margin-top:12px">Добірки · ${esc(data.username)}</div>
-         <div class="opts">${cols.map(c =>
-           `<button class="opt" type="button" data-friend-col="${esc(c.key)}" data-friend-name="${esc(c.name)}">${esc(c.name)}${c.count ? ` · ${c.count}` : ''}</button>`).join('')}</div>`
-      : `<div class="add-hint" style="margin-top:10px">${(data.collections || []).length ? 'Все публічне звідси вже в тебе.' : 'Публічних добірок немає.'}</div>`;
-    const recHtml = data.recommended_public && _friendFilms.length
-      ? `<div class="cf-label" style="margin-top:14px">Рекомендує</div>${pickGridHtml(_friendFilms.map(m => ({
-           title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
-           year: m.year, poster_url: m.poster_url,
-         })))}`
-      : '';
-    // Following belongs HERE, at the moment you have just found the person
-    // and can see what they keep — not on a later screen you would have to
-    // be told about. `following === null` is yourself: no button, because
-    // there is no version of it that means anything.
-    const followHtml = data.following === null || data.following === undefined
-      ? ''
-      : `<div class="opts" style="margin-top:10px"><button class="opt${data.following ? ' active' : ''}" type="button"
-           data-follow="${esc(data.username)}" data-following="${data.following ? '1' : ''}">${data.following ? 'Ви підписані' : 'Підписатися'}</button></div>`;
-    out.innerHTML = followHtml + colsHtml + recHtml;
-  } catch (err) {
-    out.innerHTML = '<div class="add-hint">Не вдалося пошукати — перевір звʼязок і спробуй ще раз.</div>';
-  }
-}
-
-function renderAddCollections() {
-  const availEl = addBox.querySelector('#availColList');
-  const mineEl = addBox.querySelector('#myColList');
-  if (!availEl || !mineEl) return;
-  const added = new Set(localStore.get(ADDED_COLLECTIONS_KEY));
-  const avail = shelf.filter(c => c.source === 'default' && !added.has(c.key));
-  availEl.innerHTML = avail.length
-    ? avail.map(c => `<button class="opt" type="button" data-col-key="${esc(c.key)}" data-col-name="${esc(c.name)}">${esc(c.name)}${c.count ? ` · ${c.count}` : ''}</button>`).join('')
-    : '<div class="add-hint">Усі загальні добірки вже в тебе.</div>';
-  const mineRows = [
-    ...shelf.filter(c => c.source === 'own' || c.source === 'linked').map(c => ({ name: c.name, count: c.count })),
-    ...shelf.filter(c => c.source === 'default' && added.has(c.key)).map(c => ({ name: c.name, count: c.count })),
-    ...localStore.get(LOCAL_COLLECTIONS_KEY).map(d => ({ name: d.name, draft: true })),
-  ];
-  mineEl.innerHTML = mineRows.length
-    ? mineRows.map(r => `<div class="mycol-row"><span class="mycol-name">${esc(r.name)}</span><span class="mycol-meta">${r.draft ? 'чернетка' : (r.count != null ? r.count : '')}</span></div>`).join('')
-    : '<div class="add-hint">Своїх добірок поки нема.</div>';
+/* Somebody else's collections and somebody else's films are reached from
+ * «Друзі» now, not from here: the add screen sends you there rather than
+ * carrying a second copy of the search. See wireFriendFind().
+ *
+ * «Мої добірки» left this screen entirely — they live in меню → Добірки,
+ * and listing them here made one list exist in two places in two shapes.
+ */
+function showColRoutes() {
+  const routes = addBox.querySelector('#colRoutes');
+  const create = addBox.querySelector('#colCreate');
+  if (!routes || !create) return;
+  routes.hidden = false;
+  create.hidden = true;
 }
 
 function addModalHome() {
   addBox.innerHTML = `
     <button class="modal-close" id="addModalClose">${ICON.close}</button>
     <div class="add-form">
+      <!-- The word «Додати» said once, at the top, instead of twice across
+           two tabs. What the tabs choose between is not two kinds of adding —
+           it is what you are adding. -->
+      <div class="sheet-title">Додати</div>
       <div class="add-mode-tabs">
-        <button class="add-mode-tab active" data-m="film" type="button">Додати фільм</button>
-        <button class="add-mode-tab" data-m="collection" type="button">Додати добірку</button>
+        <button class="add-mode-tab active" data-m="film" type="button">Фільми</button>
+        <button class="add-mode-tab" data-m="collection" type="button">Добірки</button>
       </div>
       <div id="addModeFilm">
       <div class="add-tabs">
@@ -6614,25 +6579,28 @@ function addModalHome() {
       </div>
       <div id="addResults"></div>
       </div>
+      <!-- Three doors, not one long scroll (owner's call). Each leads to the
+           screen that already owns that job: «Мої добірки» left entirely,
+           because they live in меню → Добірки and listing them here made the
+           same list exist in two places with two different shapes. -->
       <div id="addModeCollection" style="display:none">
-        <label class="cf-label">Назва нової добірки</label>
-        <div class="field-clear-wrap">
-          <input id="newColName" type="text" placeholder="Подивитись із Мартою">
-          <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>
+        <div class="col-routes" id="colRoutes">
+          <button class="sheet-row" data-col-route="create" type="button">Створити добірку</button>
+          <button class="sheet-row" data-col-route="seenit" type="button">Добірки SeenIt</button>
+          <button class="sheet-row" data-col-route="friends" type="button">Добірки друзів</button>
         </div>
-        <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>
-        <div class="sheet-label">Добірки SeenIt</div>
-        <div class="opts" id="availColList"></div>
-        <div class="sheet-label">Добірки друзів</div>
-        <div class="add-hint">Знайди людину за іменем — побачиш добірки й рекомендації, які вона зробила видимими для всіх.</div>
-        <div class="field-clear-wrap">
-          <input id="friendName" type="text" placeholder="імʼя користувача" autocomplete="off">
-          <button class="field-clear-btn" data-clear-target="friendName" type="button">${ICON.close}</button>
+        <div id="colCreate" hidden>
+          <div class="friend-head">
+            <button class="btn-ghost friend-back" id="colCreateBack" type="button">← Назад</button>
+            <span class="friend-title">Нова добірка</span>
+          </div>
+          <label class="cf-label">Назва</label>
+          <div class="field-clear-wrap">
+            <input id="newColName" type="text" placeholder="Подивитись із Мартою">
+            <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>
+          </div>
+          <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>
         </div>
-        <div class="acc-actions"><button class="btn-ghost" id="friendSearchBtn" type="button">Знайти</button></div>
-        <div id="friendResults"></div>
-        <div class="sheet-label">Мої добірки</div>
-        <div id="myColList"></div>
       </div>
     </div>`;
   addBox.querySelector('#addModalClose').addEventListener('click', closeAddModal);
@@ -6642,7 +6610,7 @@ function addModalHome() {
     addBox.querySelectorAll('.add-mode-tab').forEach(x => x.classList.toggle('active', x === tab));
     addBox.querySelector('#addModeFilm').style.display = tab.dataset.m === 'film' ? '' : 'none';
     addBox.querySelector('#addModeCollection').style.display = tab.dataset.m === 'collection' ? '' : 'none';
-    if (tab.dataset.m === 'collection') renderAddCollections();
+    if (tab.dataset.m === 'collection') showColRoutes();
   }));
   addBox.querySelector('#createColBtn').addEventListener('click', () => {
     const input = addBox.querySelector('#newColName');
@@ -6656,50 +6624,24 @@ function addModalHome() {
     // Honest about where it lives: the Worker's create route lands with
     // the collections release — until then the draft is this device's.
     toast('success', `Добірку «${name}» створено — запишеться на сервер із релізом добірок`);
-    renderAddCollections();
+    input.value = '';
+    showColRoutes();
   });
-  addBox.querySelector('#friendSearchBtn').addEventListener('click', () => searchFriend());
-  addBox.querySelector('#friendName').addEventListener('keydown', e => { if (e.key === 'Enter') searchFriend(); });
-  addBox.querySelector('#friendResults').addEventListener('click', async e => {
-    const followBtn = e.target.closest('[data-follow]');
-    if (followBtn) {
-      await togglePersonFollow(followBtn.dataset.follow, !followBtn.dataset.following, followBtn);
-      searchFriend();   // redraw from the server's own answer, not from a guess
+  // Each door opens the screen that already owns the job, rather than a
+  // second copy of it living here.
+  addBox.querySelectorAll('[data-col-route]').forEach(el => el.addEventListener('click', () => {
+    const where = el.dataset.colRoute;
+    if (where === 'create') {
+      addBox.querySelector('#colRoutes').hidden = true;
+      addBox.querySelector('#colCreate').hidden = false;
+      addBox.querySelector('#newColName').focus();
       return;
     }
-    const chip = e.target.closest('[data-friend-col]');
-    if (chip) {
-      // Adding a friend's public collection is the same ref link the key
-      // form makes — found by name instead of pasted.
-      chip.disabled = true;
-      try {
-        const [owner, id] = chip.dataset.friendCol.split('/');
-        const res = await fetch(refUrl(API_PROXY, owner, id), {
-          method: 'PUT', headers: await proxyHeaders({ accept: 'application/json' }),
-        });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
-        toast('success', `Додано «${chip.dataset.friendName}»`);
-        await loadShelf();
-        searchFriend();
-        renderAddCollections();
-      } catch (err) {
-        toast('error', err.message || 'Не вдалося додати добірку');
-        chip.disabled = false;
-      }
-      return;
-    }
-    const film = e.target.closest('.trend-item');
-    if (film && _friendFilms[Number(film.dataset.idx)]) openModal(_friendFilms[Number(film.dataset.idx)]);
-  });
-  addBox.querySelector('#availColList').addEventListener('click', e => {
-    const chip = e.target.closest('[data-col-key]');
-    if (!chip) return;
-    const added = new Set(localStore.get(ADDED_COLLECTIONS_KEY));
-    added.add(chip.dataset.colKey);
-    localStore.set(ADDED_COLLECTIONS_KEY, [...added]);
-    toast('success', `Додано «${chip.dataset.colName}»`);
-    renderAddCollections();
-  });
+    closeAddModal();
+    if (where === 'seenit') { recsSource = 'seenit'; openRecs(); }
+    else openFriends();
+  }));
+  addBox.querySelector('#colCreateBack').addEventListener('click', showColRoutes);
   addBox.querySelectorAll('.add-tab').forEach(t => t.addEventListener('click', () => {
     addBox.querySelectorAll('.add-tab').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
@@ -7831,7 +7773,12 @@ function renderFriends() {
   // to search people by (see PR-5).
   // No button: typing IS the search. The suggestions drop under the field
   // and the list below stays where it was, so the screen never jumps.
+  // Every screen reached from the menu says its own name, the way «Акаунт»
+  // and «Налаштування» do (owner's call). Without it a panel that opens over
+  // the catalogue is just a floating list — you can tell what it holds but
+  // not what you opened.
   friendsBox.innerHTML = `
+    <div class="sheet-title">Друзі</div>
     <div class="friend-find">
       <div class="field-clear-wrap">
         <input id="friendFind" type="text" placeholder="Знайти людину за імʼям" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -8015,6 +7962,7 @@ friendsOverlay.addEventListener('click', e => { if (e.target === friendsOverlay)
 function renderRecs() {
   const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
   recsBox.innerHTML = `
+    <div class="sheet-title">Добірки</div>
     <div class="add-tabs">
       ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}
     </div>
