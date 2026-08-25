@@ -4233,7 +4233,21 @@ let _contentDeadline = 0;
 function finishBootWhenFilmsShow() {
   if (bootLifted) return;
   if (!_contentDeadline) _contentDeadline = Date.now() + CONTENT_WAIT_MS;
-  if (moviesLoaded && firstScreenPostersReady()) { finishBoot(); return; }
+  // __catalogueLoaded, NOT moviesLoaded — and the difference is the whole
+  // bug (owner-reported: "the mark lasts longer now but it made no
+  // difference; the page opens and only then starts loading").
+  //
+  // moviesLoaded is set on the FIRST page of fourteen. Every later page
+  // re-sorts and re-groups the grid, so the films on the first screen when
+  // page one landed are not the films there when page fourteen does — and
+  // their posters only begin loading once the mark is already gone. Waiting
+  // for the first screen of a grid that is still being rebuilt underneath
+  // is waiting for the wrong screen.
+  //
+  // The beacon means "no longer changing under you", and all three exits set
+  // it — cache hit, full walk, and failure — so this cannot hang on the case
+  // it most needs to survive.
+  if (window.__catalogueLoaded === true && firstScreenPostersReady()) { finishBoot(); return; }
   if (Date.now() >= _contentDeadline) { finishBoot(); return; }
   setTimeout(finishBootWhenFilmsShow, 120);
 }
