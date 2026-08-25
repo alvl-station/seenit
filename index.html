@@ -618,13 +618,31 @@
      16:9, or the poster full height. Either way the TITLE lies over the
      frame on a translucent plate — it never vanishes under the video. */
   .film-head { position: relative; background: #000; }
+  .modal-trailer { position: relative; }
   .modal-trailer iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: 0; }
+  /* Our own cover, over YouTube's, until the video is really there. Coal
+     rather than black: the card's ground, so it reads as part of the app
+     and not as a hole in it. */
+  .trailer-veil {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: var(--coal2);
+    transition: opacity .25s ease;
+  }
+  .trailer-veil .boot-mark { width: 72px; }
+  .trailer-veil .boot-word { font-size: 10px; }
+  /* Gone, not merely transparent: a veil that keeps its layer would swallow
+     every tap meant for the player underneath it. */
+  .trailer-veil.out { opacity: 0; pointer-events: none; }
   .modal-poster { width: 100%; background: var(--surface2); }
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
     aspect-ratio: 2/3; background: var(--surface2); }
   .film-title-plate {
-    position: absolute; left: 0; right: 0; bottom: 0;
+    /* Above the loading veil: while the trailer wakes up you should still be
+       able to see WHICH film you opened. The veil hides YouTube's cover, not
+       our own title. */
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
     background: rgba(14,14,16,.72); padding: 10px 18px 11px;
     display: flex; align-items: center; gap: 10px;
   }
@@ -5307,8 +5325,18 @@ function openModal(m) {
   // over the frame on a translucent layer in both kinds: it never vanishes
   // under a playing video.
   const embedUrl = youtubeEmbedUrl(m.trailer_url);
+  // A veil over the player while it wakes up (owner's call). It covers the
+  // one moment the card has no answer for otherwise: YouTube paints its own
+  // cover first — the title, the channel, a play button — and that is
+  // somebody else's poster appearing inside our card. Ours goes on top until
+  // the video is actually there.
+  const markEl = document.getElementById('markTemplate');
+  const veil = `<div class="trailer-veil">
+      <div class="boot-mark" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>
+      <div class="boot-word">Завантажується</div>
+    </div>`;
   const frame = embedUrl
-    ? `<div class="modal-trailer"><iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
+    ? `<div class="modal-trailer">${veil}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
     : posterHtml(m, 'modal-poster');
   // The control opens in the REMEMBERED state, and the card then puts the
@@ -5384,6 +5412,30 @@ function openModal(m) {
   overlay.classList.add('open');
   lockScroll(overlay);
   unmuteTrailer();
+  liftTrailerVeil();
+}
+
+/**
+ * Take the veil away once there is a picture behind it.
+ *
+ * `load` on the iframe is necessary and not sufficient: it fires when
+ * YouTube's page has arrived, which is a beat before the video paints. The
+ * short wait after it is the difference between the mark dissolving into a
+ * playing trailer and dissolving into YouTube's cover — which is the whole
+ * thing this veil exists to hide.
+ *
+ * A ceiling as well as a floor: if the frame never loads at all, the mark
+ * must not sit there for ever pretending something is coming.
+ */
+function liftTrailerVeil() {
+  const box = modalBox.querySelector('.modal-trailer');
+  if (!box) return;
+  const iframe = box.querySelector('iframe');
+  const veil = box.querySelector('.trailer-veil');
+  if (!iframe || !veil) return;
+  const lift = () => veil.classList.add('out');
+  iframe.addEventListener('load', () => setTimeout(lift, 700), { once: true });
+  setTimeout(lift, 6000);
 }
 
 /**
@@ -8048,7 +8100,12 @@ function friendColsHtml(cols) {
 function renderFriendDetail(body) {
   const p = openFriend;
   const colsHtml = friendColsHtml(p.collections);
-  const recHtml = p.recommended_public && (p.recommended || []).length
+  // Not gated on recommended_public any more: the SERVER decides who may
+  // read the list — everyone if it was opened, otherwise this person's
+  // followers — and it simply does not send what the reader may not see.
+  // Checking the flag here would hide from a follower a list the server had
+  // already handed over.
+  const recHtml = (p.recommended || []).length
     ? `<div class="cf-label" style="margin-top:14px">Рекомендує</div>${pickGridHtml((p.recommended || []).map(m => ({
         title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
         year: m.year, poster_url: m.poster_url,
