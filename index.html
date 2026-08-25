@@ -1232,6 +1232,28 @@
   /* ---------- the delete dialog (§07/§09) ----------
      A dialog in the middle, only for confirming the irreversible. It
      APPEARS in place over 140ms — no scaling, no sliding. */
+  /* ---------- back to the top ----------
+     44px, like every other tappable thing (CONVENTIONS), and 3px corners
+     rather than a circle: the book keeps round for what is round by nature,
+     and this is a control, not an avatar.
+     z-index 40 on purpose — under the collection plate at 45 and under every
+     overlay, so an open card or sheet covers it instead of floating a stray
+     button over its own screen. */
+  .to-top {
+    position: fixed; z-index: 40;
+    right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: var(--control-h); height: var(--control-h);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--coal2); color: var(--dust);
+    border: 1px solid var(--border); border-radius: 3px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .18s ease, transform .18s ease, border-color .15s;
+  }
+  .to-top[hidden] { display: none; }
+  .to-top.in { opacity: 1; transform: none; }
+  @media (hover: hover) { .to-top:hover { border-color: var(--blood); color: var(--paper); } }
+
   .dlg-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.55); }
   .dlg {
     position: fixed; left: 18px; right: 18px; top: 50%; transform: translateY(-50%);
@@ -1718,6 +1740,14 @@
      display:none subtree — which flattened the stack to a plain silhouette. -->
 <div id="markTemplate" class="svg-stash" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m3d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#F2F3F6"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
 <main id="main"></main>
+<!-- Back to the top of the shelf. Hidden until there is a way back TO go:
+     on the first screen it would be a button that does nothing, and one of
+     those on every screen is how a corner fills up with furniture. -->
+<button class="to-top" id="toTopBtn" type="button" title="Догори" aria-label="Догори" hidden>
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="18 15 12 9 6 15"/>
+  </svg>
+</button>
 <footer>Клікни на картку — повна інформація · <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg> — переглянуто · <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-2px"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.3 1.6 6.9 4.4 5.3c2.3-1.3 5-.7 6.6 1.3l1 1.2 1-1.2c1.6-2 4.3-2.6 6.6-1.3 2.8 1.6 3.4 5 1.7 7.6C18.7 16.65 12 21 12 21z"/></svg> — рекомендую</footer>
 
 <!-- The delete confirmation (§07/§09): a dialog in the middle, only for
@@ -6005,6 +6035,48 @@ document.getElementById('hideScoresToggle').addEventListener('click', () => {
   updateFilterGlow();
   saveSettings();
 });
+
+/* ---------- back to the top of the shelf ----------
+ *
+ * Shown only once there is a way back to go — a screen and a half down,
+ * which is far enough that the header is long gone and the gesture is a
+ * real journey rather than a flick.
+ *
+ * The `hidden` attribute AND a class: hidden takes it out of the layout so
+ * it cannot be tabbed to or tapped while invisible, and the class does the
+ * fade. Setting one without the other gives either a button that pops in
+ * without transition or an invisible one that still catches thumbs.
+ *
+ * The scroll listener is passive: it only ever reads scrollY, and saying so
+ * lets the browser keep scrolling while it runs.
+ */
+const toTopBtn = document.getElementById('toTopBtn');
+const TO_TOP_AFTER = () => (window.innerHeight || 800) * 1.5;
+function syncToTop() {
+  if (!toTopBtn) return;
+  const show = (window.scrollY || window.pageYOffset || 0) > TO_TOP_AFTER();
+  if (show) {
+    toTopBtn.hidden = false;
+    // Two frames apart, or the element goes from display:none straight to
+    // its final state and the transition has nothing to animate from.
+    requestAnimationFrame(() => toTopBtn.classList.add('in'));
+    setTimeout(() => toTopBtn.classList.add('in'), 32);
+  } else {
+    toTopBtn.classList.remove('in');
+    setTimeout(() => { if (!toTopBtn.classList.contains('in')) toTopBtn.hidden = true; }, 200);
+  }
+}
+if (toTopBtn) {
+  window.addEventListener('scroll', syncToTop, { passive: true });
+  toTopBtn.addEventListener('click', () => {
+    // html carries scroll-behavior: smooth, so this is the animated trip.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // The button has done its job; letting it linger under the thumb invites
+    // a second tap on nothing.
+    toTopBtn.classList.remove('in');
+    setTimeout(() => { if (!toTopBtn.classList.contains('in')) toTopBtn.hidden = true; }, 200);
+  });
+}
 
 /* ---------- reusable clear button wiring for text inputs ---------- */
 function wireClearButtons(root) {
