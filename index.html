@@ -843,34 +843,44 @@
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   /* ---------- login screen ---------- */
-  /* The way IN. It sits above the two lists because it belongs to neither:
-     it is how somebody who is in no list of yours becomes someone you can
-     follow. On a narrow phone the button drops under the field rather than
-     squeezing it. */
-  .friend-find { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-  .friend-find .field-clear-wrap { flex: 1; min-width: 0; }
+  /* The way IN, above both lists because it belongs to neither: it is how
+     somebody who is in no list of yours becomes someone you can follow.
+     There is no button — typing is the search — so the field stands alone
+     and the suggestions drop under it. */
+  .friend-find { position: relative; margin: 4px 0 20px; }
   .friend-find input {
     width: 100%; box-sizing: border-box; height: var(--control-h);
     background: var(--coal2); border: 1px solid var(--border); border-radius: 3px;
     color: var(--dust); font-family: var(--font-mono); font-size: 16px;
-    padding: 0 34px 0 10px; letter-spacing: .02em;
+    padding: 0 38px 0 12px; letter-spacing: .02em;
+  }
+  .friend-find input::placeholder {
+    color: var(--slate); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
   }
   .friend-find input:focus { outline: none; border-color: var(--accent2); }
-  .friend-find #friendFindBtn { flex: none; height: var(--control-h); }
-  @media (max-width: 400px) {
-    .friend-find { flex-wrap: wrap; }
-    .friend-find #friendFindBtn { width: 100%; }
+  /* In flow, not floating over the lists: a phone keyboard already takes
+     half the screen, and a panel hanging over the tabs would cover the very
+     thing the suggestions are an alternative to. */
+  .friend-suggest { margin-top: 8px; display: flex; flex-direction: column; gap: 1px; }
+  .friend-suggest[hidden] { display: none; }
+  /* Already yours: the row is still tappable — you may want to open them —
+     but it stops competing with the names that are new to you. */
+  .friend-row.is-known .friend-name { color: var(--ash); }
+  .friend-row.is-known { border-style: dashed; }
+  .friend-suggest-none {
+    padding: 12px; background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
+    font-size: 11.5px; line-height: 1.5; color: var(--slate);
   }
 
   /* ---------- Друзі ----------
      A person is a ROW, not a chip: a name plus what is behind it, and the
      whole row is the target — 44px of it, per CONVENTIONS. Chips are for
      things you toggle; this you walk into. */
-  .friend-list { display: flex; flex-direction: column; gap: 1px; }
+  .friend-list { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
   .friend-row {
     display: flex; align-items: baseline; gap: 10px;
     width: 100%; min-height: var(--control-h);
-    padding: 10px 12px; text-align: left;
+    padding: 13px 14px; text-align: left;
     background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
     color: var(--dust); cursor: pointer;
   }
@@ -884,7 +894,13 @@
 
   /* The person's own screen: back, name, and the one button that changes
      anything. */
-  .friend-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  /* Back, name, and the one control that changes anything. The name gets
+     the room; the other two keep to their own size. */
+  .friend-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding-bottom: 14px; margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
   .friend-back { flex: none; }
   .friend-title {
     flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -895,7 +911,7 @@
   .friend-cols { display: flex; flex-direction: column; gap: 1px; }
   .friend-col {
     display: flex; align-items: center; gap: 10px;
-    min-height: var(--control-h); padding: 6px 6px 6px 12px;
+    min-height: var(--control-h); padding: 6px 6px 6px 14px;
     background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
   }
   .friend-col-name {
@@ -918,6 +934,17 @@
     font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--slate);
   }
   .friend-col.is-have .friend-col-name { color: var(--ash); }
+
+  /* «Підписатися» is the action and wears the action's weight. «Ви
+     підписані» is a STATE — the same button, already done — and a filled
+     blood block for it shouted louder than anything else on the screen while
+     asking for nothing. Quiet, outlined, still tappable to undo. */
+  #friendFollow.opt.active {
+    background: none; border-color: var(--border); color: var(--ash);
+  }
+  @media (hover: hover) {
+    #friendFollow.opt.active:hover { border-color: var(--blood); color: var(--dust); }
+  }
 
   /* ---------- boot splash ----------
      Covers everything until the session is known, so the login screen never
@@ -7779,13 +7806,19 @@ function closeFriends() {
   unlockScroll(friendsOverlay);
 }
 
-function personRowHtml(p) {
+function personRowHtml(p, opts = {}) {
   const count = p.public_collections
     ? `${p.public_collections} ${p.public_collections === 1 ? 'добірка' : (p.public_collections < 5 ? 'добірки' : 'добірок')}`
     : 'без відкритих добірок';
-  return `<button class="friend-row" type="button" data-person="${esc(p.username)}">
+  // A suggestion says whether you already follow this person. Without it the
+  // same name appears twice on one screen — once as a result, once in the
+  // list below — with nothing to say why (owner-reported: the screen reads
+  // as duplicated).
+  const known = opts.marked && subs.subscriptions.some(x => x.username === p.username);
+  const note = known ? ' · у підписках' : (p.mutual ? ' · взаємно' : '');
+  return `<button class="friend-row${known ? ' is-known' : ''}" type="button" data-person="${esc(p.username)}">
       <span class="friend-name">${esc(p.username)}</span>
-      <span class="friend-meta">${count}${p.mutual ? ' · взаємно' : ''}</span>
+      <span class="friend-meta">${count}${note}</span>
     </button>`;
 }
 
@@ -7796,13 +7829,15 @@ function renderFriends() {
   // neither list — it is how a person who is in neither becomes someone you
   // can follow. The name is the app's own login name; there is nothing else
   // to search people by (see PR-5).
+  // No button: typing IS the search. The suggestions drop under the field
+  // and the list below stays where it was, so the screen never jumps.
   friendsBox.innerHTML = `
     <div class="friend-find">
       <div class="field-clear-wrap">
-        <input id="friendFind" type="text" placeholder="Імʼя людини у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <input id="friendFind" type="text" placeholder="Знайти людину за імʼям" autocapitalize="none" autocorrect="off" spellcheck="false">
         <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>
       </div>
-      <button class="btn-ghost" id="friendFindBtn" type="button">Знайти</button>
+      <div id="friendFindOut" class="friend-suggest" hidden></div>
     </div>
     <div class="add-tabs">
       ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
@@ -7812,14 +7847,7 @@ function renderFriends() {
   friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
   friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
-  const findEl = friendsBox.querySelector('#friendFind');
-  const runFind = () => {
-    const name = (findEl.value || '').trim().toLowerCase();
-    if (name) showFriend(name);
-  };
-  friendsBox.querySelector('#friendFindBtn').addEventListener('click', runFind);
-  findEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runFind(); } });
-  wireClearButtons(friendsBox);
+  wireFriendFind();
   const body = friendsBox.querySelector('#friendsBody');
 
   if (openFriend) { renderFriendDetail(body); return; }
@@ -7834,6 +7862,53 @@ function renderFriends() {
   body.innerHTML = `<div class="friend-list">${list.map(personRowHtml).join('')}</div>`;
   body.querySelectorAll('[data-person]').forEach(el =>
     el.addEventListener('click', () => showFriend(el.dataset.person)));
+}
+
+/**
+ * The suggestions, driven by the keyboard rather than by a button.
+ *
+ * Debounced, because a request per keystroke asks the Worker four times for
+ * one name and the answers can arrive out of order. Two characters is where
+ * a name search stops meaning everybody, and `_findSeq` throws away an
+ * answer that a newer keystroke has already overtaken — otherwise a slow
+ * reply for «ol» repaints over the results for «olya».
+ */
+let _findTimer = 0;
+let _findSeq = 0;
+function wireFriendFind() {
+  const input = friendsBox.querySelector('#friendFind');
+  const out = friendsBox.querySelector('#friendFindOut');
+  if (!input || !out) return;
+  const clear = () => { out.hidden = true; out.innerHTML = ''; };
+  const run = async (term) => {
+    const seq = ++_findSeq;
+    try {
+      const res = await fetch(`${API_PROXY}/library/users?q=${encodeURIComponent(term)}`, {
+        headers: await proxyHeaders({ accept: 'application/json' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (seq !== _findSeq) return;   // a later keystroke already won
+      const people = data.people || [];
+      out.hidden = false;
+      out.innerHTML = people.length
+        ? people.map(p => personRowHtml(p, { marked: true })).join('')
+        : '<div class="friend-suggest-none">Нікого схожого. Імʼя — те, з яким людина входить у SeenIt.</div>';
+      out.querySelectorAll('[data-person]').forEach(el =>
+        el.addEventListener('click', () => { clear(); input.value = ''; showFriend(el.dataset.person); }));
+    } catch (err) {
+      if (seq !== _findSeq) return;
+      out.hidden = false;
+      out.innerHTML = '<div class="friend-suggest-none">Не вдалося пошукати — перевір звʼязок.</div>';
+    }
+  };
+  input.addEventListener('input', () => {
+    clearTimeout(_findTimer);
+    const term = (input.value || '').trim().toLowerCase();
+    if (term.length < 2) { _findSeq++; clear(); return; }
+    _findTimer = setTimeout(() => run(term), 220);
+  });
+  wireClearButtons(friendsBox);
 }
 
 async function showFriend(username) {
