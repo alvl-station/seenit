@@ -4539,7 +4539,12 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
-let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', searchScope: 'here' };
+let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', searchScope: 'here',
+  // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
+  // whatever you last left it on stays that way for every film after it,
+  // until you change it again. Default on — a trailer nobody can hear is a
+  // moving poster. Restored like every other header choice below.
+  trailerSound: true };
 // Delete mode: a separate top-of-page mode rather than a per-card action, so
 // several films can be picked and removed with one confirmation (ROADMAP
 // "Видалення фільмів"). Selection is deliberately NOT part of `state` — it
@@ -4566,6 +4571,7 @@ function saveSettings() {
       tab: state.tab, genre: state.genre, sort: state.sort,
       recommender: state.recommender, showWatched: state.showWatched,
       hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type,
+      trailerSound: state.trailerSound,
       view: document.body.dataset.view, genres: document.body.dataset.genres,
     }));
   } catch (e) { /* storage unavailable — settings just won't persist */ }
@@ -4582,6 +4588,7 @@ if (savedSettings.hideScores) state.hideScores = true;
 if (savedSettings.type) state.type = savedSettings.type;
 if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
+if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
 
 // filterCatalog(), findDuplicateMovie() now live in src/logic.js (loaded before this file).
 
@@ -5304,8 +5311,11 @@ function openModal(m) {
     ? `<div class="modal-trailer"><iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
     : posterHtml(m, 'modal-poster');
+  // The control opens in the REMEMBERED state, and the card then puts the
+  // player into it — so the icon never shows a slash over a playing sound,
+  // or the reverse.
   const sound = embedUrl
-    ? `<button class="hicon film-sound" type="button" title="Звук" aria-pressed="false">
+    ? `<button class="hicon film-sound" type="button" title="Звук" aria-pressed="${state.trailerSound ? 'true' : 'false'}">
          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
            <g class="snd-waves"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g>
@@ -5373,6 +5383,44 @@ function openModal(m) {
   // what "already open" means.
   overlay.classList.add('open');
   lockScroll(overlay);
+  unmuteTrailer();
+}
+
+/**
+ * Sound on by default (owner's call) — as soon as the browser allows it.
+ *
+ * It cannot simply be asked for in the URL. Autoplay WITH sound is refused
+ * by every current browser, and `mute=0&autoplay=1` does not start a loud
+ * video, it starts nothing at all: a still frame with a play button, which
+ * is worse than a quiet trailer. So the embed keeps mute=1, which is what
+ * makes autoplay legal, and the sound is turned on the moment there is a
+ * player to turn it on in.
+ *
+ * Retried rather than sent once: the iframe's own load event fires before
+ * YouTube's player inside it is listening, and a command sent into that gap
+ * is simply dropped. A few attempts a few hundred milliseconds apart cost
+ * nothing and cover a slow connection.
+ *
+ * If a browser refuses anyway — iOS Safari can, when it decides the tap that
+ * opened the card is too far from the sound — the trailer keeps playing
+ * silently and the control is right there, already showing which state it
+ * would put you in. Nothing breaks; the worst case is what the card did
+ * before this.
+ */
+let _unmuteTimers = [];
+function unmuteTrailer() {
+  _unmuteTimers.forEach(clearTimeout);
+  _unmuteTimers = [];
+  if (!state.trailerSound) return;   // left off last time, so it stays off
+  const ask = () => {
+    const iframe = modalBox.querySelector('.modal-trailer iframe');
+    if (!iframe || !iframe.contentWindow) return;
+    // Never override a person who has just pressed mute on THIS card.
+    const btn = modalBox.querySelector('.film-sound');
+    if (btn && btn.getAttribute('aria-pressed') !== 'true') return;
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: '' }), '*');
+  };
+  _unmuteTimers = [120, 500, 1200, 2500].map(ms => setTimeout(ask, ms));
 }
 function closeModal() {
   overlay.classList.remove('open');
@@ -5387,6 +5435,11 @@ function closeModal() {
   // fade, so nothing visibly empties on the way out.
   const frame = modalBox.querySelector('.modal-trailer iframe');
   if (frame) frame.remove();
+  // The pending unmute attempts go with it: a command aimed at a player that
+  // no longer exists is harmless, but a timer that outlives the card is the
+  // same shape of leak the scroll lock had.
+  _unmuteTimers.forEach(clearTimeout);
+  _unmuteTimers = [];
   _modalMovie = null;
   unlockScroll(overlay);
 }
@@ -5403,6 +5456,10 @@ overlay.addEventListener('click', e => {
       iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: on ? 'unMute' : 'mute', args: '' }), '*');
     }
     soundBtn.setAttribute('aria-pressed', String(on));
+    // The press is a PREFERENCE: every film after this one opens the same
+    // way, until it is pressed again.
+    state.trailerSound = on;
+    saveSettings();
     return;
   }
   const collectBtn = e.target.closest('#addToCollectionBtn');
