@@ -704,13 +704,6 @@
        перекрита»). */
     body.sheet-nav .modal-overlay > .modal > .modal-close { top: 16px; z-index: 5; }
 
-    /* Back, not closed: red, and no disc behind it. The disc is what makes
-       the cross read as «dismiss this»; an arrow with nothing behind it
-       reads as a direction. */
-    .modal-close.is-back, .hicon.is-back {
-      background: none; color: var(--flash);
-    }
-    .modal-close.is-back:active, .hicon.is-back:active { color: var(--blood); }
   }
   @keyframes sheet-up {
     from { transform: translateY(100%); }
@@ -1186,6 +1179,13 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 2; -webkit-tap-highlight-color: transparent;
   }
+  /* Back, not closed: red, and no disc behind it. The disc is what makes a
+     cross read as «dismiss this»; an arrow with nothing behind it reads as
+     a direction. Every viewport — it lived inside the phone block while the
+     arrow was a phone thing, and stayed there one change too long, so a
+     laptop got the arrow still wearing the cross's dark disc. */
+  .modal-close.is-back, .hicon.is-back { background: none; color: var(--flash); }
+  .modal-close.is-back:active, .hicon.is-back:active { color: var(--blood); }
   .warn-note { font-size: 12px; color: var(--flash); margin-top: 10px; }
 
   .empty-msg { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 15px; }
@@ -1772,12 +1772,54 @@
      large screen, far from the tap (owner's call). */
   @media (min-width: 641px) {
     .sheet {
-      left: auto; top: 0; bottom: 0; width: 340px; max-height: none;
+      left: auto; top: 0; bottom: 0; max-height: none;
+      /* Each screen takes what its contents need (owner's call). One width
+         for all of them meant «Меню» — seven short words — was drawn as
+         wide as the admin tables. The viewport only ever caps it. */
+      width: min(var(--sheet-w, 340px), calc(100% - 64px));
       border-radius: 16px 0 0 16px; padding: 22px 22px 30px;
       transform: translateX(105%);
       transition: transform .22s ease-out, visibility 0s linear .22s;
     }
     .sheet.open { transform: none; transition: transform .22s ease-out; }
+    #menuSheet { --sheet-w: 280px; }
+    #filterSheet, #settingsSheet { --sheet-w: 360px; }
+    #trashSheet { --sheet-w: 460px; }
+    #adminSheet { --sheet-w: 560px; }
+
+    /* «Добірки», «Друзі» and «Акаунт» are modals and used to appear in the
+       middle of the screen, so the same errand looked like two different
+       gestures depending on which row you picked. They are the same drawer
+       now, from the same edge, each as wide as it needs.
+
+       By id rather than by .modal-overlay: the film card, «Додати» and the
+       guide are also overlays, and none of them comes from the menu. The
+       card in particular is a poster and a trailer — a 460px column is the
+       last thing it wants. */
+    #recsOverlay, #friendsOverlay, #accountOverlay {
+      align-items: stretch; justify-content: flex-end; padding: 0;
+      overflow: hidden;
+    }
+    #recsOverlay > .modal,
+    #friendsOverlay > .modal,
+    #accountOverlay > .modal {
+      width: min(var(--sheet-w, 460px), calc(100vw - 64px));
+      max-width: none; height: 100%; max-height: none; overflow-y: auto;
+      border-radius: 16px 0 0 16px; border-right: 0;
+      animation: drawer-in .22s ease-out;
+    }
+    #recsOverlay > .modal { --sheet-w: 520px; }
+    #friendsOverlay > .modal { --sheet-w: 460px; }
+    #accountOverlay > .modal { --sheet-w: 440px; }
+  }
+  @keyframes drawer-in {
+    from { transform: translateX(105%); }
+    to   { transform: none; }
+  }
+  @media (min-width: 641px) and (prefers-reduced-motion: reduce) {
+    #recsOverlay > .modal,
+    #friendsOverlay > .modal,
+    #accountOverlay > .modal { animation: none; }
   }
 
   /* ---------- mobile / portrait (see CONVENTIONS.md) ---------- */
@@ -7509,17 +7551,19 @@ document.addEventListener('touchmove', (e) => {
  */
 function paintExitControl(btn) {
   if (!btn) return;
-  const back = menuIsNav();
-  btn.innerHTML = back ? ICON.back : ICON.close;
-  btn.classList.toggle('is-back', back);
-  btn.title = back ? 'Назад до меню' : 'Закрити';
+  // Every viewport, not just the phone (owner's call). The menu is the only
+  // door to these six screens whatever the screen size, so «closed» was
+  // always the wrong word for what that button does — it was only ever
+  // phone-gated because that is where the arrow was introduced.
+  btn.innerHTML = ICON.back;
+  btn.classList.add('is-back');
+  btn.title = 'Назад до меню';
   btn.setAttribute('aria-label', btn.title);
 }
-/** What an exit control does: step back to the menu, or simply close. */
+/** What an exit control does: step back to the menu it came from. */
 function exitScreen(closeFn) {
-  const back = menuIsNav();
   closeFn();
-  if (back) menuSheet.open();
+  menuSheet.open();
 }
 
 const filterSheet = wireSheet('filterSheet', 'filterBackdrop');
