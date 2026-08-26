@@ -949,7 +949,16 @@
      frame on a translucent plate — it never vanishes under the video. */
   .film-head { position: relative; background: #000; }
   .modal-trailer { position: relative; }
-  .modal-trailer iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: 0; }
+  /* Above the cover, on purpose (owner's call). The cover used to sit over
+     the player, which meant it also swallowed every tap aimed at it — so
+     when autoplay did not take, the one gesture that WOULD have started the
+     video could not reach it. Measured in a browser: a muted embed sat at
+     state -1 for twenty-seven seconds and started the instant a play command
+     arrived. With the player on top, that gesture always lands. */
+  .modal-trailer iframe {
+    position: relative; z-index: 1;
+    width: 100%; aspect-ratio: 16 / 9; display: block; border: 0;
+  }
   /* Our own cover, over YouTube's, until the video is really there. Coal
      rather than black: the card's ground, so it reads as part of the app
      and not as a hole in it.
@@ -962,7 +971,7 @@
      worth what it was buying. Covering somebody else's chrome for longer is
      not a fight this card needs to win. */
   .trailer-veil {
-    position: absolute; inset: 0; z-index: 2;
+    position: absolute; inset: 0; z-index: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
     /* Nudged up off dead center: the title plate sits along the bottom edge
        of this same frame, so a mark centred on the box reads as centred low
@@ -973,9 +982,14 @@
   }
   .trailer-veil .boot-mark { width: 72px; }
   .trailer-veil .boot-word { font-size: 10px; }
-  /* Gone, not merely transparent: a veil that keeps its layer would swallow
-     every tap meant for the player underneath it. */
-  .trailer-veil.out { opacity: 0; pointer-events: none; }
+  /* Nothing lifts it any more: it is UNDER the player, so YouTube's own
+     paint covers it the moment there is anything to cover it with — about
+     400ms, measured. Until then it fills what would otherwise be an empty
+     frame, which is the longest and ugliest part of the wait.
+     What it no longer does is hide YouTube's title and play button. That is
+     the price of the player being on top, and the owner picked it knowingly:
+     a video that starts is worth more than a tidy half-second. */
+  .trailer-veil { pointer-events: none; }
   .modal-poster { width: 100%; background: var(--surface2); }
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
@@ -6732,52 +6746,51 @@ function openModal(m) {
   lockScroll(overlay);
   wireAdminEditor(m);
   unmuteTrailer();
-  liftTrailerVeil();
+  nudgeTrailerToPlay();
 }
 
 /**
- * Hold the mark until the trailer is actually playing behind it.
+ * Keep asking YouTube to play until it does.
  *
- * `load` was the wrong signal and an earlier version used it: it fires when
- * YouTube's page arrives, which is BEFORE the video starts. The veil lifted
- * onto exactly the thing it exists to hide (owner-reported).
+ * This used to also hold a cover over the frame and lift it on PLAYING. The
+ * cover is still there but it is UNDER the player now (owner's call), so
+ * nothing here lifts anything — YouTube's own paint covers it the moment
+ * there is something to see, and the taps that the cover used to swallow
+ * reach the player instead.
  *
- * The right signal is the player's own. With enablejsapi=1 it will report
- * its state over postMessage once asked to — so we ask, and wait for
- * PLAYING.
+ * That leaves this doing the one job that actually starts videos, and it is
+ * needed: measured in a browser, a muted `autoplay=1` embed reported state
+ * -1 and sat there for twenty-seven seconds, then went -1 -> 3 -> 1 the
+ * instant a play command arrived. Autoplay not taking is the normal case,
+ * not the exception — iOS Low Power Mode and Safari's «Never Auto-Play»
+ * both refuse a script — and asking is what fixes it.
  *
- * PLAYING is the ONLY signal that lifts it, and there is deliberately
- * nothing else — no tuned wait after it, and no ceiling that lifts on a
- * timer regardless.
+ * Two failures shaped the schedule, and neither can be observed from here:
  *
- * Both were tried and both were reverted (owner's call). A tuned wait past
- * PLAYING was an attempt to also outlast YouTube's own furniture — the
- * title, the channel, the play button — fading off the frame. That moment
- * cannot be observed from here at all: the chrome fades on YouTube's timer,
- * inside a cross-origin frame whose DOM we may not read, on an easing curve
- * that visibly slows near the end, so any number picked for it is a guess.
- * A pair of strips held over the top and bottom edges instead of one guessed
- * number fared worse still: they rendered UNDER YouTube's elements on the
- * owner's iPhone. Covering somebody else's chrome for longer is not a fight
- * this card needs to win.
+ *   The player may not answer «listening» for seconds on a cold start. An
+ *   earlier version's three attempts all landed inside the first 1.2s, so a
+ *   slow player was never subscribed at all.
  *
- * The ceiling went for the opposite reason. Lifting on a timer when the
- * player never speaks does not reveal a playing trailer — it reveals a
- * stopped one, which is exactly what the owner saw. Waiting is the honest
- * answer there: if the video never starts, "Завантажується" is true, and a
- * cover that stays is better than one that lifts onto a paused frame.
+ *   The `load` event is not guaranteed either: a cross-origin frame on iOS
+ *   can leave it late or not deliver it. Everything used to hang on it, so
+ *   the whole mechanism was one unobservable event away from doing nothing.
+ *   Sending into a frame that is not ready is harmless — the message is
+ *   dropped — so it starts from the moment the card opens and treats `load`
+ *   as one extra attempt rather than as the beginning.
+ *
+ * Asking at all is allowed because the embed is muted (see unmuteTrailer for
+ * why it must be), and it stops on PLAYING so a play command never arrives
+ * after somebody has paused it by hand.
  */
 let _veilTimers = [];
 let _playerListener = null;
 
-function liftTrailerVeil() {
+function nudgeTrailerToPlay() {
   clearVeilWatch();
   const box = modalBox.querySelector('.modal-trailer');
   if (!box) return;
   const iframe = box.querySelector('iframe');
-  const veil = box.querySelector('.trailer-veil');
-  if (!iframe || !veil) return;
-  const lift = () => veil.classList.add('out');
+  if (!iframe) return;
 
   // Subscribing is a message too: the player stays silent until something
   // says it is listening.
@@ -6835,18 +6848,7 @@ function liftTrailerVeil() {
     const state = msg.event === 'onStateChange' ? msg.info
       : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
     // -1 UNSTARTED, 5 CUED: the frame is up and the player is ready, but
-    // autoplay did not take. Measured here, not guessed: a plain muted embed
-    // reported -1 and sat there for the full twelve seconds of a probe,
-    // which is exactly what the owner saw — "the first time it only loads".
-    // A second open looked instant because the video was already cached.
-    //
-    // Asking the player directly is allowed precisely because the embed is
-    // muted (see unmuteTrailer for why it must be), and it works: -1 -> 3 ->
-    // 1 in two tenths of a second in the same probe.
-    //
-    // This matters more than it used to. The veil now lifts on PLAYING and
-    // on nothing else — no timer rescues it — so a player that never starts
-    // means «Завантажується» for ever.
+    // autoplay did not take. Measured, not guessed — see the note above.
     if (state === -1 || state === 5) {
       if (iframe.contentWindow) {
         iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
@@ -6854,7 +6856,6 @@ function liftTrailerVeil() {
       return;
     }
     if (state === 1) {   // PLAYING
-      lift();
       // The pending wake-ups have nothing left to do, and a playVideo
       // arriving after somebody has paused it by hand would fight them.
       clearVeilWatch();
