@@ -1721,6 +1721,29 @@
     transition: opacity .18s ease, transform .18s ease, color .15s;
   }
   .to-top[hidden] { display: none; }
+
+  /* The die wears «Догори»'s clothes — the glyph alone, no plate, flash, its
+     own drop shadow because it floats over posters — at the size of a
+     control rather than of a gesture. «Догори» is a big chevron because it
+     is aimed at in a hurry mid-scroll; this one is looked at first and then
+     pressed. Left corner, so the two never take turns in one spot. */
+  .dice {
+    position: fixed; z-index: 40;
+    left: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: 56px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; padding: 0;
+    color: var(--flash);
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.85));
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: color .15s, transform .15s ease;
+  }
+  .dice[hidden] { display: none; }
+  /* A quarter turn on the press: the one control on the screen whose whole
+     idea is that it tumbles. */
+  .dice:active { transform: rotate(-18deg); }
+  @media (hover: hover) { .dice:hover { color: var(--paper); } }
+  @media (prefers-reduced-motion: reduce) { .dice { transition: color .15s; } .dice:active { transform: none; } }
   .to-top.in { opacity: 1; transform: none; }
   @media (hover: hover) { .to-top:hover { color: var(--paper); } }
 
@@ -2385,6 +2408,21 @@
 <!-- Back to the top of the shelf. Hidden until there is a way back TO go:
      on the first screen it would be a button that does nothing, and one of
      those on every screen is how a corner fills up with furniture. -->
+<!-- The die: something to watch, chosen for you. It hangs on the opposite
+     corner from «Догори» on purpose — both are permanent fixtures in this
+     corner of the screen, and two controls taking turns in one spot is how
+     a thumb learns to distrust a place. Unlike «Догори» it does not come and
+     go with the scroll: it is an offer, not a shortcut back. -->
+<button class="dice" id="diceBtn" type="button" title="Подивись щось випадкове" aria-label="Подивись щось випадкове" hidden>
+  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="4.5"/>
+    <circle cx="8.2" cy="8.2" r="1.45" fill="currentColor" stroke="none"/>
+    <circle cx="15.8" cy="8.2" r="1.45" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="12" r="1.45" fill="currentColor" stroke="none"/>
+    <circle cx="8.2" cy="15.8" r="1.45" fill="currentColor" stroke="none"/>
+    <circle cx="15.8" cy="15.8" r="1.45" fill="currentColor" stroke="none"/>
+  </svg>
+</button>
 <button class="to-top" id="toTopBtn" type="button" title="Догори" aria-label="Догори" hidden>
   <svg viewBox="0 0 24 24" width="68" height="68" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="18 15 12 9 6 15"/>
@@ -4702,6 +4740,29 @@ function youtubeVideoId(url) {
  * So: the plain embed. If the branding has to go, the answer is not a
  * parameter list — it is not serving the video from YouTube at all.
  */
+/**
+ * Something to watch, picked at random from what is on screen.
+ *
+ * From the VISIBLE list and not the whole catalogue: the person has a genre
+ * open, or a collection, or a search — and a die that ignores all of that is
+ * not answering the question they were already asking.
+ *
+ * Unwatched first, because «подивись щось» means something not yet seen.
+ * Falling back to the whole list rather than refusing: on a shelf where
+ * everything is already watched the honest answer is a rewatch, not silence.
+ *
+ * rnd is injected so a test can pin the result; the app passes Math.random.
+ */
+function pickRandomFilm(items, watchedIds, rnd) {
+  const pool = (items || []).filter(Boolean);
+  if (!pool.length) return null;
+  const unseen = watchedIds ? pool.filter(m => !watchedIds.has(markKey(m))) : pool;
+  const from = unseen.length ? unseen : pool;
+  const roll = typeof rnd === 'function' ? rnd() : Math.random();
+  const i = Math.floor(roll * from.length);
+  return from[Math.min(Math.max(i, 0), from.length - 1)];
+}
+
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
   // playsinline=1 is not optional on iOS and its absence is why the trailer
@@ -5003,7 +5064,7 @@ if (typeof module !== 'undefined' && module.exports) {
     findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
-    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName,
+    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -6045,6 +6106,11 @@ function placeBatchSentinel(main) {
 function render(opts = {}) {
   const main = document.getElementById('main');
   const items = visibleMovies();
+  // Here and not at the end: render() returns early for every empty state —
+  // an empty catalogue, a collection with nothing in it, a search that
+  // matched nothing — and those are exactly the states the die must not be
+  // offered in. It depends on the list, not on the drawing.
+  syncDice();
   _cardAwardMovies = [];
   if (!opts.keepDrawn) _drawnTarget = RENDER_BATCH;
 
@@ -7837,6 +7903,27 @@ if (collectionPlateEl) {
  * The scroll listener is passive: it only ever reads scrollY, and saying so
  * lets the browser keep scrolling while it runs.
  */
+/* ---------- the die ----------
+ *
+ * Owner's call: something to watch, chosen for you. It picks from what is
+ * on SCREEN — the open collection, the chosen genre, the search — because a
+ * die that ignores the question somebody is already asking is answering a
+ * different one. Unwatched first; a shelf where everything is watched gets
+ * a rewatch rather than a shrug.
+ *
+ * Hidden when the visible list is empty, for the reason every other control
+ * here is: one that can do nothing is worse than one that is not there.
+ */
+const diceBtn = document.getElementById('diceBtn');
+function syncDice() {
+  if (!diceBtn) return;
+  diceBtn.hidden = visibleMovies().length === 0;
+}
+if (diceBtn) diceBtn.addEventListener('click', () => {
+  const pick = pickRandomFilm(visibleMovies(), watched);
+  if (pick) openModal(pick);
+});
+
 const toTopBtn = document.getElementById('toTopBtn');
 const TO_TOP_AFTER = () => (window.innerHeight || 800) * 1.5;
 function syncToTop() {
