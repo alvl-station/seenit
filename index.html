@@ -239,7 +239,29 @@
     padding: 12px 0;
   }
   .col-plate-close { color: var(--paper); }
-  .col-plate-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .col-plate-actions[hidden] { display: none; }
+  .col-plate-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+    /* The page's column, same frame the plate and the grid live in — it sits
+       under the plate now, not inside the header. */
+    width: calc(100% - 48px); max-width: 1232px; margin-left: auto; margin-right: auto;
+  }
+  /* Pushed to the far end of the row (owner's call): the two before it say
+     who can SEE this collection, and this one changes what is in it. */
+  .plate-edit { margin-left: auto; }
+  /* The chip and its delete travel together, so a wrapped list never leaves
+     an × on its own line beside somebody else's collection. */
+  .recs-list-pair { display: inline-flex; align-items: stretch; }
+  .recs-list-del {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 8px; margin-left: 2px;
+    background: none; border: 1px solid var(--border); border-left: 0;
+    border-radius: 0 3px 3px 0;
+    color: var(--text-muted); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (hover: hover) { .recs-list-del:hover { color: var(--flash); border-color: var(--flash); } }
+  .sheet-row--danger { color: var(--flash); }
 
   /* Tabs are words in the display face; the active one is underlined in
      blood (§07) — not pills. ФІЛЬТР sits on the same line, right, and
@@ -1688,18 +1710,7 @@
   </div>
 </div>
 <div id="appRoot" style="display:none">
-<!-- The state plate (§07): the ONE place white text lies on blood — mono,
-     one line, with its exit. A direct child of the app root, NOT of the
-     header: sticky only holds within its parent, and the plate must stay
-     in reach however deep the scroll goes. -->
-<div class="col-plate" id="collectionPlate" hidden>
-  <span class="col-plate-name" id="collectionPlateName"></span>
-  <button class="hicon col-plate-close" id="collectionPlateClose" type="button" title="Назад до каталогу">
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-  </button>
-</div>
 <header>
-  <div class="col-plate-actions" id="collectionPlateActions" hidden></div>
   <!-- The book's header (vol. II §10): the WORD, «It» in blood, left; three
        icons right — search, add, menu. The mark itself left the header: it
        stays on the login screen, the favicon and volume I. -->
@@ -1767,7 +1778,57 @@
     <button type="button" class="delete-bar-btn delete-bar-btn--go" id="deleteConfirmBtn" disabled>Видалити</button>
     <button type="button" class="delete-bar-btn" id="deleteCancelBtn">Скасувати</button>
   </div>
+  <!-- The same bar, the other errand. Its own element rather than one bar
+       with swapped labels: the two modes can be entered from different
+       places and cancelling one must not look like cancelling the other. -->
+  <div class="delete-bar" id="addBar" hidden>
+    <span class="delete-bar-count" id="addCount">Обери, що додати</span>
+    <button type="button" class="delete-bar-btn delete-bar-btn--go" id="addConfirmBtn" disabled>Додати</button>
+    <button type="button" class="delete-bar-btn" id="addCancelBtn">Скасувати</button>
+  </div>
 </header>
+
+<!-- The state plate (§07): the ONE place white text lies on blood — mono,
+     one line, with its exit. A direct child of the app root, NOT of the
+     header: sticky only holds within its parent, and the plate must stay in
+     reach however deep the scroll goes.
+
+     AFTER the header, and that ordering is load-bearing (owner-reported:
+     the plate was invisible until you scrolled). At scroll 0 the header has
+     not pinned yet and still occupies its place in the flow, so a plate
+     whose sticky offset assumes a pinned header landed inside the header's
+     box and was covered by it. -->
+<div class="col-plate" id="collectionPlate" hidden>
+  <span class="col-plate-name" id="collectionPlateName"></span>
+  <button class="hicon col-plate-close" id="collectionPlateClose" type="button" title="Назад до каталогу">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+  </button>
+</div>
+<!-- Under the plate rather than inside the header (owner's call). These
+     buttons act on the collection the plate names, and they were rendering
+     ABOVE the wordmark — further from the thing they belong to than from
+     the brand. -->
+<div class="col-plate-actions" id="collectionPlateActions" hidden></div>
+
+<!-- Everything that CHANGES a collection, behind one button rather than four
+     on the plate. The plate is one line and already carries the collection's
+     name, its exit and its sharing state; four more controls beside them
+     would bury the name they describe. -->
+<div class="sheet-backdrop" id="colEditBackdrop" hidden></div>
+<div class="sheet" id="colEditSheet" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="sheet-title" id="colEditTitle">Редагувати добірку</div>
+    <button class="hicon" id="colEditCloseBtn" type="button" title="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <button class="sheet-row" id="colAddFilmsBtn" type="button">Додати фільми та серіали</button>
+  <button class="sheet-row" id="colRemoveFilmsBtn" type="button">Прибрати фільми</button>
+  <button class="sheet-row" id="colRenameBtn" type="button">Перейменувати</button>
+  <!-- Last, and apart: it is the one action here that cannot be undone by
+       repeating it. -->
+  <button class="sheet-row sheet-row--danger" id="colDeleteBtn" type="button">Видалити добірку</button>
+</div>
 
 <!-- The search layer: a full screen of its own (§07 — a layer is for a
      separate ACTION), sliding in from the right (§09). Results are the
@@ -1796,10 +1857,11 @@
        The badge earns its place on the account screen, where nothing else
        states the role. -->
   <button class="sheet-row" id="adminBtn" type="button" style="display:none">Адмін</button>
-  <!-- Inactive on the main screen (owner's call): the catalogue here is
-       the shared database — removal lives inside collections, where a
-       film falls into the trash for 24 hours first. -->
-  <button class="sheet-row" id="deleteModeBtn" type="button" aria-pressed="false" aria-disabled="true">Видалити фільми</button>
+  <!-- «Видалити фільми» is not here any more (owner's call). It only ever
+       worked inside a collection you own, so a permanently greyed row in
+       the main menu explained itself with a popover instead of just being
+       where it applied. It now lives under the collection's own plate,
+       beside adding and renaming. -->
   <button class="sheet-row" id="logoutBtn" type="button" style="display:none">Вийти</button>
   <button class="sheet-row" id="trashBtn" type="button">Кошик</button>
 </div>
@@ -4944,6 +5006,11 @@ let openCatalogCollection = null;
 
 let deleteMode = false;
 let selectedForDelete = new Set();
+/* Adding films to the open collection. Its own mode and its own set: a
+ * person can leave one, browse, and come back to the other without the two
+ * quietly sharing a selection. */
+let addMode = false;
+let selectedForAdd = new Set();
 
 /* ---------- persisted display/filter/sort settings (not the search query) ---------- */
 const SETTINGS_KEY = 'kino_ui_settings_v1';
@@ -4986,6 +5053,14 @@ function sortFn(a, b) {
  * collection's slice of it. Everything downstream — filters, genre chip
  * counts — reads THIS, so the numbers always describe what is on screen. */
 function catalogSource() {
+  // Adding to a collection widens the screen back to the whole catalogue,
+  // because that is what you are choosing FROM. Narrowed to the collection
+  // it would offer only the films already in it — and on a collection you
+  // have just made, nothing at all.
+  //
+  // Removing does the opposite and stays narrowed: you can only take out
+  // what is in there.
+  if (addMode) return MOVIES;
   return openCatalogCollection
     ? MOVIES.filter(m => openCatalogCollection.ids.has(markKey(m)))
     : MOVIES;
@@ -5283,14 +5358,20 @@ function cardAwardsRow(m) {
 function cardHtml(m) {
   const isW = isMarked(watched, m), isL = isMarked(liked, m);
   const critic = criticBadgeHtml(m);
-  const sel = deleteMode && selectedForDelete.has(m.id);
+  // Two modes put a checkbox on a card, and they behave differently on
+  // purpose (owner's call). Removing is a job you came to do, so the whole
+  // card is the target. ADDING is browsing — you are deciding as you look —
+  // so only the box selects and the card still opens under your thumb.
+  const picking = deleteMode || addMode;
+  const chosen = deleteMode ? selectedForDelete : selectedForAdd;
+  const sel = picking && chosen.has(m.id);
   // Layer order is the book's (vol. II §06): poster, title, facts, critic
   // strip, awards, toggles — everything below the title is data and sits in
   // the card body, on the ground itself (the card has no surface of its
   // own any more). The eye and the heart live in the data block too, not
   // on the poster.
   return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}">
-    ${deleteMode ? `<div class="card-select-mark">${sel ? ICON.check : ''}</div>` : ''}
+    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}
     ${posterHtml(m, 'poster')}
     <div class="card-body">
       <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>
@@ -5466,6 +5547,26 @@ function render(opts = {}) {
       // holds it, the useful button widens the search instead.
       const elsewhere = !!q && state.searchScope === 'here' && !!openCatalogCollection
         && MOVIES.some(m => matches(m, q));
+      // A collection you have just made is not a dead end, it is an empty
+      // shelf — and the useful thing to offer is the way to fill it, not the
+      // news that it is empty (owner's call). Only without a query: with one
+      // typed, «nothing found» is the true answer and adding is already
+      // offered below.
+      const emptyOwnCollection = !q && !!openCatalogCollection
+        && openCatalogCollection.source === 'own' && !openCatalogCollection.ids.size;
+      if (emptyOwnCollection) {
+        main.innerHTML = `<div class="empty-state empty-msg">
+          ${markHtml}
+          <div class="empty-title">Тут поки порожньо</div>
+          <div class="empty-hint">Обери фільми та серіали з каталогу — вони зʼявляться в цій добірці.</div>
+          <div class="empty-actions">
+            <button class="btn-primary" id="emptyAddFilmsBtn" type="button">${ICON.plus} Додати фільми та серіали</button>
+          </div>
+        </div>`;
+        const add = main.querySelector('#emptyAddFilmsBtn');
+        if (add) add.addEventListener('click', () => setAddMode(true));
+        return;
+      }
       main.innerHTML = `<div class="empty-state empty-msg">
         ${markHtml}
         <div class="empty-title">Нічого не знайдено</div>
@@ -6363,6 +6464,14 @@ document.getElementById('main').addEventListener('click', e => {
   if (deleteMode && card) {
     e.stopPropagation();
     toggleDeleteSelection(card.dataset.id);
+    return;
+  }
+  // Adding is browsing, so only the box selects — the rest of the card still
+  // opens (owner's call). Checked before the toggles below, or the eye and
+  // the heart would swallow a tap meant for the box beside them.
+  if (addMode && card && e.target.closest('.card-select-mark')) {
+    e.stopPropagation();
+    toggleAddSelection(card.dataset.id);
     return;
   }
   if (tgl && card) {
@@ -8236,7 +8345,6 @@ function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(add
  * selection. Leaving the mode always clears the selection, so a stale pick
  * can never be carried back in and deleted later by accident.
  */
-const deleteModeBtn = document.getElementById('deleteModeBtn');
 const deleteBar = document.getElementById('deleteBar');
 const deleteCountEl = document.getElementById('deleteCount');
 const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
@@ -8246,7 +8354,6 @@ function setDeleteMode(on) {
   deleteMode = on;
   selectedForDelete.clear();
   document.body.classList.toggle('delete-mode', on);
-  deleteModeBtn.setAttribute('aria-pressed', String(on));
   deleteBar.hidden = !on;
   renderDeleteBar();
   // keepDrawn: entering the mode changes how cards LOOK, not which films are
@@ -8270,6 +8377,79 @@ function toggleDeleteSelection(id) {
   if (mark) mark.innerHTML = on ? ICON.check : '';
 }
 
+/* ---------- adding films to the open collection ----------
+ *
+ * The catalogue stays exactly as it is: same cards, same filters, same
+ * search. What changes is that each card grows a box, and the bar at the
+ * bottom counts what is ticked. Browsing IS the picking — which is why the
+ * card still opens when tapped anywhere but the box.
+ */
+const addBar = document.getElementById('addBar');
+const addCountEl = document.getElementById('addCount');
+const addConfirmBtn = document.getElementById('addConfirmBtn');
+const addCancelBtn = document.getElementById('addCancelBtn');
+
+function setAddMode(on) {
+  // The two picking modes are mutually exclusive: a card cannot sensibly be
+  // both "about to be added" and "about to be removed".
+  if (on && deleteMode) setDeleteMode(false);
+  addMode = on;
+  selectedForAdd.clear();
+  document.body.classList.toggle('add-mode', on);
+  addBar.hidden = !on;
+  renderAddBar();
+  // keepDrawn: entering the mode changes how cards LOOK, not which films are
+  // listed, so somebody who had scrolled keeps their place.
+  render({ keepDrawn: true });
+}
+
+function toggleAddSelection(id) {
+  if (!id) return;
+  const on = !selectedForAdd.has(id);
+  on ? selectedForAdd.add(id) : selectedForAdd.delete(id);
+  renderAddBar();
+  // One card changed, so touch one card — the catalogue is 13,000 cards and
+  // rebuilding it to flip a checkmark is what once made selecting time out.
+  const card = document.querySelector(`.card[data-id="${cssAttr(id)}"]`);
+  if (!card) return;
+  card.classList.toggle('is-selected', on);
+  const mark = card.querySelector('.card-select-mark');
+  if (mark) mark.innerHTML = on ? ICON.check : '';
+}
+
+function renderAddBar() {
+  const n = selectedForAdd.size;
+  addCountEl.textContent = n ? `Вибрано ${n} ${pluralFilms(n)}` : 'Обери, що додати';
+  addConfirmBtn.disabled = n === 0;
+}
+
+addCancelBtn.addEventListener('click', () => setAddMode(false));
+addConfirmBtn.addEventListener('click', async () => {
+  const col = openCatalogCollection;
+  if (!col || !selectedForAdd.size) return;
+  const chosen = [...selectedForAdd];
+  addConfirmBtn.disabled = true;
+  let added = 0;
+  const failed = [];
+  for (const id of chosen) {
+    const film = MOVIES.find(m => m.id === id);
+    if (!film) continue;
+    try {
+      await addFilmToMine(film, { collectionId: col.collection_id, collectionName: col.name });
+      col.ids.add(String(markKey(film)));
+      added++;
+    } catch (err) {
+      // Named rather than counted: "3 failed" tells nobody which to retry.
+      failed.push(film.canonical_title_uk || film.id);
+    }
+  }
+  const onShelf = shelf.find(c => c.key === col.key);
+  if (onShelf) onShelf.film_ids = [...col.ids];
+  setAddMode(false);
+  if (added) toast('ok', `Додано ${added} ${pluralFilms(added)}`);
+  if (failed.length) toast('error', `Не додалися: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '…' : ''}`);
+});
+
 function renderDeleteBar() {
   const n = selectedForDelete.size;
   deleteCountEl.textContent = n
@@ -8280,16 +8460,32 @@ function renderDeleteBar() {
 
 /* The book's dialog (§07): appears in place, lists what WILL happen —
  * never «ви впевнені?» — and resolves like the confirm it replaced. */
+/** What removing the chosen films costs, put to the person in those terms. */
 function confirmDeletion(chosen) {
   const data = deleteConsequences(chosen);
   if (!data) return Promise.resolve(false);
+  return askConfirm({
+    title: data.action,
+    lines: data.consequences,
+    goText: data.count === 1 ? 'Прибрати' : `Прибрати ${data.count}`,
+  });
+}
+
+/**
+ * The confirm dialog, driven by whatever needs confirming.
+ *
+ * Extracted from confirmDeletion rather than written beside it: a second
+ * dialog would need its own markup, its own scroll-lock and its own escape
+ * key, and would drift from this one the first time either was touched.
+ * What changes between callers is three strings and a list.
+ */
+function askConfirm({ title, lines = [], goText }) {
   const backdrop = document.getElementById('deleteDialogBackdrop');
   const dlg = document.getElementById('deleteDialog');
-  document.getElementById('deleteDialogTitle').textContent = data.action;
+  document.getElementById('deleteDialogTitle').textContent = title;
   document.getElementById('deleteDialogList').innerHTML =
-    data.consequences.map(c => `<li>${esc(c)}</li>`).join('');
-  document.getElementById('deleteDialogGo').textContent =
-    data.count === 1 ? 'Прибрати' : `Прибрати ${data.count}`;
+    lines.map(c => `<li>${esc(c)}</li>`).join('');
+  document.getElementById('deleteDialogGo').textContent = goText;
   backdrop.hidden = false;
   dlg.classList.add('open');
   dlg.setAttribute('aria-hidden', 'false');
@@ -8376,27 +8572,11 @@ async function removeFilmFromMine(movie, collectionId = MY_FILMS_ID) {
   return res;
 }
 
-function deleteInactiveHint() {
-  return openCatalogCollection
-    ? 'Це не твоя добірка — з неї видаляти не можна.'
-    : 'Фільми можна видалити тільки з добірок. Головний список — спільна база, з нього не видаляють.';
-}
-deleteModeBtn.addEventListener('click', () => {
-  // Inactive on the main screen (owner's call): the tap explains itself
-  // next to the row (U-4) instead of doing nothing. Step 9 re-arms the
-  // mode inside an open collection.
-  if (deleteModeBtn.getAttribute('aria-disabled') === 'true') {
-    showInfoPopover(deleteModeBtn, deleteInactiveHint());
-    return;
-  }
-  setDeleteMode(!deleteMode);
-});
-deleteModeBtn.addEventListener('mouseenter', () => {
-  if (deleteModeBtn.getAttribute('aria-disabled') === 'true') showInfoPopover(deleteModeBtn, deleteInactiveHint());
-});
-deleteModeBtn.addEventListener('mouseleave', () => {
-  if (deleteModeBtn.getAttribute('aria-disabled') === 'true') hideInfoPopover();
-});
+// The greyed-row popover that used to explain «Видалити фільми» is gone with
+// the row. It existed to answer "why can I not tap this" — a question the
+// menu created by showing the control where it never applied. Under the
+// collection's own plate the question does not arise: the button is there
+// when it works and absent when it does not.
 deleteCancelBtn.addEventListener('click', () => setDeleteMode(false));
 deleteConfirmBtn.addEventListener('click', deleteSelected);
 
@@ -8902,12 +9082,100 @@ let recsSource = 'seenit';
 
 
 /* ---------- a collection, opened as the catalog ---------- */
+/* ---------- editing the collection the plate names ----------
+ *
+ * One sheet behind one button, rather than four controls on a plate that is
+ * one line and already carries the name, the exit and the sharing state.
+ *
+ * Only for a collection that is MINE. The shared catalogue is not a
+ * collection, and somebody else's is not mine to change — the same rule
+ * removal already followed, applied to the rest.
+ */
+const colEditSheet = wireSheet('colEditSheet', 'colEditBackdrop');
+function openCollectionEditor(col) {
+  document.getElementById('colEditTitle').textContent = col.name;
+  colEditSheet.open();
+}
+document.getElementById('colEditCloseBtn').addEventListener('click', colEditSheet.close);
+
+document.getElementById('colAddFilmsBtn').addEventListener('click', () => {
+  colEditSheet.close();
+  setAddMode(true);
+});
+document.getElementById('colRemoveFilmsBtn').addEventListener('click', () => {
+  colEditSheet.close();
+  setDeleteMode(true);
+});
+
+document.getElementById('colRenameBtn').addEventListener('click', async () => {
+  const col = openCatalogCollection;
+  if (!col) return;
+  const name = (window.prompt('Нова назва добірки:', col.name) || '').trim();
+  if (!name || name === col.name) return;
+  try {
+    const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.collection_id)}`, {
+      method: 'PUT',
+      headers: await proxyHeaders({ accept: 'application/json', 'content-type': 'application/json' }),
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    col.name = name;
+    const onShelf = shelf.find(c => c.key === col.key);
+    if (onShelf) onShelf.name = name;
+    document.getElementById('collectionPlateName').textContent = `Добірка · ${name}`;
+    colEditSheet.close();
+    toast('ok', 'Назву змінено');
+  } catch (err) {
+    toast('error', 'Не вдалося перейменувати');
+  }
+});
+
+document.getElementById('colDeleteBtn').addEventListener('click', () => {
+  const col = openCatalogCollection;
+  if (!col) return;
+  // Asked plainly and by name, because this is the one action in the sheet
+  // that repeating cannot undo. The films themselves stay in the catalogue;
+  // what goes is the list.
+  askConfirm({
+    title: `Видалити «${col.name}»?`,
+    lines: [
+      'Добірка зникне з полиці.',
+      'Фільми лишаться в каталозі — зникне лише список.',
+      'Ті, хто підписався на неї, її більше не побачать.',
+    ],
+    goText: 'Видалити',
+  }).then(ok => { if (ok) deleteCollection(col); });
+});
+
+async function deleteCollection(col) {
+  try {
+    const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.collection_id)}`, {
+      method: 'DELETE',
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const at = shelf.findIndex(c => c.key === col.key);
+    if (at >= 0) shelf.splice(at, 1);
+    colEditSheet.close();
+    closeCollectionCatalog();
+    renderRecs();
+    toast('ok', 'Добірку видалено');
+  } catch (err) {
+    toast('error', 'Не вдалося видалити добірку');
+  }
+}
+
 function syncDeleteAvailability() {
-  // Removal lives inside an OWN collection only: the main list is the
-  // shared database, and somebody else's collection is not mine to edit.
-  const canDelete = !!(openCatalogCollection && openCatalogCollection.source === 'own');
-  deleteModeBtn.setAttribute('aria-disabled', String(!canDelete));
-  if (!canDelete && deleteMode) setDeleteMode(false);
+  // Removal lives inside an OWN collection only: the main list is the shared
+  // database, and somebody else's collection is not mine to edit.
+  //
+  // Nothing to disable any more — the way in is «Редагувати» on the plate,
+  // and that button is only drawn for a collection of mine. What is left is
+  // making sure a mode that was already ON does not survive leaving the
+  // collection it belonged to.
+  const canEdit = !!(openCatalogCollection && openCatalogCollection.source === 'own');
+  if (!canEdit && deleteMode) setDeleteMode(false);
+  if (!canEdit && addMode) setAddMode(false);
 }
 function openCollectionAsCatalog(col) {
   openCatalogCollection = {
@@ -8950,8 +9218,13 @@ function renderPlateActions() {
   el.hidden = false;
   el.innerHTML = col.source === 'own'
     ? `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>
-       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>`
+       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>
+       <!-- Right of the row, away from the two that describe SHARING: this
+            one changes what the collection holds and what it is called. -->
+       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>`
     : '<button class="btn" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>';
+  const edit = el.querySelector('#plateEditBtn');
+  if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
   const share = el.querySelector('#plateShareBtn');
   if (share) share.addEventListener('click', () => {
     const done = () => toast('success', `Ключ скопійовано: ${col.key}`);
@@ -9362,7 +9635,16 @@ function renderRecs() {
     const ownHtml = own.length
       ? `<div class="recs-group"><div class="cf-label">Мої добірки</div>
           <div class="recs-lists">${own.map(c =>
-            `<button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>`).join('')}</div></div>`
+            `<span class="recs-list-pair">
+               <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>
+               <!-- Beside the collection rather than inside it: opening a
+                    collection and deleting it are different intentions, and
+                    one target for both is how a list gets deleted by a
+                    thumb aiming to open it. -->
+               <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">
+                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+               </button>
+             </span>`).join('')}</div></div>`
       : '';
     // Named for what it is rather than shadowing `mine`, the shelf set.
     const recommended = MOVIES.filter(m => isMarked(liked, m));
@@ -9397,6 +9679,24 @@ function renderRecs() {
       el.addEventListener('click', () => {
         const col = shelf.find(c => c.key === el.dataset.key);
         if (col) openCollectionAsCatalog(col);
+      }));
+    body.querySelectorAll('[data-del-key]').forEach(el =>
+      el.addEventListener('click', async (e) => {
+        // The delete sits inside the chip's row; without this the tap would
+        // also reach the chip and open the collection it is about to remove.
+        e.stopPropagation();
+        const col = shelf.find(c => c.key === el.dataset.delKey);
+        if (!col) return;
+        const ok = await askConfirm({
+          title: `Видалити «${col.name}»?`,
+          lines: [
+            'Добірка зникне з полиці.',
+            'Фільми лишаться в каталозі — зникне лише список.',
+            'Ті, хто підписався на неї, її більше не побачать.',
+          ],
+          goText: 'Видалити',
+        });
+        if (ok) await deleteCollection(col);
       }));
     return;
   }
