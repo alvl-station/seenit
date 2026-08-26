@@ -166,16 +166,20 @@
   }
   .field-clear-wrap.has-value .field-clear-btn { display: flex; }
   .field-clear-btn:active { background: var(--border); }
+  /* 16px, and it is not a taste call: iOS Safari zooms the whole page the
+     moment a focused control's text is smaller than that, and it never
+     zooms back. Owner-reported — every field on the phone did it. See the
+     test that holds this floor for every form control in the stylesheet. */
   #search {
     background: var(--surface); border: 1px solid var(--border);
     color: var(--text); padding: 10px 36px 10px 14px; border-radius: 3px;
-    font-size: 14px; outline: none; height: var(--control-h); width: 100%;
+    font-size: 16px; outline: none; height: var(--control-h); width: 100%;
   }
   #search:focus { border-color: var(--accent2); }
   select {
     background: var(--surface); border: 1px solid var(--border);
     color: var(--text); padding: 10px 12px; border-radius: 3px;
-    font-size: 13px; outline: none; cursor: pointer; height: var(--control-h);
+    font-size: 16px; outline: none; cursor: pointer; height: var(--control-h);
   }
 
   /* Sits between the read-only facts and the editable description, so the
@@ -1686,7 +1690,7 @@
   #addModeCollection .field-clear-wrap input {
     width: 100%; box-sizing: border-box; background: var(--surface2);
     border: 1px solid var(--border); color: var(--text);
-    border-radius: 3px; padding: 10px 36px 10px 12px; font-size: 14px; height: var(--control-h);
+    border-radius: 3px; padding: 10px 36px 10px 12px; font-size: 16px; height: var(--control-h);
   }
   #addModeCollection .acc-actions { margin-top: 10px; }
 
@@ -1712,7 +1716,7 @@
   .add-pane input[type="text"], .add-pane input[type="file"] {
     width: 100%; box-sizing: border-box; background: var(--surface2);
     border: 1px solid var(--border); color: var(--text);
-    border-radius: 3px; padding: 10px 12px; font-size: 14px; margin-bottom: 8px;
+    border-radius: 3px; padding: 10px 12px; font-size: 16px; margin-bottom: 8px;
   }
   .add-pane .field-clear-wrap { min-width: 0; margin-bottom: 8px; }
   .add-pane .field-clear-wrap input[type="text"] { margin-bottom: 0; padding-right: 36px; }
@@ -1736,7 +1740,7 @@
   .confirm-body input, .confirm-body select, .confirm-body textarea {
     width: 100%; box-sizing: border-box; background: var(--surface2);
     border: 1px solid var(--border); color: var(--text);
-    border-radius: 3px; padding: 9px 11px; font-size: 14.5px; font-family: inherit;
+    border-radius: 3px; padding: 9px 11px; font-size: 16px; font-family: inherit;
     margin-bottom: 10px; min-width: 0;
   }
   /* The line that splits what is yours from what came from the source
@@ -6951,24 +6955,28 @@ searchOpenBtn.addEventListener('click', () => (searchIsOpen() ? closeSearch() : 
  * What can: putting the keyboard away once the person starts scrolling. They
  * have stopped typing and started looking, the results are already filtered
  * by what they typed, and the field keeps both its text and its place — only
- * the caret leaves. The header then pins again because there is once more
- * only one viewport.
+ * the caret leaves.
  *
- * Guarded by a distance rather than firing on the first scroll event: focusing
- * an input on iOS scrolls the page a little by itself, and blurring on that
- * would make the field impossible to type in at all.
+ * The signal is a DRAG or a WHEEL, never the `scroll` event. That is the
+ * second half of this, and it was a real bug: focusing an input part-way
+ * down a long page makes iOS scroll the page itself to bring the field into
+ * view, and the old version watched for 24px of scroll from wherever the
+ * page happened to be. Below the fold that browser-made scroll cleared the
+ * threshold instantly, so the field blurred before the keyboard finished
+ * appearing — search was simply dead once you had scrolled down, and worked
+ * at the top of the page because there was nowhere to scroll to.
+ *
+ * touchmove and wheel cannot happen by accident: neither is produced by the
+ * browser's own scroll-into-view, and both mean a hand moved.
  */
-const KEYBOARD_DISMISS_AFTER_PX = 24;
-let _scrollAtFocus = null;
-searchInput.addEventListener('focus', () => { _scrollAtFocus = window.scrollY || 0; });
-searchInput.addEventListener('blur', () => { _scrollAtFocus = null; });
-window.addEventListener('scroll', () => {
-  if (_scrollAtFocus === null || document.activeElement !== searchInput) return;
-  if (Math.abs((window.scrollY || 0) - _scrollAtFocus) < KEYBOARD_DISMISS_AFTER_PX) return;
+function dismissKeyboardOnUserScroll() {
+  if (document.activeElement !== searchInput) return;
   // Only the caret goes. The field stays open, the text stays in it, and
   // what was typed goes on filtering the shelf.
   searchInput.blur();
-}, { passive: true });
+}
+window.addEventListener('touchmove', dismissKeyboardOnUserScroll, { passive: true });
+window.addEventListener('wheel', dismissKeyboardOnUserScroll, { passive: true });
 
 /* The scope switch only exists while there are two scopes to switch between:
  * inside an open collection, with the field open. It resets to «here» every
