@@ -323,7 +323,11 @@
   /* First in the list and marked as different in kind: it is the one row
      here nobody curated and nobody can link — following the person is what
      brings it. */
-  .friend-col.is-recommends { border-color: var(--flash); }
+  /* No red. It is not an alert and not a pressed control — it is the first
+     row of a list, and flash is never a resting colour (BRAND §palette).
+     Its place at the top is what marks it out; a border did it in a colour
+     that means something else. */
+  .friend-col.is-recommends { cursor: pointer; }
   .friend-row-pair { display: flex; align-items: stretch; gap: 2px; }
   .friend-row-pair .friend-row { flex: 1; min-width: 0; }
   .friend-unfollow {
@@ -1347,6 +1351,40 @@
     font-family: var(--font-mono); font-size: 16px; letter-spacing: .04em;
   }
   .acc-form input:focus { outline: none; border-color: var(--flash); }
+
+  /* Username: the answer and the action live ON the field, because they are
+     about that field and nothing else. The input keeps its own full width
+     and the two riders sit over its right end, so the box does not change
+     shape when the button appears. */
+  .acc-field-inline { position: relative; display: block; }
+  .acc-field-inline input { padding-right: 132px; }
+  .acc-field-btn {
+    position: absolute; top: 4px; right: 4px; bottom: 4px;
+    /* 44px is the touch rule; this one is wider because it carries a word. */
+    min-width: 96px; padding: 0 12px;
+    background: var(--blood); border: none; border-radius: 2px;
+    color: var(--paper); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .acc-field-btn:active { background: var(--flash); }
+  @media (hover: hover) { .acc-field-btn:hover { background: var(--flash); } }
+  .acc-field-btn[disabled] { opacity: .5; cursor: default; }
+  /* The verdict at a glance. --ok is paper (it always has been — the palette
+     has four colours and none of them is green), and the refusal is flash,
+     which is exactly what flash is for. */
+  .acc-name-mark {
+    position: absolute; top: 0; bottom: 0; right: 112px;
+    display: flex; align-items: center;
+    pointer-events: none;
+  }
+  .acc-name-mark.is-ok { color: var(--ok); }
+  .acc-name-mark.is-bad { color: var(--flash); }
+  /* No rule for "button hidden, mark showing": it cannot happen. The mark
+     only appears after a check, and a checked name differs from the saved
+     one — which is the same condition that shows the button. Claiming the
+     name clears both together. */
   /* The one label on this screen that is not describing a field: it says
      what this account may do to the shared catalogue. Blood, because that is
      the accent, and small, because it is a fact rather than a warning. */
@@ -1583,6 +1621,12 @@
 
   /* ---------- add-movie modal ---------- */
   .add-modal { flex-direction: column; max-width: 480px; width: 100%; }
+  /* The top-right corner belongs to the close, on every window (owner's
+     call: one gesture for «go away», the same one the film card and
+     «Додати» already had). Anything else living in that row — the friends
+     magnifier — steps aside rather than sitting under it. */
+  .add-modal > .modal-close { top: 10px; right: 10px; }
+  .add-modal .sheet-head { padding-right: 44px; }
   .add-form { padding: 22px 24px; position: relative; }
   .add-form h2 {
     margin: 0 0 14px; font-size: 19px;
@@ -2956,6 +3000,19 @@ function pluralFilms(n) {
  * серіалів" — because a phrase where only one word agrees reads as a
  * mistake, and a fixed "фільмів та серіалів" after a 1 is one.
  */
+/**
+ * The id and the name of the collection that IS somebody's recommendations.
+ *
+ * It is not a collection anybody made: the Worker assembles it from what a
+ * person liked, minus what they filed privately. Both halves live here so
+ * the name on their page and the name on the plate that opens are one
+ * string rather than two that drift.
+ */
+const RECOMMENDS_COLLECTION_ID = '__recommends';
+function recommendsCollectionName(username) {
+  return `Рекомендовано ${username}`;
+}
+
 function pluralFilmsAndShows(n) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return 'фільм та серіал';
@@ -4621,7 +4678,7 @@ if (typeof module !== 'undefined' && module.exports) {
     findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
-    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel,
+    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -8889,6 +8946,8 @@ function openAccount() {
   // a "current password" that does not exist.
   const viaGoogle = !!(user && (user.providerData || []).some(pd => pd && pd.providerId === 'google.com'));
   accountBox.innerHTML = `
+    <button class="modal-close" id="accCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>
+
     <!-- No wordmark here (owner's call): the header carries it on every
          screen behind this one, and repeating it inside a sheet about YOUR
          account made the sheet look like a second front door. -->
@@ -8909,15 +8968,19 @@ function openAccount() {
     <form class="acc-form" id="accNameForm">
       <label class="acc-field">
         <span class="acc-field-lbl">Username</span>
-        <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(defaultSearchName(user))}" placeholder="${esc(defaultSearchName(user))}">
+        <!-- The check and the save are ONE button, in the field, changing
+             its label (owner's call). A username is not saved, it is
+             claimed: you find out whether you may have it, and only then
+             take it. Two separate buttons made that one errand look like
+             two, and a debounced check that fired mid-word answered about
+             names nobody had finished typing. -->
+        <span class="acc-field-inline">
+          <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(defaultSearchName(user))}" placeholder="${esc(defaultSearchName(user))}">
+          <span class="acc-name-mark" id="accNameMark" hidden aria-hidden="true"></span>
+          <button class="acc-field-btn" type="submit" id="accNameBtn" hidden>Перевірити</button>
+        </span>
       </label>
       <div class="acc-hint" id="accNameNote">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>
-      <!-- Hidden until something is actually different (owner's call): a
-           Save standing there over an unchanged field invites a tap that
-           does nothing, and reads as work waiting to be done. -->
-      <div class="acc-form-actions" id="accNameActions" hidden>
-        <button class="btn on-watched" type="submit" id="accNameBtn">Зберегти</button>
-      </div>
     </form>
     ${viaGoogle ? `
     <div class="acc-label">Вхід через Google${user && user.email ? ` · ${esc(user.email)}` : ''}</div>` : `
@@ -8955,8 +9018,8 @@ function openAccount() {
     </div>
     <div class="acc-actions">
       <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>
-      <button class="btn" id="accCloseBtn">Закрити</button>
     </div>`;
+  accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
   accountBox.querySelector('#accServices').addEventListener('change', e => {
     const box = e.target.closest('input[data-service]');
     if (!box) return;
@@ -8979,20 +9042,22 @@ function openAccount() {
     passToggle.addEventListener('click', () => setPassOpen(accountBox.querySelector('#accPassForm').hidden));
     accountBox.querySelector('#accPassCancel').addEventListener('click', () => setPassOpen(false));
   }
-  // Username: open, live-checked, and saved on its own button.
+  // Username: type it in full, ask whether it is free, then claim it.
   const nameForm = accountBox.querySelector('#accNameForm');
   if (nameForm) {
     const nameInput = accountBox.querySelector('#accName');
     const note = accountBox.querySelector('#accNameNote');
-    const saveBtn = accountBox.querySelector('#accNameBtn');
-    const actions = accountBox.querySelector('#accNameActions');
+    const btn = accountBox.querySelector('#accNameBtn');
+    const mark = accountBox.querySelector('#accNameMark');
     const RULE = `Латинські літери, цифри, крапка, дефіс і підкреслення. Від ${USERNAME_MIN} до 32 символів.`;
     const seeded = defaultSearchName(auth.currentUser);
-    let checkTimer = null;
-    let checkedFor = null;   // the name the note is currently describing
+    // 'check' — the name has not been asked about yet. 'change' — it came
+    // back free, and the same button now takes it. Nothing else can put the
+    // button in 'change', so a name can never be claimed unchecked.
+    let mode = 'check';
 
-    // What is on the server right now. Save appears only when the field
-    // says something else — so this must be the STORED name, not one
+    // What is on the server right now. The button appears only when the
+    // field says something else — so this must be the STORED name, not one
     // derived from Google. Until the answer arrives the derived spelling
     // stands in, which is what the server seeded anyway.
     let saved = defaultSearchName(auth.currentUser);
@@ -9005,13 +9070,9 @@ function openAccount() {
         // Only if nobody has started typing — replacing what somebody is
         // in the middle of writing would be worse than showing a guess.
         if (document.activeElement !== nameInput) nameInput.value = me.username;
-        syncSaveVisibility();
+        syncButton();
       })
       .catch(() => { /* the derived spelling stands */ });
-    const syncSaveVisibility = () => {
-      const now = normalizeSearchName(nameInput.value);
-      actions.hidden = now === saved || !searchNameLongEnough(now);
-    };
 
     const setNote = (text, kind) => {
       note.textContent = text;
@@ -9019,25 +9080,33 @@ function openAccount() {
       note.classList.toggle('is-good', kind === 'good');
     };
 
-    // Debounced, because this runs while somebody types and every keystroke
-    // would otherwise be a request. 400ms is a pause, not a rhythm.
-    const CHECK_AFTER_MS = 400;
-    const check = async (name) => {
-      try {
-        const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(name)}/free`, {
-          headers: await proxyHeaders(),
-        });
-        if (!res.ok) return;
-        const body = await res.json();
-        if (normalizeSearchName(nameInput.value) !== name) return;   // typed on since
-        checkedFor = name;
-        if (body.free) setNote(body.mine ? 'Це ваш поточний username' : `${name} вільний`, 'good');
-        else setNote(`${name} вже зайнятий`, 'bad');
-      } catch (err) {
-        // The check is a courtesy; the UNIQUE index is the guard. Failing
-        // quietly leaves the rule showing and Save still works.
-      }
+    // A tick or a cross is the whole answer at a glance; the line underneath
+    // is for the case that needs words. Drawn, not typed — the character
+    // forms render as whatever the device decides, up to and including a
+    // colour emoji, and a test in this repo forbids them for that reason.
+    // The tick is paper, not green: --ok has resolved to paper since the
+    // palette was written, and a fifth hue for one mark would be the
+    // exception that ends the rule.
+    const MARK_SVG = {
+      ok: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 6"/></svg>',
+      bad: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
     };
+    const setMark = (kind) => {
+      mark.hidden = !kind;
+      mark.innerHTML = MARK_SVG[kind] || '';
+      mark.classList.toggle('is-ok', kind === 'ok');
+      mark.classList.toggle('is-bad', kind === 'bad');
+    };
+
+    // The button is hidden while the field still says what the server
+    // already has: there is nothing to check and nothing to take.
+    const syncButton = () => {
+      const now = normalizeSearchName(nameInput.value);
+      btn.hidden = now === saved || !searchNameLongEnough(now);
+      btn.textContent = mode === 'change' ? 'Змінити' : 'Перевірити';
+    };
+
+    const reset = () => { mode = 'check'; setMark(null); setNote(RULE, null); syncButton(); };
 
     nameInput.addEventListener('input', () => {
       // Normalising as you type, so the spelling that gets stored is the one
@@ -9052,25 +9121,42 @@ function openAccount() {
         const shift = before.length - after.length;
         try { nameInput.setSelectionRange(Math.max(0, at - shift), Math.max(0, at - shift)); } catch (err) { /* not all inputs allow it */ }
       }
-      syncSaveVisibility();
-      clearTimeout(checkTimer);
-      checkedFor = null;
-      setNote(RULE, null);
-      // Nothing is asked until the name could actually be stored. Below the
-      // minimum every keystroke would fetch an answer that is always "no",
-      // and «зайнятий» is the wrong word for «надто коротко».
-      if (!searchNameLongEnough(after)) return;
-      checkTimer = setTimeout(() => check(after), CHECK_AFTER_MS);
+      // Any edit un-answers the question — the tick belonged to the name that
+      // was checked, not to whatever the field says now.
+      reset();
     });
 
-    nameForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const wanted = normalizeSearchName(nameInput.value) || seeded;
-      if (!searchNameLongEnough(wanted)) {
-        setNote(`Щонайменше ${USERNAME_MIN} символи латиницею або цифрами`, 'bad');
-        return;
+    const askIfFree = async (name) => {
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(name)}/free`, {
+          headers: await proxyHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+        if (normalizeSearchName(nameInput.value) !== name) return;   // typed on since
+        if (body.free) {
+          mode = 'change';
+          setMark('ok');
+          setNote(`${name} вільний — можна змінити`, 'good');
+        } else {
+          mode = 'check';
+          setMark('bad');
+          setNote(`${name} вже зайнято`, 'bad');
+        }
+      } catch (err) {
+        // The check is a courtesy; the UNIQUE index is the guard. Say so
+        // rather than showing a tick nobody earned.
+        setMark(null);
+        setNote('Не вдалося перевірити — спробуй ще раз', 'bad');
+      } finally {
+        btn.disabled = false;
+        syncButton();
       }
-      saveBtn.disabled = true;
+    };
+
+    const claim = async (wanted) => {
+      btn.disabled = true;
       try {
         const res = await fetch(`${API_PROXY}/library/users/me/name`, {
           method: 'PUT',
@@ -9078,23 +9164,42 @@ function openAccount() {
           body: JSON.stringify({ username: wanted }),
         });
         const body = await res.json().catch(() => ({}));
-        // 409 is the UNIQUE index objecting — the live check is only ever a
+        // 409 is the UNIQUE index objecting — the check is only ever a
         // courtesy, and two people can pass it on the same name at once.
-        if (res.status === 409) { setNote(`${wanted} вже зайнятий`, 'bad'); return; }
+        if (res.status === 409) {
+          mode = 'check';
+          setMark('bad');
+          setNote(`${wanted} вже зайнято`, 'bad');
+          return;
+        }
         if (!res.ok) { toast('error', body.error || 'Не вдалося зберегти'); return; }
         nameInput.value = body.username || wanted;
         saved = body.username || wanted;
-        syncSaveVisibility();
+        mode = 'check';
+        setMark(null);
         setNote('Збережено', 'good');
         toast('ok', `Вас знайдуть як ${body.username || wanted}`);
       } catch (err) {
         toast('error', 'Не вдалося зберегти');
       } finally {
-        saveBtn.disabled = false;
+        btn.disabled = false;
+        syncButton();
       }
+    };
+
+    nameForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const wanted = normalizeSearchName(nameInput.value) || seeded;
+      if (!searchNameLongEnough(wanted)) {
+        setMark('bad');
+        setNote(`Щонайменше ${USERNAME_MIN} символи латиницею або цифрами`, 'bad');
+        return;
+      }
+      if (mode === 'change') claim(wanted); else askIfFree(wanted);
     });
+
+    syncButton();
   }
-  accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
   accountBox.querySelector('#accGuideBtn').addEventListener('click', () => { closeAccount(); openOnboarding(); });
   const passForm = accountBox.querySelector('#accPassForm');
   if (passForm) passForm.addEventListener('submit', e => {
@@ -9613,6 +9718,8 @@ let friendsView = 'list';
  */
 function renderFriendsSearch() {
   friendsBox.innerHTML = `
+    <button class="modal-close" id="friendsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>
+
     <div class="sheet-head">
       <div class="sheet-title">Знайти людину</div>
       <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">
@@ -9626,8 +9733,7 @@ function renderFriendsSearch() {
       </div>
       <div id="friendFindOut" class="friend-suggest" hidden></div>
     </div>
-    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>
-    <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
+    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>`;
   friendsBox.querySelector('#friendsSearchBack').addEventListener('click', () => {
     friendsView = 'list';
     renderFriends();
@@ -9719,6 +9825,8 @@ function renderFriends() {
   if (friendsView === 'search') { renderFriendsSearch(); return; }
 
   friendsBox.innerHTML = `
+    <button class="modal-close" id="friendsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>
+
     <div class="sheet-head">
       <div class="sheet-title">Друзі</div>
       <button class="hicon" id="friendsSearchBtn" type="button" title="Знайти людину" aria-label="Знайти людину">
@@ -9728,8 +9836,7 @@ function renderFriends() {
     <div class="add-tabs">
       ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
     </div>
-    <div id="friendsBody"></div>
-    <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
+    <div id="friendsBody"></div>`;
   friendsBox.querySelector('#friendsSearchBtn').addEventListener('click', () => {
     friendsView = 'search';
     openFriend = null;
@@ -9873,8 +9980,8 @@ function friendColsHtml(cols, person) {
   // collection added from anywhere else reads as added here too.
   const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
   const rec = person && (person.recommended || []).length
-    ? `<div class="friend-col is-recommends">
-         <span class="friend-col-name">Рекомендовано ${esc(person.username)} <span class="friend-col-count">${person.recommended.length} ${pluralFilmsAndShows(person.recommended.length)}</span></span>
+    ? `<div class="friend-col is-recommends" data-open-recommends="1" role="button" tabindex="0">
+         <span class="friend-col-name">${esc(recommendsCollectionName(person.username))} <span class="friend-col-count">${person.recommended.length} ${pluralFilmsAndShows(person.recommended.length)}</span></span>
          <span class="friend-col-note">${person.following ? 'у тебе на полиці' : 'з підпискою'}</span>
        </div>`
     : '';
@@ -9929,8 +10036,44 @@ function renderFriendDetail(body) {
   body.querySelector('#friendBack').addEventListener('click', () => { openFriend = null; renderFriends(); });
   const follow = body.querySelector('#friendFollow');
   if (follow) follow.addEventListener('click', () => togglePersonFollow(p.username, !p.following, follow));
+  const openRec = body.querySelector('[data-open-recommends]');
+  if (openRec) {
+    openRec.addEventListener('click', () => openRecommendsOf(p));
+    // It is a div acting as a button, so it must answer the keyboard too.
+    openRec.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecommendsOf(p); }
+    });
+  }
   body.querySelectorAll('[data-add-col]').forEach(el =>
     el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
+}
+
+
+/**
+ * Opens what a person recommends, as a collection.
+ *
+ * It has no row in `user_collections` to look up — the Worker assembles it
+ * per request from what they liked, minus what they filed privately — so
+ * the plate is built from the list already in hand. Nothing here is a
+ * guess: `recommended` is the same array the row's count came from, so
+ * what opens is exactly what the row said it held.
+ */
+function openRecommendsOf(person) {
+  const films = person.recommended || [];
+  if (!films.length) return;
+  closeFriends();
+  openCollectionAsCatalog({
+    key: `${person.uid}/${RECOMMENDS_COLLECTION_ID}`,
+    name: recommendsCollectionName(person.username),
+    owner: person.uid,
+    collection_id: RECOMMENDS_COLLECTION_ID,
+    // 'recommends' is what keeps the plate's action row empty: there is no
+    // link to remove here, and «Прибрати з полиці» would offer to delete a
+    // reference that does not exist. Unfollowing is the way out.
+    source: 'recommends',
+    public: true,
+    film_ids: films.map(f => f.tmdb_id).filter(Boolean),
+  });
 }
 
 /** Follow or unfollow, from wherever the button was drawn. */
@@ -10021,6 +10164,14 @@ function renderRecsFriend(body) {
     </div>
     ${friendColsHtml(p.collections, p)}`;
   body.querySelector('#recsFriendBack').addEventListener('click', () => { _recsFriend = null; renderRecs(); });
+  const openRec = body.querySelector('[data-open-recommends]');
+  if (openRec) {
+    openRec.addEventListener('click', () => openRecommendsOf(p));
+    // It is a div acting as a button, so it must answer the keyboard too.
+    openRec.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecommendsOf(p); }
+    });
+  }
   body.querySelectorAll('[data-add-col]').forEach(el =>
     el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
 }
@@ -10028,12 +10179,13 @@ function renderRecsFriend(body) {
 function renderRecs() {
   const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
   recsBox.innerHTML = `
+    <button class="modal-close" id="recsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>
+
     <div class="sheet-title">Добірки</div>
     <div class="add-tabs">
       ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}
     </div>
-    <div id="recsbody"></div>
-    <div class="acc-actions"><button class="btn-ghost" id="recsCloseBtn">Закрити</button></div>`;
+    <div id="recsbody"></div>`;
   recsBox.querySelectorAll('[data-recs-src]').forEach(el =>
     el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; _recsFriend = null; renderRecs(); }));
   recsBox.querySelector('#recsCloseBtn').addEventListener('click', closeRecs);
@@ -10144,11 +10296,13 @@ function renderRecs() {
   }
   // «Мої добірки» left this tab (owner's call): one's own live under
   // «Мої» and on the add screen — this tab is the outside world's.
+  // No 'recommends' group here (owner's call). What a person recommends is
+  // theirs, and it now sits at the top of THEIR collections under «Від
+  // друзів» — where you go when you want to know what they are watching.
+  // Listed here as well, it read as a SeenIt collection, which is the one
+  // thing it is not.
   const groups = [
     ['default', 'Добірки SeenIt'],
-    // Before the ones you chose to link, because you did not choose these —
-    // they arrived with the people you follow, and they change on their own.
-    ['recommends', 'Рекомендують'],
     ['linked', 'Від інших'],
   ];
   body.innerHTML = groups.map(([source, title]) => {
