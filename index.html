@@ -445,6 +445,31 @@
     overflow-x: visible;
   }
   body[data-genres="all"] .chips-arrow { display: none; }
+  /* Folded to the first row. The height is measured (--genre-row-h) rather
+     than written down: a chip's height follows the font, which follows the
+     breakpoint, and a number here would cut a row in half on the viewport
+     nobody tested. */
+  body[data-genres="all"].genres-folded .chips {
+    max-height: var(--genre-row-h, none);
+    overflow: hidden;
+  }
+  /* The fold control: full width under the grid, because that is the edge
+     it moves. Blood at rest and flash under the finger, like every other
+     control that acts. */
+  .genre-fold {
+    display: none; width: 100%; height: 26px; margin-top: 2px;
+    align-items: center; justify-content: center;
+    background: none; border: none; padding: 0;
+    color: var(--blood); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body[data-genres="all"] .genre-fold:not([hidden]) { display: flex; }
+  .genre-fold:active { color: var(--flash); }
+  @media (hover: hover) { .genre-fold:hover { color: var(--flash); } }
+  /* The chevron points the way the tap goes: down to open, up to fold. */
+  .genre-fold svg { transition: transform .18s ease-out; }
+  body.genres-folded .genre-fold svg { transform: none; }
+  .genre-fold svg { transform: rotate(180deg); }
   body[data-genres="all"] .chip { flex: none; }
   .chip {
     background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
@@ -2082,6 +2107,14 @@
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>
     </button>
   </div>
+  <!-- «Усі одразу» lays every genre out at once, and with a full catalogue
+       that is four or five rows before a single poster (owner-reported).
+       This folds it back to the first row and out again. It appears ONLY
+       when there is a second row to hide — a control that does nothing is
+       worse than no control. -->
+  <button class="genre-fold" id="genreFold" type="button" hidden aria-expanded="true">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 12 16 19 9"/></svg>
+  </button>
   <!-- Delete mode lives in the menu now; this bar appears once the mode is
        on and is the mode's only visible chrome in normal browsing. -->
   <div class="delete-bar" id="deleteBar" hidden>
@@ -7875,7 +7908,54 @@ function renderChips() {
   }
   genreChipsEl.innerHTML = html;
   syncGenreArrows();
+  syncGenreFold();
 }
+
+/* ---------- folding «Усі одразу» back to one row ----------
+ *
+ * «Усі одразу» lays every genre out at once, which on a full catalogue is
+ * four or five rows of chips before a single poster (owner-reported). This
+ * folds it to the first row and back.
+ *
+ * Folded or not is remembered: reopening the app to the wall of genres
+ * somebody had just folded away would undo the choice every session.
+ *
+ * The row height is MEASURED. A chip's height follows the font, which
+ * follows the breakpoint, and a number written down here would cut a row in
+ * half on the viewport nobody tested.
+ */
+const GENRE_FOLD_KEY = 'seenit_genres_folded';
+const genreFoldBtn = document.getElementById('genreFold');
+let genresFolded = (() => {
+  try { return localStorage.getItem(GENRE_FOLD_KEY) === '1'; }
+  catch (err) { return false; }    // private mode, or storage disabled
+})();
+
+function syncGenreFold() {
+  const all = document.body.dataset.genres === 'all';
+  const first = genreChipsEl.firstElementChild;
+  const rowH = first ? first.offsetHeight : 0;
+  if (rowH > 0) document.documentElement.style.setProperty('--genre-row-h', `${rowH}px`);
+  // More than one row means the grid is taller than a single chip. Measured
+  // while UNFOLDED, or the fold would be reading its own effect and would
+  // never offer to open again.
+  document.body.classList.remove('genres-folded');
+  const manyRows = all && rowH > 0 && genreChipsEl.scrollHeight > rowH + 2;
+  document.body.classList.toggle('genres-folded', all && genresFolded && manyRows);
+  if (genreFoldBtn) {
+    genreFoldBtn.hidden = !manyRows;
+    const open = !(all && genresFolded && manyRows);
+    genreFoldBtn.setAttribute('aria-expanded', String(open));
+    genreFoldBtn.title = open ? 'Згорнути жанри' : 'Показати всі жанри';
+    genreFoldBtn.setAttribute('aria-label', genreFoldBtn.title);
+  }
+}
+if (genreFoldBtn) genreFoldBtn.addEventListener('click', () => {
+  genresFolded = !genresFolded;
+  try { localStorage.setItem(GENRE_FOLD_KEY, genresFolded ? '1' : '0'); }
+  catch (err) { /* the fold still holds for this session */ }
+  syncGenreFold();
+});
 genreChipsEl.addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
   // click an already-active genre chip again -> deselects it (back to "all"),
@@ -7956,6 +8036,8 @@ function setGenreLayout(mode) {
   document.querySelectorAll('#genreLayoutOpts button').forEach(x =>
     x.classList.toggle('active', x.dataset.genres === document.body.dataset.genres));
   syncGenreArrows();
+  // Switching layouts changes whether there is anything to fold at all.
+  syncGenreFold();
 }
 document.getElementById('genreLayoutOpts').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
