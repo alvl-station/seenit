@@ -605,7 +605,7 @@
          every tab change and the back arrow was never twice in the same
          place. --menu-h is measured; 80vh is only what stands in before the
          first measurement lands. */
-      height: var(--menu-h, 80vh);
+      height: var(--band-h, var(--menu-h, 80vh));
       overflow-y: auto;
       /* No scroll UNDER them (owner's call). Without this, a drag on a tab
          that has nothing left to scroll hands the gesture to the catalogue
@@ -618,8 +618,9 @@
        reason: they are the same thing wearing different contents. */
     body.sheet-nav #settingsSheet,
     body.sheet-nav #trashSheet,
-    body.sheet-nav #adminSheet {
-      height: var(--menu-h, auto);
+    body.sheet-nav #adminSheet,
+    body.sheet-nav #filterSheet {
+      height: var(--band-h, var(--menu-h, auto));
       max-height: 80vh;
       overscroll-behavior: contain;
     }
@@ -627,7 +628,15 @@
        height back would close a loop: the menu would be frozen at whatever
        it measured first and could never grow when «Друзі» or «Адмін»
        appears. It sizes to its rows, and everything else sizes to it. */
-    body.sheet-nav #menuSheet { overscroll-behavior: contain; }
+    body.sheet-nav #menuSheet {
+      overscroll-behavior: contain;
+      /* The menu takes the user's height when there is one. Not --menu-h:
+         that is measured FROM the menu, and handing it back would freeze it
+         at whatever it measured first. --band-h is a number the person
+         chose, so there is no loop. */
+      height: var(--band-h, auto);
+      max-height: 80vh;
+    }
 
     /* Nothing blocks the catalogue. The uncovered part of the screen is a
        working catalogue — it scrolls, and what the thumb lands on is what
@@ -635,6 +644,42 @@
        longer dismisses; the back arrow and the hamburger are the ways out,
        and both are visible. */
     body.sheet-nav .sheet-backdrop { pointer-events: none; }
+
+    /* The grip: the top edge of the band, draggable to set how much of the
+       screen it takes. Drawn as a sticky pseudo-element so it stays at the
+       top while the tab's own contents scroll under it — an absolutely
+       positioned bar would scroll away with them and leave the handle
+       somewhere in the middle of a list.
+       The bar is a background, not a border, so one box draws both the
+       opaque strip and the handle on it. */
+    body.sheet-nav #menuSheet::before,
+    body.sheet-nav #settingsSheet::before,
+    body.sheet-nav #trashSheet::before,
+    body.sheet-nav #adminSheet::before,
+    body.sheet-nav #filterSheet::before,
+    body.sheet-nav .modal-overlay > .modal::before {
+      content: ''; display: block; position: sticky; top: 0; z-index: 4;
+      /* flex: none because .modal is a flex column: as a flex item the grip
+         would shrink with everything else, and it shrank all the way to
+         zero — a handle nobody could see or grab. */
+      flex: none;
+      height: 14px; margin: -18px -18px 4px;
+      border-radius: 16px 16px 0 0;
+      background:
+        linear-gradient(var(--steel), var(--steel)) center 5px / 34px 4px no-repeat,
+        var(--coal2);
+      cursor: ns-resize;
+    }
+    /* The modal panels carry their own padding inside, so the strip has no
+       negative margin to undo there. */
+    body.sheet-nav .modal-overlay > .modal::before {
+      margin: 0;
+      background:
+        linear-gradient(var(--steel), var(--steel)) center 5px / 34px 4px no-repeat,
+        var(--surface);
+    }
+    /* While a drag is in flight the browser must not also scroll. */
+    .band-resizing { touch-action: none; user-select: none; }
 
     /* Back, not closed: red, and no disc behind it. The disc is what makes
        the cross read as «dismiss this»; an arrow with nothing behind it
@@ -2218,7 +2263,16 @@
      look», and one drawer holding both made neither obvious. -->
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
 <div class="sheet" id="filterSheet" aria-hidden="true">
-  <div class="sheet-title">Фільтр</div>
+  <!-- Its own cross, for the same reason the menu grew one: on a phone the
+       backdrop lets touches through to the catalogue, so it is no longer a
+       way out. A cross and not an arrow — ФІЛЬТР belongs to the catalogue
+       and is reached from the header, so there is no menu behind it. -->
+  <div class="sheet-head">
+    <div class="sheet-title">Фільтр</div>
+    <button class="hicon" id="filterCloseBtn" type="button" title="Закрити" aria-label="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
   <div class="sheet-label">Сортування</div>
   <div class="opts" id="sortOpts">
     <button class="opt" data-sort="rating" type="button">За рейтингом</button>
@@ -7137,7 +7191,7 @@ function wireSheet(sheetId, backdropId) {
     // half, and the top half is a working catalogue that used to refuse to
     // move. Everywhere else the lock stands.
     if (!menuIsNav()) lockScroll(sheet);
-    if (isMenu || sheetIsMenuScreen(sheetId)) syncSheetNav();
+    if (sheetIsBand(sheetId)) syncSheetNav();
     // The menu's own cross is NOT repainted: from the menu there is nowhere
     // to go back to, so a cross is what it means. Only the screens the menu
     // opens turn theirs into an arrow.
@@ -7150,7 +7204,7 @@ function wireSheet(sheetId, backdropId) {
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
     unlockScroll(sheet);
-    if (isMenu || sheetIsMenuScreen(sheetId)) syncSheetNav();
+    if (sheetIsBand(sheetId)) syncSheetNav();
   };
   backdrop.addEventListener('click', close);
   return { open, close };
@@ -7162,13 +7216,22 @@ function wireSheet(sheetId, backdropId) {
 const MENU_SHEET_IDS = ['settingsSheet', 'trashSheet', 'adminSheet'];
 function sheetIsMenuScreen(id) { return MENU_SHEET_IDS.includes(id); }
 
-/* True while the menu, or something the menu opened, is on screen. Drives
- * the body flag the phone stylesheet keys off. */
+/* Everything that takes the bottom band, whoever opened it. ФІЛЬТР is in
+ * here even though it is not a menu screen: it is the same strip of glass
+ * at the same edge, and leaving it out is what let it keep scrolling the
+ * catalogue behind itself while every other tab had stopped (owner-
+ * reported). The band is about geometry; «back» is about where you came
+ * from, and those are different questions. */
+const BAND_SHEET_IDS = [...MENU_SHEET_IDS, 'filterSheet'];
+const BAND_OVERLAY_IDS = ['recsOverlay', 'friendsOverlay', 'accountOverlay'];
+function sheetIsBand(id) { return id === 'menuSheet' || BAND_SHEET_IDS.includes(id); }
+
+/* True while anything is occupying that band. Drives the body flag the
+ * phone stylesheet keys off. */
 function menuScreenShowing() {
   if (document.getElementById('menuSheet').classList.contains('open')) return true;
-  if (MENU_SHEET_IDS.some(id => document.getElementById(id).classList.contains('open'))) return true;
-  return ['recsOverlay', 'friendsOverlay', 'accountOverlay']
-    .some(id => document.getElementById(id).classList.contains('open'));
+  if (BAND_SHEET_IDS.some(id => document.getElementById(id).classList.contains('open'))) return true;
+  return BAND_OVERLAY_IDS.some(id => document.getElementById(id).classList.contains('open'));
 }
 function syncSheetNav() {
   document.body.classList.toggle('sheet-nav', menuIsNav() && menuScreenShowing());
@@ -7205,13 +7268,126 @@ const menuSheet = wireSheet('menuSheet', 'menuBackdrop');
  * can be the first thing on screen after a reload.
  */
 const _menuEl = document.getElementById('menuSheet');
+/**
+ * The menu's own content height — the band's ceiling.
+ *
+ * scrollHeight and not the box: once the person has chosen a height, the
+ * box is whatever they chose, and a ceiling read from it would sink a
+ * little further every time until it could never be dragged back up. The
+ * content does not move, so it is the honest number.
+ */
+function menuNaturalHeight() {
+  const cap = Math.round((window.innerHeight || 0) * 0.8);
+  const natural = _menuEl.scrollHeight;
+  return cap > 0 ? Math.min(natural, cap) : natural;
+}
 function syncMenuHeight() {
-  const h = _menuEl.getBoundingClientRect().height;
-  if (h > 0) document.documentElement.style.setProperty('--menu-h', `${Math.round(h)}px`);
+  const h = menuNaturalHeight();
+  if (h > 0) document.documentElement.style.setProperty('--menu-h', `${h}px`);
 }
 if (typeof ResizeObserver === 'function') new ResizeObserver(syncMenuHeight).observe(_menuEl);
 window.addEventListener('resize', syncMenuHeight);
 syncMenuHeight();
+
+/* ---------- the band's height, as the person set it ----------
+ *
+ * Owner's call. The default stands as it is; drag the top edge of the menu
+ * or of any tab downwards and it stays where it is put, for every tab and
+ * across sessions. Nothing changes it on its own — a band that resized
+ * itself would be worse than one that never resized at all.
+ *
+ * The floor is the bottom of that screen's own title, which is the last
+ * line still worth showing: a band shrunk past its name is a strip of
+ * colour nobody can identify. It is measured per screen rather than
+ * guessed, because «ФІЛЬТР» and «Добірки» do not wear their titles at the
+ * same height.
+ *
+ * The ceiling is the menu's natural height — the band is the menu's share
+ * of the screen, so it cannot be dragged past what the menu itself needs.
+ */
+const BAND_HEIGHT_KEY = 'seenit_band_height';
+const BAND_GRIP_PX = 30;      // the strip at the top edge that drags
+const BAND_SNAP_PX = 4;       // within this of the ceiling means "default"
+let bandHeight = (() => {
+  try {
+    const v = Number(localStorage.getItem(BAND_HEIGHT_KEY));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch (err) { return null; }   // private mode, or storage disabled
+})();
+function applyBandHeight() {
+  const root = document.documentElement;
+  if (bandHeight) root.style.setProperty('--band-h', `${Math.round(bandHeight)}px`);
+  else root.style.removeProperty('--band-h');
+}
+applyBandHeight();
+
+/** The element occupying the band, if the event landed in one. */
+function bandElementFrom(target) {
+  if (!target || !target.closest) return null;
+  const sheet = target.closest('.sheet');
+  if (sheet && sheetIsBand(sheet.id)) return sheet;
+  const modal = target.closest('.modal-overlay > .modal');
+  if (modal && BAND_OVERLAY_IDS.includes(modal.parentElement.id)) return modal;
+  return null;
+}
+
+/** The floor for this screen: just under its own title. */
+function bandFloor(el) {
+  const title = el.querySelector('.sheet-head, .sheet-title');
+  if (!title) return 72;
+  // offsetTop, not a rect: the title scrolls out of view inside a tab, and
+  // where it has scrolled to says nothing about how tall the screen's head
+  // actually is.
+  let top = 0;
+  for (let n = title; n && n !== el; n = n.offsetParent) top += n.offsetTop;
+  return Math.round(top + title.offsetHeight + 12);
+}
+
+let _bandDrag = null;
+function onBandPointerDown(e) {
+  if (!menuIsNav() || _bandDrag) return;
+  if (e.button != null && e.button !== 0) return;
+  const el = bandElementFrom(e.target);
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (e.clientY - rect.top > BAND_GRIP_PX) return;   // not the grip
+  const max = menuNaturalHeight();
+  const min = Math.min(bandFloor(el), max);
+  if (max - min < 8) return;                          // nothing to adjust
+  _bandDrag = { el, startY: e.clientY, startH: rect.height, min, max };
+  el.classList.add('band-resizing');
+  // Non-passive on purpose: without this the scroller under the grip takes
+  // the gesture and the band never moves.
+  e.preventDefault();
+  try { el.setPointerCapture(e.pointerId); } catch (err) { /* mouse in jsdom */ }
+}
+function onBandPointerMove(e) {
+  if (!_bandDrag) return;
+  const { startY, startH, min, max } = _bandDrag;
+  const wanted = startH - (e.clientY - startY);   // dragging DOWN shrinks
+  bandHeight = Math.max(min, Math.min(max, wanted));
+  applyBandHeight();
+  e.preventDefault();
+}
+function onBandPointerUp() {
+  if (!_bandDrag) return;
+  const { el, max } = _bandDrag;
+  el.classList.remove('band-resizing');
+  _bandDrag = null;
+  // Dragged back to the top is not a setting, it is the absence of one —
+  // storing it would pin the band to today's row count and stop it growing
+  // when «Друзі» or «Адмін» appears.
+  if (bandHeight != null && bandHeight >= max - BAND_SNAP_PX) bandHeight = null;
+  applyBandHeight();
+  try {
+    if (bandHeight) localStorage.setItem(BAND_HEIGHT_KEY, String(Math.round(bandHeight)));
+    else localStorage.removeItem(BAND_HEIGHT_KEY);
+  } catch (err) { /* the height still holds for this session */ }
+}
+document.addEventListener('pointerdown', onBandPointerDown, { passive: false });
+document.addEventListener('pointermove', onBandPointerMove, { passive: false });
+document.addEventListener('pointerup', onBandPointerUp);
+document.addEventListener('pointercancel', onBandPointerUp);
 
 /* ---------- back, rather than closed ----------
  *
@@ -7265,6 +7441,7 @@ document.getElementById('settingsCloseBtn').addEventListener('click', () => exit
 const adminSheet = wireSheet('adminSheet', 'adminBackdrop');
 // Listed in one place so the set is a thing to read rather than to hunt for.
 MENU_SCREEN_CLOSERS.push(
+  () => filterSheet.close(),
   () => settingsSheet.close(),
   () => trashSheet.close(),
   () => adminSheet.close(),
@@ -7399,6 +7576,7 @@ document.getElementById('trashList').addEventListener('click', async e => {
 document.getElementById('menuBtn').addEventListener('click', () => { closeMenuScreens(); menuSheet.open(); });
 document.getElementById('menuCloseBtn').addEventListener('click', menuSheet.close);
 document.getElementById('filterBtn').addEventListener('click', () => { closeMenuScreens(); filterSheet.open(); });
+document.getElementById('filterCloseBtn').addEventListener('click', filterSheet.close);
 /* A row hands the bottom edge over: the menu goes, the screen takes its
  * place there. One thing at that edge at a time, always in the same spot,
  * so the thumb never has to go looking. Getting back to the menu is the
