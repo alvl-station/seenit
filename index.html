@@ -1231,6 +1231,39 @@
     font-family: var(--font-mono); font-size: 16px; letter-spacing: .04em;
   }
   .acc-form input:focus { outline: none; border-color: var(--flash); }
+  /* The one label on this screen that is not describing a field: it says
+     what this account may do to the shared catalogue. Blood, because that is
+     the accent, and small, because it is a fact rather than a warning. */
+  .acc-role {
+    margin-left: 8px; color: var(--flash); font-weight: 600;
+    letter-spacing: .12em;
+  }
+  /* A box the refetch just filled. It marks what CHANGED, so the difference
+     between "TMDb agreed" and "TMDb has something else" is visible before
+     anything is saved — the whole point of not saving automatically. */
+  .adm-changed { border-color: var(--flash) !important; }
+  /* A duplicate group is read as a SET — the point is that these rows are
+     the same film — so the group is boxed and the rows sit flush inside it,
+     rather than each looking like an independent result. */
+  .dup-group {
+    border: 1px solid var(--border); border-radius: 3px;
+    margin-bottom: 8px; overflow: hidden;
+  }
+  .dup-row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    width: 100%; text-align: left; background: none; border: 0;
+    border-bottom: 1px solid var(--border); padding: 10px 12px;
+    color: var(--text); font: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dup-group .dup-row:last-child { border-bottom: 0; }
+  .dup-title { font-size: 13.5px; }
+  .dup-meta {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted);
+    white-space: nowrap;
+  }
+  @media (hover: hover) { .dup-row:hover { background: var(--coal2); } }
+
   .acc-hint { font-size: 11.5px; color: var(--text-muted); margin: -2px 0 10px; line-height: 1.45; }
   /* The username field answers as you type, and the answer has to be
      distinguishable from the rule it replaces — muted grey saying "taken"
@@ -1752,12 +1785,42 @@
   <button class="sheet-row" id="friendsBtn" type="button" style="display:none">Друзі</button>
   <button class="sheet-row" id="accountBtn" type="button" style="display:none">Акаунт</button>
   <button class="sheet-row" id="settingsBtn" type="button">Налаштування</button>
+  <!-- Beside Налаштування, not after Кошик: «Кошик is the menu's last row» is
+       a decision a test holds onto, and this row was quietly taking that
+       place. Both sheets configure rather than act, so they belong together.
+       Hidden by default so a failed role lookup shows the ordinary menu
+       rather than a row that opens something the account may not use.
+
+       No «Admin» badge here (owner's call): the row is already called
+       Адмін, and a red English word beside it says the same thing twice.
+       The badge earns its place on the account screen, where nothing else
+       states the role. -->
+  <button class="sheet-row" id="adminBtn" type="button" style="display:none">Адмін</button>
   <!-- Inactive on the main screen (owner's call): the catalogue here is
        the shared database — removal lives inside collections, where a
        film falls into the trash for 24 hours first. -->
   <button class="sheet-row" id="deleteModeBtn" type="button" aria-pressed="false" aria-disabled="true">Видалити фільми</button>
   <button class="sheet-row" id="logoutBtn" type="button" style="display:none">Вийти</button>
   <button class="sheet-row" id="trashBtn" type="button">Кошик</button>
+</div>
+
+<!-- АДМІН: tools that act on the SHARED catalogue rather than on one
+     person's shelf. Duplicates first, because a film in the catalogue twice
+     splits everybody's marks between two rows that look identical. -->
+<div class="sheet-backdrop" id="adminBackdrop" hidden></div>
+<div class="sheet" id="adminSheet" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="sheet-title">Адмін</div>
+    <button class="hicon" id="adminCloseBtn" type="button" title="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="sheet-label">Дублікати</div>
+  <div class="acc-hint">Той самий фільм двома записами. Позначки й добірки розходяться між ними, а на полиці він виглядає як два однакові.</div>
+  <div class="acc-form-actions">
+    <button class="btn on-watched" id="dupScanBtn" type="button">Знайти дублікати</button>
+  </div>
+  <div id="dupResults"></div>
 </div>
 
 <!-- НАЛАШТУВАННЯ: how the catalogue is DRAWN, as opposed to which films
@@ -2282,6 +2345,42 @@ function poolVersionUrl(base) {
  */
 function localCatalogueVersionKey() {
   return 'seenit_catalogue_version';
+}
+
+/**
+ * How far the local copy has been brought up to date, in epoch ms.
+ *
+ * Separate from the version, which is opaque and only ever compared. This is
+ * a position in time the delta can be asked from, and the two are not the
+ * same thing: the version says "something moved", this says "and I have
+ * everything up to here".
+ *
+ * Absent means no delta is possible and a full load is the only correct
+ * answer — which is exactly the state a browser is in before its first load.
+ */
+function localCatalogueSyncedAtKey() {
+  return 'seenit_catalogue_synced_at';
+}
+
+/**
+ * A full load anyway, now and then, however well the delta is working.
+ *
+ * Insurance rather than function. A delta keyed on a timestamp cannot drift
+ * the way a change log can, but "cannot" here rests on a chain — clock
+ * agreement, every writer stamping, nothing deleted behind our back — and
+ * the cheapest way to be wrong about a chain like that is to have no way of
+ * finding out. A weekly full load makes any drift self-correcting and costs
+ * one download a week against the seven it saves.
+ */
+const CATALOGUE_FULL_RELOAD_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Should this open re-page everything rather than ask for the difference? */
+function needsFullCatalogueLoad({ syncedAt, now, hasCache }) {
+  if (!hasCache) return true;                 // nothing to apply a delta to
+  const t = Number(syncedAt);
+  if (!Number.isFinite(t) || t <= 0) return true;
+  if (t > Number(now)) return true;           // a clock that moved backwards
+  return Number(now) - t >= CATALOGUE_FULL_RELOAD_MS;
 }
 
 /** One mark on one film. The list name is in the path, the film is the id. */
@@ -3701,6 +3800,59 @@ function findDuplicateMovie(catalog, titleUk, titleEn, year) {
 }
 
 /**
+ * The whole catalogue -> the films that appear in it twice.
+ *
+ * The same normalisation the add-a-film check already uses, so the two agree
+ * about what "the same film" means. A pair found here is exactly a pair that
+ * would have been caught at add time — these are the ones that got in before
+ * that check existed, or under a title that has since been corrected into a
+ * collision.
+ *
+ * Keyed on title AND year, and a film with no year is grouped separately
+ * rather than matched against every year: «Дюна» 1984 and «Дюна» 2021 are
+ * two films, and calling them duplicates would invite somebody to merge
+ * them.
+ *
+ * Both titles are indexed, because a duplicate very often is one record
+ * filed under the Ukrainian name and another under the original — that is
+ * the shape this exists to catch, not identical rows.
+ *
+ * Groups are returned largest first: three copies of one film is a worse
+ * problem than two of another, and it is the one to look at first.
+ */
+function findCatalogueDuplicates(catalog) {
+  const byKey = new Map();
+  for (const m of (catalog || [])) {
+    if (!m) continue;
+    const year = m.year ? String(m.year) : '';
+    // A Set, so a film whose two titles normalise the same is filed once
+    // rather than counted as its own duplicate.
+    const keys = new Set();
+    for (const t of [m.canonical_title_uk, m.canonical_title_en]) {
+      const n = normTitleForDup(t);
+      if (n) keys.add(`${n}|${year}`);
+    }
+    for (const k of keys) {
+      const bucket = byKey.get(k);
+      if (bucket) bucket.push(m); else byKey.set(k, [m]);
+    }
+  }
+  const seen = new Set();
+  const groups = [];
+  for (const [, films] of byKey) {
+    if (films.length < 2) continue;
+    // One film indexed under both its titles can land in two buckets with
+    // the same members; report that pair once.
+    const ids = films.map(f => f.tmdb_id || f.id).sort();
+    const fingerprint = ids.join(',');
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    groups.push(films);
+  }
+  return groups.sort((a, b) => b.length - a.length);
+}
+
+/**
  * The fields `fresh` could fill in on `existing` — and only those.
  *
  * An import must not overwrite what is already there. A record in the
@@ -4249,11 +4401,13 @@ if (typeof module !== 'undefined' && module.exports) {
     CATALOGUE_PAGE, MY_FILMS_ID, MY_FILMS_NAME,
     markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
     refUrl, parseCollectionKey,
-    localCatalogueKey, localCatalogueVersionKey,
+    localCatalogueKey, localCatalogueVersionKey, localCatalogueSyncedAtKey,
+    needsFullCatalogueLoad, CATALOGUE_FULL_RELOAD_MS,
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify, collectionIdFrom,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
     PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
     normalizeSearchName, defaultSearchName, searchNameLongEnough, USERNAME_MIN,
+    findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, trashTimeLeftLabel,
@@ -4569,7 +4723,22 @@ function finishBootWhenFilmsShow() {
 // wait above short at eight seconds no matter how healthy the load was.
 setTimeout(() => { if (!authAnswered) finishBoot(); }, 8000);
 
-let syncedOnce = false;
+/**
+ * Which account the loaded state belongs to — NOT a "have we loaded yet" flag.
+ *
+ * It was that, and the difference is the whole bug (owner-reported): signing
+ * out and back in as somebody else does not reload the page, so a boolean
+ * guard meant NOTHING re-ran. The new account got the previous account's
+ * marks, shelf, subscriptions and — once the admin flag joined this block —
+ * their permissions too. Only the name changed, because that is read from
+ * Firebase directly rather than loaded here. Every account looked identical
+ * apart from its name, and the second person to sign in on a browser saw the
+ * first one's library.
+ *
+ * Holding the uid instead makes the question answerable: not "has anything
+ * loaded" but "does what is loaded belong to whoever is signed in now".
+ */
+let loadedForUid = null;
 auth.onAuthStateChanged(user => {
   if (user && user.isAnonymous) {
     // Leftover session from an earlier version of the app that used
@@ -4590,8 +4759,13 @@ auth.onAuthStateChanged(user => {
     logoutBtn.style.display = '';
     accountBtn.style.display = '';
     if (cameFromLogin) raiseBoot();
-    if (!syncedOnce) {
-      syncedOnce = true;
+    if (loadedForUid !== user.uid) {
+      // Cleared BEFORE the loaders start, not after they finish. They are
+      // asynchronous, and the gap between "a different person is signed in"
+      // and "their data has arrived" is exactly the window in which the last
+      // person's marks would otherwise still be on screen.
+      resetAccountState();
+      loadedForUid = user.uid;
       // Films come from D1, the person stays on Firebase. Both start at once
       // and neither waits on the other: the catalogue paints as its first
       // page lands, and the marks re-render over it when they arrive.
@@ -4600,6 +4774,7 @@ auth.onAuthStateChanged(user => {
       loadShelf();
       loadSubs();
       loadServices(user.uid);
+      loadMe();
       // First visit on this account: the flag lives in the account's own
       // subtree (not localStorage), so a new phone does not replay the
       // guide for an account that has already seen it.
@@ -4611,6 +4786,11 @@ auth.onAuthStateChanged(user => {
       }
     }
   } else {
+    // Emptied on the way OUT as well as on the way in. The screen is hidden
+    // rather than unmounted, so anything left here is still in memory when
+    // the next person signs in — and signing in does not reload the page.
+    resetAccountState();
+    loadedForUid = null;
     loginOverlay.classList.remove('hidden');
     appRoot.style.display = 'none';
     logoutBtn.style.display = 'none';
@@ -5410,6 +5590,52 @@ function unlockScroll(owner = null) {
   }
 }
 
+/**
+ * Everything that belongs to whoever was signed in a moment ago.
+ *
+ * Called when the account changes, before the new one's data is fetched. A
+ * loader failing or being slow must not leave the previous person's library
+ * on screen — so this empties rather than waiting to overwrite.
+ */
+function resetAccountState() {
+  watched.clear();
+  liked.clear();
+  shelf.length = 0;
+  _me = { role: '', username: null, mayEdit: false };
+  syncAdminRow();
+  _services = [];
+  likedPublic = false;
+  moviesLoaded = false;
+  render();
+}
+
+/* ---------- what this account is allowed to do ----------
+ *
+ * Fetched once per session, and used ONLY to decide what to draw. The
+ * catalogue routes check the role themselves, per request, against the
+ * database — a client is free to lie about what it read here, and hiding a
+ * button has never stopped anybody from sending the request behind it.
+ *
+ * A failure leaves it false: the ordinary view is the safe fallback, and an
+ * editor that appears because a fetch failed is worse than one that never
+ * appears.
+ */
+let _me = { role: '', username: null, mayEdit: false };
+function mayEditCatalogue() { return !!_me.mayEdit; }
+function loadMe() {
+  proxyHeaders()
+    .then(headers => fetch(`${API_PROXY}/library/me`, { headers }))
+    .then(r => (r.ok ? r.json() : null))
+    .then(me => {
+      if (!me) return;
+      _me = { role: me.role || '', username: me.username || null, mayEdit: !!me.may_edit_catalogue };
+      syncAdminRow();
+      // A card open at the time was drawn without the controls.
+      if (overlay.classList.contains('open') && _modalMovie) openModal(_modalMovie);
+    })
+    .catch(() => { /* the ordinary view stands */ });
+}
+
 /* ---------- "my services" ---------- */
 
 // The services this person says they already pay for. A PREFERENCE, never a
@@ -5479,6 +5705,159 @@ function providersHtml(m) {
       : `<span class="prov${owned ? ' prov--owned' : ''}">${inner}</span>`;
   }).join('');
   return `<div class="modal-providers"><div class="lbl">Де подивитись</div><div class="prov-row">${rows}</div></div>`;
+}
+
+/* ---------- correcting a film, for the accounts allowed to ----------
+ *
+ * Folded shut, and last on the card. It is not what anybody opened the card
+ * to do — it is there for the moment you notice a title is wrong — so it
+ * must not stand between somebody and the film they were reading about.
+ *
+ * The fields are exactly the ones the Worker will accept (EDITABLE_FILM_
+ * COLUMNS in pool.js). Offering a box for critic_score or the awards would
+ * be a lie: those are re-fetched nightly, and a hand-typed value would be
+ * overwritten by morning.
+ *
+ * Drawn only when the account may edit — but that is a courtesy to the
+ * screen, never the guard. The route checks the role itself, per request,
+ * because a hidden button has never stopped anybody sending the request
+ * behind it.
+ */
+const ADMIN_FIELDS = [
+  { key: 'title_uk', from: 'canonical_title_uk', label: 'Назва українською' },
+  { key: 'title_en', from: 'canonical_title_en', label: 'Оригінальна назва' },
+  { key: 'year', from: 'year', label: 'Рік', numeric: true },
+  { key: 'type', from: 'type', label: 'Тип' },
+  { key: 'genre', from: 'genre', label: 'Жанр' },
+  { key: 'country', from: 'country', label: 'Країна' },
+  { key: 'director', from: 'director', label: 'Режисер' },
+  { key: 'poster_url', from: 'poster_url', label: 'Постер (URL)' },
+  { key: 'trailer_url', from: 'trailer_url', label: 'Трейлер (URL)' },
+  { key: 'description_uk', from: 'description_uk', label: 'Опис', long: true },
+];
+
+function adminEditorHtml(m) {
+  if (!mayEditCatalogue()) return '';
+  // Without a tmdb_id there is nothing to address: the route takes one, and
+  // the slug is derived from a title somebody is about to change.
+  if (!m.tmdb_id) {
+    return '<div class="acc-hint">Цей запис не має tmdb_id — виправити його не можна, доки він не зʼявиться.</div>';
+  }
+  const fields = ADMIN_FIELDS.map(f => `
+    <label class="acc-field">
+      <span class="acc-field-lbl">${esc(f.label)}</span>
+      ${f.long
+        ? `<textarea class="adm-in" rows="4" data-key="${f.key}">${esc(m[f.from] == null ? '' : String(m[f.from]))}</textarea>`
+        : `<input class="adm-in" type="${f.numeric ? 'number' : 'text'}" data-key="${f.key}" value="${esc(m[f.from] == null ? '' : String(m[f.from]))}">`}
+    </label>`).join('');
+  return `
+    <button class="acc-toggle" type="button" id="admToggle" aria-expanded="false">
+      <span>Правити картку<span class="acc-role">Admin</span></span>
+      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <form class="acc-form" id="admForm" hidden data-tmdb="${esc(String(m.tmdb_id))}">
+      ${fields}
+      <div class="acc-hint">Оцінки критиків і нагороди тут не редагуються — вони оновлюються щоночі й перезапишуть будь-що вписане вручну.</div>
+      <div class="acc-form-actions">
+        <button class="btn on-watched" type="submit" id="admSave">Зберегти</button>
+        <button class="btn" type="button" id="admRefetch">Оновити з TMDb</button>
+      </div>
+    </form>`;
+}
+
+/**
+ * The editor's behaviour: save what changed, or refill from TMDb.
+ *
+ * Refetch does NOT save. It fills the boxes and leaves them to be read — the
+ * whole reason to correct a film by hand is that the automatic answer was
+ * wrong, and a button that silently overwrote ten fields with TMDb's version
+ * would be the opposite of the tool this is meant to be. Nothing reaches the
+ * catalogue until Save.
+ */
+function wireAdminEditor(m) {
+  const form = modalBox.querySelector('#admForm');
+  const toggle = modalBox.querySelector('#admToggle');
+  if (!form || !toggle) return;
+  const setOpen = open => {
+    form.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  toggle.addEventListener('click', () => setOpen(form.hidden));
+
+  const read = () => {
+    const out = {};
+    form.querySelectorAll('.adm-in').forEach(el => { out[el.dataset.key] = el.value; });
+    return out;
+  };
+
+  modalBox.querySelector('#admRefetch').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const was = btn.textContent;
+    btn.textContent = 'Тягну…';
+    try {
+      const fresh = await tmdbDetails(m.tmdb_id, m.type === 'серіал' ? 'tv' : 'movie');
+      if (!fresh) { toast('error', 'TMDb нічого не повернув'); return; }
+      // Only the boxes that TMDb actually answered for. A field it left
+      // empty must not blank one that is already right.
+      let filled = 0;
+      form.querySelectorAll('.adm-in').forEach(el => {
+        const spec = ADMIN_FIELDS.find(f => f.key === el.dataset.key);
+        const val = spec && fresh[spec.from];
+        if (val == null || val === '') return;
+        if (String(val) === el.value) return;
+        el.value = String(val);
+        el.classList.add('adm-changed');
+        filled++;
+      });
+      toast('ok', filled ? `Оновлено полів: ${filled}. Перевір і збережи.` : 'TMDb не має нічого нового');
+    } catch (err) {
+      toast('error', 'Не вдалося звернутись до TMDb');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = was;
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = modalBox.querySelector('#admSave');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API_PROXY}/pool/films/${encodeURIComponent(m.tmdb_id)}`, {
+        method: 'PATCH',
+        headers: await proxyHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(read()),
+      });
+      const body = await res.json().catch(() => ({}));
+      // 403 is the server disagreeing about the role — the only honest thing
+      // to say is that this account may not, not "something went wrong".
+      if (res.status === 403) { toast('error', 'Цей акаунт не може правити каталог'); return; }
+      if (!res.ok) { toast('error', body.error || 'Не вдалося зберегти'); return; }
+      toast('ok', 'Збережено. Каталог оновиться на всіх пристроях.');
+      form.querySelectorAll('.adm-changed').forEach(el => el.classList.remove('adm-changed'));
+      // The local copy is now behind: the version moved, so the next load
+      // re-pages. Re-fetching the whole catalogue here would be heavy for
+      // one film, so the card is redrawn from what was typed.
+      Object.assign(m, fieldsToMovie(read()));
+      openModal(m);
+    } catch (err) {
+      toast('error', 'Не вдалося зберегти');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+/** The editor speaks in column names; the card speaks in movie fields. */
+function fieldsToMovie(fields) {
+  const out = {};
+  for (const f of ADMIN_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(fields, f.key)) continue;
+    const v = String(fields[f.key] ?? '').trim();
+    out[f.from] = v === '' ? undefined : (f.numeric ? Number(v) || undefined : v);
+  }
+  return out;
 }
 
 /* ---------- «Додати в добірку» ----------
@@ -5579,6 +5958,7 @@ function openModal(m) {
            same shape the awards row uses. -->
       <div class="pick-collection" id="pickCollection" hidden></div>
       ${providersHtml(m)}
+      ${adminEditorHtml(m)}
       ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}
     </div>
     <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
@@ -5598,6 +5978,7 @@ function openModal(m) {
   // what "already open" means.
   overlay.classList.add('open');
   lockScroll(overlay);
+  wireAdminEditor(m);
   unmuteTrailer();
   liftTrailerVeil();
 }
@@ -6137,6 +6518,72 @@ const trashSheet = wireSheet('trashSheet', 'trashBackdrop');
 const settingsSheet = wireSheet('settingsSheet', 'settingsBackdrop');
 document.getElementById('settingsBtn').addEventListener('click', settingsSheet.open);
 document.getElementById('settingsCloseBtn').addEventListener('click', settingsSheet.close);
+
+/* ---------- the Адмін sheet ----------
+ *
+ * Tools that act on the SHARED catalogue rather than on one person's shelf,
+ * which is why they live behind their own row rather than among Settings —
+ * everything there changes what you see, and nothing there changes what
+ * everybody sees.
+ *
+ * The row is hidden until the role says otherwise. Hidden by default rather
+ * than shown-then-hidden, so a failed role lookup leaves the ordinary menu
+ * instead of a row that opens something the account may not use.
+ */
+const adminSheet = wireSheet('adminSheet', 'adminBackdrop');
+const adminBtn = document.getElementById('adminBtn');
+adminBtn.addEventListener('click', () => { menuSheet.close(); adminSheet.open(); });
+document.getElementById('adminCloseBtn').addEventListener('click', adminSheet.close);
+function syncAdminRow() { adminBtn.style.display = mayEditCatalogue() ? '' : 'none'; }
+
+/**
+ * Duplicates, found in the copy of the catalogue the app already holds.
+ *
+ * No request: the whole catalogue is in memory because the shelf is drawn
+ * from it, so asking the server to scan it again would be work nobody needs
+ * to pay for.
+ *
+ * Nothing here MERGES anything. Merging has to move every account's marks
+ * and collections off one record and onto another, and getting that wrong
+ * loses somebody's history — it is stage four, and it is not this. What this
+ * does is show the pairs and open either side, so the fix can be made by
+ * hand in the card that is already built for it.
+ */
+document.getElementById('dupScanBtn').addEventListener('click', () => {
+  const out = document.getElementById('dupResults');
+  const groups = findCatalogueDuplicates(MOVIES);
+  if (!groups.length) {
+    out.innerHTML = '<div class="acc-hint">Дублікатів не знайдено.</div>';
+    return;
+  }
+  const total = groups.reduce((n, g) => n + g.length, 0);
+  out.innerHTML = `
+    <div class="acc-hint">${groups.length} ${pluralGroups(groups.length)} · ${total} записів</div>
+    ${groups.map(g => `
+      <div class="dup-group">
+        ${g.map(f => `
+          <button class="dup-row" type="button" data-id="${esc(String(f.id || f.tmdb_id))}">
+            <span class="dup-title">${esc(f.canonical_title_uk || f.canonical_title_en || 'Без назви')}</span>
+            <span class="dup-meta">${esc([f.year, f.tmdb_id ? `tmdb ${f.tmdb_id}` : 'без tmdb_id'].filter(Boolean).join(' · '))}</span>
+          </button>`).join('')}
+      </div>`).join('')}`;
+  out.querySelectorAll('.dup-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const film = MOVIES.find(m => String(m.id) === btn.dataset.id || String(m.tmdb_id) === btn.dataset.id);
+      if (!film) return;
+      adminSheet.close();
+      openModal(film);
+    });
+  });
+});
+
+function pluralGroups(n) {
+  const t = n % 100, o = n % 10;
+  if (t >= 11 && t <= 14) return 'груп';
+  if (o === 1) return 'група';
+  if (o >= 2 && o <= 4) return 'групи';
+  return 'груп';
+}
 
 /* ---------- the trash (КОШИК) ----------
  * Soft removal's waiting room: a film taken out of a collection lies here
@@ -6686,7 +7133,64 @@ async function loadCatalog() {
     return;
   }
 
+  // Something moved. Ask WHAT moved before re-downloading everything.
+  //
+  // The catalogue is ~13,546 films and about 4MB on the wire, and the
+  // nightly enrichment moves the version every night — so without this,
+  // every person on every device pays that daily to learn a few hundred
+  // films changed.
+  //
+  // Falls through to the full load on anything unexpected. A delta that
+  // cannot be trusted is not worth applying: being slow is recoverable,
+  // being quietly wrong about the catalogue is not.
+  if (paintedFromCache && !needsFullCatalogueLoad({
+    syncedAt: localStore.get(localCatalogueSyncedAtKey()),
+    now: Date.now(),
+    hasCache: true,
+  })) {
+    try {
+      const since = Number(localStore.get(localCatalogueSyncedAtKey()));
+      const res = await fetch(`${API_PROXY}/pool/changes?since=${encodeURIComponent(since)}`,
+        { headers: await proxyHeaders({ accept: 'application/json' }) });
+      if (res.ok) {
+        const body = await res.json();
+        // complete:false means more changed than the delta may carry. The
+        // server is telling us to do a full load rather than apply part of
+        // an answer as though it were all of it.
+        if (body.complete) {
+          const byId = new Map(MOVIES.map((m, i) => [String(m.tmdb_id || m.id), i]));
+          for (const f of (body.films || [])) {
+            if (!f || !f.id) continue;
+            const at = byId.get(String(f.tmdb_id || f.id));
+            if (at === undefined) MOVIES.push(f); else MOVIES[at] = f;
+          }
+          for (const gone of (body.removed || [])) {
+            const at = byId.get(String(gone));
+            if (at !== undefined && MOVIES[at]) MOVIES[at] = null;
+          }
+          if ((body.removed || []).length) {
+            const kept = MOVIES.filter(Boolean);
+            MOVIES.length = 0;
+            kept.forEach(m => MOVIES.push(m));
+          }
+          localStore.set(cacheKey, MOVIES);
+          localStore.set(localCatalogueVersionKey(), liveVersion);
+          localStore.set(localCatalogueSyncedAtKey(), body.cursor || since);
+          moviesLoaded = true;
+          window.__catalogueLoaded = true;
+          renderChips();
+          updateRecommenderFilter();
+          render({ keepDrawn: true });
+          return;
+        }
+      }
+    } catch (err) {
+      // Fall through to the full load, which is simply what this did before.
+    }
+  }
+
   const collected = [];
+  const loadStartedAt = Date.now();
   try {
     let after = 0;
     for (let first = true; ; first = false) {
@@ -6723,6 +7227,16 @@ async function loadCatalog() {
     // partial copy would make the next open trust half a catalogue and never
     // fetch the rest.
     if (liveVersion) localStore.set(localCatalogueVersionKey(), liveVersion);
+    // Where the delta may be asked from next time, and it has to be recorded
+    // HERE or it is never recorded at all — a browser that has only ever
+    // done full loads would keep doing them for ever.
+    //
+    // Stamped from before the walk started, not after it finished: a film
+    // written while those fourteen pages were in flight may or may not be in
+    // the copy just built, and the later stamp would declare it seen. The
+    // cost of the earlier one is re-receiving a handful of films next time,
+    // which the merge handles by overwriting them with themselves.
+    localStore.set(localCatalogueSyncedAtKey(), loadStartedAt);
     window.__catalogueLoaded = true;
   } catch (err) {
     // Offline, or the token expired: whatever the cache held is still on
@@ -7913,7 +8427,11 @@ function openAccount() {
     <!-- The name gets a label of its own. Unlabelled, a bare login sitting
          under the wordmark reads as a stray word rather than as «this is who
          you are signed in as» (owner-reported: it looked like debug text). -->
-    <div class="acc-label">Акаунт</div>
+    <!-- Blood, and only for an account that actually holds the role
+         (owner's call). An ordinary account shows nothing at all — a badge
+         saying «Користувач» would be noise on every screen to tell somebody
+         what they already assume. -->
+    <div class="acc-label">Акаунт${mayEditCatalogue() ? '<span class="acc-role">Admin</span>' : ''}</div>
     <div class="acc-name">${esc(username)}</div>
     <!-- Username stands open, unlike the password form below it (owner's
          call). A password is a rare errand and folds away; this is the one
