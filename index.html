@@ -84,7 +84,22 @@
     left: 0; right: 0;
     overflow: hidden;
   }
-  header { padding: 16px 24px 0; max-width: 1280px; margin: 0 auto; }
+  /* Pinned, all of it (owner's call): the wordmark, the tabs and the genre
+     ribbon stay put however far down the shelf you are, so switching tab or
+     genre never costs a scroll back to the top.
+
+     Opaque on purpose — cards travel underneath it, and the page ground is
+     the only thing that can hide them. The bottom hairline is what keeps the
+     seam readable once something is scrolled under it; without it the chips
+     and the first row of cards run together. */
+  header {
+    /* Bottom padding is new with the pin: the ribbon used to end at open
+       page, and now it ends at a rule it must not touch. */
+    padding: 16px 24px 10px; max-width: 1280px; margin: 0 auto;
+    position: sticky; top: 0; z-index: 46;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
   /* The topbar (vol. II §10): the WORD left, three icon cells right. The
      mark itself no longer appears here — it stays on the login screen, the
      favicon and volume I. See BRAND.md. */
@@ -124,7 +139,9 @@
     cursor: pointer; transition: color .15s; border-radius: 2px;
   }
   .hicon:active { color: var(--paper); }
-  .topbar-icons { display: flex; align-items: center; gap: 6px; }
+  /* Wraps so the search field can take a line of its own on a narrow phone
+     instead of evicting «+» and the menu — see .topbar.searching below. */
+  .topbar-icons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
   /* Any tappable text input keeps its clear affordance. */
   .field-clear-wrap { position: relative; flex: 1; min-width: 0; }
@@ -203,8 +220,13 @@
     padding: 0 4px 0 14px; margin-bottom: 10px;
     /* Pinned while the collection is open (owner's call): however deep the
        scroll, the plate — and its exit — stay in reach. Lives directly
-       under the app root, since sticky cannot outlive its parent. */
-    position: sticky; top: 8px; z-index: 45;
+       under the app root, since sticky cannot outlive its parent.
+       It now comes to rest BELOW the pinned header rather than at the top of
+       the viewport: both are stuck at once, and the header is the taller and
+       the opaque one, so a plate parked under it would take its exit with
+       it. --header-h is measured in app.js, because the header's height
+       changes with the viewport and with the genre ribbon wrapping. */
+    position: sticky; top: calc(var(--header-h, 0px) + 8px); z-index: 45;
     /* The page's column, not the viewport: same 1280px frame the header
        and the grid live in (owner's call). */
     width: calc(100% - 48px); max-width: 1232px;
@@ -226,6 +248,12 @@
     display: flex; align-items: stretch; justify-content: space-between;
     gap: 16px; margin-top: 10px; border-bottom: 1px solid var(--border);
   }
+  /* ФІЛЬТР is blood ALWAYS (owner's call), not only while it holds a
+     non-default choice. It is the one word on this line that opens something
+     rather than switching what you are looking at, and the colour is what
+     says so before you tap it. The conditional version never worked anyway:
+     the class it depended on was removed in one place and added in none. */
+  .filter-word { color: var(--flash); }
   .tabs { display: flex; gap: 18px; }
   .tab {
     background: none; border: none; padding: 10px 0 8px; cursor: pointer;
@@ -325,15 +353,36 @@
     width: min(44vw, 320px);
     border-color: var(--border); background: rgba(0, 0, 0, .25);
   }
-  /* The word STAYS while the field is open (owner's call — it is the brand,
-     and a header without it is somebody else's app). What yields instead are
-     the two icons that have nothing to do with searching: «+» and the menu
-     fold away, and the field takes their room. On a 375px phone that leaves
-     the word its 164px and the field about 165 — enough to see what you
-     typed, with the cross always on screen. */
-  .topbar.searching .hicon:not(#searchOpenBtn) {
-    max-width: 0; opacity: 0; overflow: hidden; pointer-events: none;
-    transition: max-width .22s ease-out, opacity .12s ease-out;
+  /* Nothing yields to the field any more (owner's call). It used to take the
+     room of «+» and the menu, which folded away to nothing while you typed —
+     so the two things you might want NEXT were the two things searching took
+     off the screen.
+
+     The field drops to a line of its own instead. The word, «+» and the menu
+     all keep their places on the first line, and the field gets the full
+     width underneath rather than a 165px slot fought over with the brand.
+     It costs one row of header height, and only while the search is open.
+
+     Only where the room genuinely is not there (owner's call). Past the
+     project's 640px line the header has width to spare, so the field stays on
+     the one line and simply shares it. */
+  @media (max-width: 640px) {
+    /* The icon group takes the whole line first, or "100%" below would mean
+       100% of a box only as wide as the icons themselves — which was the bug
+       that made the field 175px on its own row instead of the full width. */
+    .topbar.searching { flex-wrap: wrap; }
+    .topbar.searching .topbar-icons { flex: 1 1 100%; }
+    .topbar.searching .topbar-search.open {
+      flex: 1 0 100%;
+      width: auto;
+      order: 3;
+      margin-top: 8px;
+    }
+  }
+  /* Wide enough for one line: the field takes what is left beside the word
+     and the icons, and yields first when that is not much. */
+  @media (min-width: 641px) {
+    .topbar-search.open { flex: 0 1 auto; min-width: 0; }
   }
   .topbar-icons .hicon { max-width: var(--control-h); transition: max-width .22s ease-out, opacity .18s ease-in .06s; }
   .topbar-search #search {
@@ -1635,7 +1684,8 @@
        blood (§07) — not pills. «Усе» carries no data-tab on purpose: the
        page objects treat [data-tab] as "a selectable tab" and «Усе» is the
        neutral state those tabs deselect into. ФІЛЬТР opens the drawer and
-       glows blood while any filter inside it is non-default. -->
+       is blood at all times (owner's call) — it opens something rather than
+       switching what you are looking at, and the colour says so up front. -->
   <div class="nav-row">
     <div class="tabs" id="tabs">
       <button class="tab" id="tabAll" type="button">Усе</button>
@@ -3929,7 +3979,14 @@ const PROVIDER_KINDS = {
   ads: 'Безкоштовно з рекламою',
   rent: 'Оренда',
   buy: 'Купівля',
-  unknown: 'Є в каталозі',
+  // Megogo's, and deliberately EMPTY (owner's call). A sitemap hit proves the
+  // page exists and nothing else, and Megogo genuinely sells the same
+  // catalogue three ways — subscription, rental, purchase — so no single word
+  // is true of a given film. «Є в каталозі» was the previous answer and said
+  // nothing anyone needed; listing all three would describe Megogo rather
+  // than this film. Saying nothing is the only honest option left, and a
+  // guess about money is the wrong kind to make.
+  unknown: '',
 };
 
 // Megogo is absent from TMDb entirely, so there is no logo_path for it.
@@ -3947,7 +4004,8 @@ function providerLogoUrl(provider) {
 
 /** "Передплата" / "Оренда" / … for a stored offer kind. */
 function providerKindLabel(kind) {
-  return PROVIDER_KINDS[kind] || PROVIDER_KINDS.unknown;
+  const label = PROVIDER_KINDS[kind];
+  return label === undefined ? PROVIDER_KINDS.unknown : label;
 }
 
 /**
@@ -5339,7 +5397,7 @@ function providersHtml(m) {
       <span class="prov-text">
         <span class="prov-name">${esc(p.name)}</span>
         <span class="prov-meta">
-          <span class="prov-kind">${esc(providerKindLabel(p.kind))}</span>
+          ${providerKindLabel(p.kind) ? `<span class="prov-kind">${esc(providerKindLabel(p.kind))}</span>` : ''}
           ${owned ? '<span class="prov-mine">у вас є</span>' : ''}
         </span>
       </span>`;
@@ -6005,6 +6063,10 @@ document.getElementById('menuSheet').addEventListener('click', e => {
  * Kept as a function rather than deleted at eight call sites: those calls
  * mark the places that CHANGE the filter state, and that is worth keeping
  * findable if the drawer ever needs to admit its contents again.
+ *
+ * Now doubly inert: ФІЛЬТР is blood unconditionally (owner's call), so there
+ * is no longer a state for it to reflect even in principle. The call sites
+ * are still the map of where filter state changes.
  */
 function updateFilterGlow() {
   document.getElementById('filterBtn').classList.remove('filter-on');
@@ -6049,6 +6111,28 @@ document.getElementById('hideScoresToggle').addEventListener('click', () => {
   updateFilterGlow();
   saveSettings();
 });
+
+/* ---------- how tall the pinned header is ----------
+ *
+ * The header is sticky at the top of the page, so anything else that pins
+ * itself has to come to rest UNDER it rather than at the viewport edge — the
+ * collection plate above all, since parking it behind an opaque header would
+ * hide its own exit.
+ *
+ * Measured rather than written down as a number: the height changes with the
+ * viewport, with the wordmark's size at each breakpoint, and with the genre
+ * ribbon wrapping onto more rows in «Усі одразу». A ResizeObserver catches
+ * every one of those, including the ones no resize event fires for.
+ */
+const appHeader = document.querySelector('header');
+if (appHeader) {
+  const syncHeaderHeight = () => {
+    document.documentElement.style.setProperty('--header-h', `${Math.round(appHeader.getBoundingClientRect().height)}px`);
+  };
+  syncHeaderHeight();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(syncHeaderHeight).observe(appHeader);
+  else window.addEventListener('resize', syncHeaderHeight);
+}
 
 /* ---------- back to the top of the shelf ----------
  *
