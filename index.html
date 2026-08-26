@@ -193,14 +193,21 @@
   body.delete-mode .card { cursor: pointer; }
   body.delete-mode .card-toggles { opacity: .25; pointer-events: none; }
   /* A picked card reads as picked by its wash alone (owner's call — the
-     frame came off): one translucent flash tint over the whole card,
-     poster, data block and gaps alike. */
+     frame came off): one translucent tint over the whole card, poster, data
+     block and gaps alike.
+     Blood for REMOVING, paper for ADDING (owner's call). Green would have
+     said it more plainly and the palette has none — BRAND.md allows four
+     colours and no more, and a fifth invented for one checkbox is how a
+     palette stops meaning anything. So the two modes are told apart by
+     WEIGHT rather than by hue: red is the colour of taking away everywhere
+     else in this app, and light is its opposite without borrowing anything. */
   .card.is-selected::after {
     content: ''; position: absolute; inset: 0; z-index: 2;
     border-radius: 2px;
     background: rgba(194,20,20,.2);
     pointer-events: none;
   }
+  body.add-mode .card.is-selected::after { background: rgba(242,243,246,.22); }
   .card-select-mark {
     position: absolute; top: 8px; left: 8px; z-index: 3;
     width: 22px; height: 22px; border-radius: 50%;
@@ -208,6 +215,16 @@
     display: flex; align-items: center; justify-content: center; color: #fff;
   }
   .card.is-selected .card-select-mark { background: var(--danger); border-color: var(--danger); color: var(--ink); }
+  /* Paper on ink: the tick reads as clearly as the red one and belongs to
+     the same four colours. */
+  body.add-mode .card.is-selected .card-select-mark {
+    background: var(--paper); border-color: var(--paper); color: var(--ink);
+  }
+  /* Adding leaves the card openable, so its box has to look like the thing
+     you press — the removing mode takes the whole card and needs no such
+     hint. */
+  body.add-mode .card-select-mark { cursor: pointer; }
+  body.add-mode .card-select-mark--tap:active { transform: scale(.92); }
   /* The state plate (§07): white on blood — the exception the book grants
      to exactly this element. Mono, one line, an exit, nothing else. */
   /* display:flex would defeat the hidden attribute — same specificity,
@@ -242,6 +259,14 @@
   .col-plate-actions[hidden] { display: none; }
   .col-plate-actions {
     display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+    /* Pinned with the plate, not scrolled away from it (owner's call). These
+       buttons belong to the collection the plate names; leaving them behind
+       meant «Редагувати» was reachable only by scrolling back to the top,
+       while the plate it belongs to stayed in view the whole time.
+       Below the plate's own resting place, so the two travel as one block:
+       the plate stops at header + 8, and this stops just under it. */
+    position: sticky; top: calc(var(--header-h, 0px) + var(--plate-h, 44px) + 12px); z-index: 44;
+    background: var(--bg); padding-top: 4px;
     /* The page's column, same frame the plate and the grid live in — it sits
        under the plate now, not inside the header. */
     width: calc(100% - 48px); max-width: 1232px; margin-left: auto; margin-right: auto;
@@ -5687,7 +5712,22 @@ function unlockScroll(owner = null) {
     _scrollLockOwners.clear();
     document.body.classList.remove('scroll-locked');
     document.body.style.top = '';
-    window.scrollTo(0, _lockedScrollY);
+    // Put back INSTANTLY, not smoothly (owner-reported: "closing a card
+    // scrolls me to it").
+    //
+    // html carries scroll-behavior: smooth, which is what makes «догори» a
+    // journey rather than a jump — and it applied here too. So restoring the
+    // position the card was opened from was animated: the page visibly
+    // travelled back to where it already was, which reads as being dragged
+    // somewhere rather than as nothing happening. Closing a card should not
+    // move the page at all, and now it does not.
+    try {
+      window.scrollTo({ top: _lockedScrollY, left: 0, behavior: 'instant' });
+    } catch (err) {
+      // 'instant' is recent; older engines take the two-argument form, which
+      // still obeys scroll-behavior but is better than not restoring at all.
+      window.scrollTo(0, _lockedScrollY);
+    }
   }
 }
 
@@ -6846,6 +6886,23 @@ if (appHeader) {
   syncHeaderHeight();
   if (typeof ResizeObserver === 'function') new ResizeObserver(syncHeaderHeight).observe(appHeader);
   else window.addEventListener('resize', syncHeaderHeight);
+}
+
+/* The plate's height, for the same reason and by the same means: the actions
+ * row pins directly beneath it, and a collection with a long name wraps the
+ * plate onto two lines. Written down rather than assumed, or the row would
+ * overlap the name on exactly the collections whose names are worth
+ * reading. Measured while HIDDEN gives zero, so the fallback in the CSS is
+ * what stands until a collection is actually open. */
+const collectionPlateEl = document.getElementById('collectionPlate');
+if (collectionPlateEl) {
+  const syncPlateHeight = () => {
+    const h = Math.round(collectionPlateEl.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--plate-h', `${h}px`);
+  };
+  syncPlateHeight();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(syncPlateHeight).observe(collectionPlateEl);
+  else window.addEventListener('resize', syncPlateHeight);
 }
 
 /* ---------- back to the top of the shelf ----------
