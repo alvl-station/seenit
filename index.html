@@ -882,8 +882,15 @@
   @media (hover: hover) {
     .btn:hover { border-color: var(--accent2); }
   }
-  .btn.b-watched.on { background: var(--blood); color: var(--paper); border-color: transparent; }
-  .btn.b-liked.on { background: var(--like); color: #fff; border-color: var(--like); }
+  /* Both marks wear the SAME red (owner's call). They were blood and flash,
+     which put two different reds side by side in one row of buttons and read
+     as a mistake rather than as a distinction — the eye asks what the darker
+     one means, and the answer was nothing. Flash is the one kept: blood is
+     nearly black against this ground, so the darker button barely looked on
+     at all. What tells the two apart is the word and the icon, which is
+     enough. */
+  .btn.b-watched.on { background: var(--flash); color: #fff; border-color: var(--flash); }
+  .btn.b-liked.on { background: var(--flash); color: #fff; border-color: var(--flash); }
   .btn.b-liked.on svg { fill: currentColor; }
   .modal-close {
     position: absolute; top: 6px; right: 6px; width: 44px; height: 44px;
@@ -3965,6 +3972,42 @@ function youtubeEmbedUrl(url) {
   return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
 }
 
+/* ---------- the name people find you under ----------
+ *
+ * The SAME rule the Worker enforces (normalizeUsername in library.js), kept
+ * here so the account field can show the spelling that will actually be
+ * stored while it is being typed. A field that accepts one thing and saves
+ * another is the kind of small dishonesty that makes people stop trusting a
+ * form.
+ *
+ * Latin only, and non-Latin is dropped rather than transliterated: guessing
+ * a romanisation is the app deciding how somebody is spelled, and it would
+ * be wrong often enough to be insulting.
+ */
+function normalizeSearchName(raw) {
+  return String(raw || '').trim().toLowerCase()
+    // A space is a separator, not noise: «Vlad Aloshyn» is vlad.aloshyn.
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]+/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[._-]+/, '')
+    .slice(0, 32)
+    .replace(/[._-]+$/, '');
+}
+
+/**
+ * What the field suggests before anybody has chosen: the Google display
+ * name, falling back to the address. Shown as a placeholder rather than
+ * filled in, because it is what the server would seed, not a choice already
+ * made.
+ */
+function defaultSearchName(user) {
+  const display = normalizeSearchName(user && user.displayName);
+  if (display) return display;
+  const local = String((user && user.email) || '').split('@')[0];
+  return normalizeSearchName(local);
+}
+
 /* ---------- where to watch ---------- */
 
 // Every offer kind we may have on file, and how it reads in the UI.
@@ -4182,6 +4225,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify, collectionIdFrom,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
     PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
+    normalizeSearchName, defaultSearchName,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, trashTimeLeftLabel,
@@ -5597,6 +5641,25 @@ function liftTrailerVeil() {
     // and infoDelivery carrying playerState inside it.
     const state = msg.event === 'onStateChange' ? msg.info
       : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
+    // -1 UNSTARTED, 5 CUED: the frame is up and the player is ready, but
+    // autoplay did not take. Measured here, not guessed: a plain muted embed
+    // reported -1 and sat there for the full twelve seconds of a probe,
+    // which is exactly what the owner saw — "the first time it only loads".
+    // A second open looked instant because the video was already cached.
+    //
+    // Asking the player directly is allowed precisely because the embed is
+    // muted (see unmuteTrailer for why it must be), and it works: -1 -> 3 ->
+    // 1 in two tenths of a second in the same probe.
+    //
+    // This matters more than it used to. The veil now lifts on PLAYING and
+    // on nothing else — no timer rescues it — so a player that never starts
+    // means «Завантажується» for ever.
+    if (state === -1 || state === 5) {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+      }
+      return;
+    }
     if (state === 1) {   // PLAYING
       lift();
       clearPlayerListener();
@@ -5928,6 +5991,39 @@ function closeSearch() {
  * only be turned off by emptying a field somebody has to find first is the
  * thing this replaced. */
 searchOpenBtn.addEventListener('click', () => (searchIsOpen() ? closeSearch() : openSearch()));
+
+/* ---------- the keyboard unpins the pinned header ----------
+ *
+ * Owner-reported: the header stays put while scrolling, EXCEPT after typing
+ * in the search field, when it scrolls away with everything else.
+ *
+ * That is iOS Safari and not our CSS. While the software keyboard is up,
+ * Safari shrinks the VISUAL viewport but resolves `position: sticky` against
+ * the layout one, so a header pinned to the top of a viewport that is no
+ * longer the visible one travels up out of sight. Nothing in the stylesheet
+ * can address it, because the two viewports genuinely disagree.
+ *
+ * What can: putting the keyboard away once the person starts scrolling. They
+ * have stopped typing and started looking, the results are already filtered
+ * by what they typed, and the field keeps both its text and its place — only
+ * the caret leaves. The header then pins again because there is once more
+ * only one viewport.
+ *
+ * Guarded by a distance rather than firing on the first scroll event: focusing
+ * an input on iOS scrolls the page a little by itself, and blurring on that
+ * would make the field impossible to type in at all.
+ */
+const KEYBOARD_DISMISS_AFTER_PX = 24;
+let _scrollAtFocus = null;
+searchInput.addEventListener('focus', () => { _scrollAtFocus = window.scrollY || 0; });
+searchInput.addEventListener('blur', () => { _scrollAtFocus = null; });
+window.addEventListener('scroll', () => {
+  if (_scrollAtFocus === null || document.activeElement !== searchInput) return;
+  if (Math.abs((window.scrollY || 0) - _scrollAtFocus) < KEYBOARD_DISMISS_AFTER_PX) return;
+  // Only the caret goes. The field stays open, the text stays in it, and
+  // what was typed goes on filtering the shelf.
+  searchInput.blur();
+}, { passive: true });
 
 /* The scope switch only exists while there are two scopes to switch between:
  * inside an open collection, with the field open. It resets to «here» every
@@ -7757,6 +7853,26 @@ function openAccount() {
          you are signed in as» (owner-reported: it looked like debug text). -->
     <div class="acc-label">Акаунт</div>
     <div class="acc-name">${esc(username)}</div>
+    <!-- The name people find you under, and it is NOT the one above: that
+         one comes from Google and is only ever shown to you. This one is
+         stored, and it is what «Друзі» searches. Folded shut like the
+         password form — most people will never touch it, and a form standing
+         open reads as something you were supposed to fill in. -->
+    <button class="acc-toggle" type="button" id="accNameToggle" aria-expanded="false">
+      <span>Імʼя для пошуку</span>
+      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <form class="acc-form" id="accNameForm" hidden>
+      <label class="acc-field">
+        <span class="acc-field-lbl">Як вас знаходити</span>
+        <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="${esc(defaultSearchName(user))}">
+      </label>
+      <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>
+      <div class="acc-form-actions">
+        <button class="btn on-watched" type="submit" id="accNameBtn">Зберегти</button>
+        <button class="btn" type="button" id="accNameCancel">Скасувати</button>
+      </div>
+    </form>
     ${viaGoogle ? `
     <div class="acc-label">Вхід через Google${user && user.email ? ` · ${esc(user.email)}` : ''}</div>` : `
     <!-- Folded shut (owner's call): changing a password is a rare errand,
@@ -7817,6 +7933,57 @@ function openAccount() {
     passToggle.addEventListener('click', () => setPassOpen(accountBox.querySelector('#accPassForm').hidden));
     accountBox.querySelector('#accPassCancel').addEventListener('click', () => setPassOpen(false));
   }
+  // The searchable name, same fold as the password form above.
+  const nameToggle = accountBox.querySelector('#accNameToggle');
+  if (nameToggle) {
+    const nameForm = accountBox.querySelector('#accNameForm');
+    const nameInput = accountBox.querySelector('#accName');
+    const setNameOpen = open => {
+      nameForm.hidden = !open;
+      nameToggle.setAttribute('aria-expanded', String(open));
+      if (open) nameInput.focus();
+    };
+    nameToggle.addEventListener('click', () => setNameOpen(nameForm.hidden));
+    accountBox.querySelector('#accNameCancel').addEventListener('click', () => setNameOpen(false));
+    // Normalising as you type, rather than on save, so the spelling that
+    // gets stored is the one you watched yourself produce. Saving something
+    // other than what the field showed is the kind of small dishonesty that
+    // makes people stop trusting a form.
+    nameInput.addEventListener('input', () => {
+      const at = nameInput.selectionStart;
+      const before = nameInput.value;
+      const after = normalizeSearchName(before);
+      if (after === before) return;
+      nameInput.value = after;
+      // Keep the caret where the typing was, not thrown to the end.
+      const shift = before.length - after.length;
+      try { nameInput.setSelectionRange(Math.max(0, at - shift), Math.max(0, at - shift)); } catch (err) { /* not all inputs allow it */ }
+    });
+    nameForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const wanted = normalizeSearchName(nameInput.value) || defaultSearchName(auth.currentUser);
+      if (!wanted) { toast('error', 'Потрібні латинські літери або цифри'); return; }
+      const btn = accountBox.querySelector('#accNameBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_PROXY}/library/users/me/name`, {
+          method: 'PUT',
+          headers: await proxyHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ username: wanted }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 409) { toast('error', 'Таке імʼя вже зайняте'); return; }
+        if (!res.ok) { toast('error', body.error || 'Не вдалося зберегти'); return; }
+        nameInput.value = body.username || wanted;
+        toast('ok', `Вас знайдуть як ${body.username || wanted}`);
+        setNameOpen(false);
+      } catch (err) {
+        toast('error', 'Не вдалося зберегти');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
   accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
   accountBox.querySelector('#accGuideBtn').addEventListener('click', () => { closeAccount(); openOnboarding(); });
   const passForm = accountBox.querySelector('#accPassForm');
@@ -7851,23 +8018,89 @@ function openAccount() {
 function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); }
 
 function openOnboarding() {
+  // The name comes FIRST, before the guide (owner's call), because it is the
+  // one thing here the app cannot decide for you. Everything below it
+  // explains what the app does; this asks what to call you.
+  //
+  // Why here and not on the login screen: the Google button is one button
+  // doing both signing in and signing up, and nothing knows which it was
+  // until Google has answered. Asking before would either interrogate people
+  // who already have a name, or force them to guess whether they are new.
+  // Onboarding fires exactly once, for an account that is new by definition,
+  // which is the moment this question actually belongs to.
+  //
+  // Prefilled rather than left empty: the server has already seeded this
+  // spelling, so the field shows what is true right now, and doing nothing
+  // is a valid answer that leaves them findable.
+  const seeded = defaultSearchName(auth.currentUser);
   onboardBox.innerHTML = `
+    <div class="onb-step">
+      <div class="onb-step-n">1</div>
+      <p><b>Як вас знаходити.</b> Це імʼя бачитимуть інші, коли шукатимуть вас у «Друзях». Можна лишити як є або змінити тут чи згодом в «Акаунті».</p>
+    </div>
+    <label class="acc-field">
+      <span class="acc-field-lbl">Імʼя для пошуку</span>
+      <input id="onbName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(seeded)}" placeholder="${esc(seeded)}">
+    </label>
+    <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>`
+    + `
     <!-- No wordmark here either (owner's call): the header behind this
          overlay carries it. The steps describe what the app actually does
          now — the «NEW» button, the tab that «hid» watched films and the
          rest of it went with the redesign. -->
-    <div class="onb-step"><div class="onb-step-n">1</div><p><b>Додавай через «+»</b> у шапці — за назвою, за скріншотом або списком одразу. Рік, актори, режисер, оцінки критиків і нагороди підтягнуться самі.</p></div>
-    <div class="onb-step"><div class="onb-step-n">2</div><p><b>Око — переглянуте, серце — рекомендую.</b> Серце вмикає око саме: не можна радити те, чого не бачив. Переглянуте не зникає — осідає в кінець свого жанру.</p></div>
-    <div class="onb-step"><div class="onb-step-n">3</div><p><b>Лупа в шапці розкриває поле</b> й фільтрує те, що перед тобою. Дотик до актора чи режисера шукає за їхнім іменем. Жанрова стрічка фільтрує, «ФІЛЬТР» сортує, решта вигляду — в «Налаштуваннях».</p></div>
-    <div class="onb-step"><div class="onb-step-n">4</div><p><b>Добірки відкриваються як каталог:</b> екран звужується до їхніх фільмів. Скласти свою можна кнопкою «Додати в добірку» в картці фільму. Прибране з добірки лежить у «Кошику» добу — встигнеш передумати.</p></div>
-    <div class="onb-step"><div class="onb-step-n">5</div><p>Не знаєш, з чого почати? Нижче — топ-20 фільмів, які фанати кіно дивляться просто зараз. Оновлюється щодня. Тисни на постер, щоб додати.</p></div>
+    <div class="onb-step"><div class="onb-step-n">2</div><p><b>Додавай через «+»</b> у шапці — за назвою, за скріншотом або списком одразу. Рік, актори, режисер, оцінки критиків і нагороди підтягнуться самі.</p></div>
+    <div class="onb-step"><div class="onb-step-n">3</div><p><b>Око — переглянуте, серце — рекомендую.</b> Серце вмикає око саме: не можна радити те, чого не бачив. Переглянуте не зникає — осідає в кінець свого жанру.</p></div>
+    <div class="onb-step"><div class="onb-step-n">4</div><p><b>Лупа в шапці розкриває поле</b> й фільтрує те, що перед тобою. Дотик до актора чи режисера шукає за їхнім іменем. Жанрова стрічка фільтрує, «ФІЛЬТР» сортує, решта вигляду — в «Налаштуваннях».</p></div>
+    <div class="onb-step"><div class="onb-step-n">5</div><p><b>Добірки відкриваються як каталог:</b> екран звужується до їхніх фільмів. Скласти свою можна кнопкою «Додати в добірку» в картці фільму. Прибране з добірки лежить у «Кошику» добу — встигнеш передумати.</p></div>
+    <div class="onb-step"><div class="onb-step-n">6</div><p>Не знаєш, з чого почати? Нижче — топ-20 фільмів, які фанати кіно дивляться просто зараз. Оновлюється щодня. Тисни на постер, щоб додати.</p></div>
     <div class="acc-label">Топ-20 зараз</div>
     <div class="trend-updated" id="trendUpdated"></div>
     <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>
     <div class="acc-label">Або випадкова рекомендація з добірки</div>
     <div id="poolPick"><div class="add-hint">Завантажую…</div></div>
     <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
-  onboardBox.querySelector('#onbDoneBtn').addEventListener('click', () => closeOnboarding());
+  // Same live normalising as the account field: what you see is what gets
+  // stored, and the caret stays where you were typing.
+  const onbName = onboardBox.querySelector('#onbName');
+  if (onbName) {
+    onbName.addEventListener('input', () => {
+      const at = onbName.selectionStart;
+      const before = onbName.value;
+      const after = normalizeSearchName(before);
+      if (after === before) return;
+      onbName.value = after;
+      const shift = before.length - after.length;
+      try { onbName.setSelectionRange(Math.max(0, at - shift), Math.max(0, at - shift)); } catch (err) { /* not all inputs allow it */ }
+    });
+  }
+  onboardBox.querySelector('#onbDoneBtn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const wanted = onbName ? normalizeSearchName(onbName.value) : '';
+    // Unchanged from what the server already seeded, or emptied entirely:
+    // nothing to save, and the guide should not stand between somebody and
+    // the app over a field they did not touch.
+    if (!wanted || wanted === seeded) { closeOnboarding(); return; }
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API_PROXY}/library/users/me/name`, {
+        method: 'PUT',
+        headers: await proxyHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ username: wanted }),
+      });
+      // A taken name must not slip past on the way out — the person would
+      // leave believing they had chosen one.
+      if (res.status === 409) { toast('error', 'Таке імʼя вже зайняте'); onbName.focus(); return; }
+      if (!res.ok) { toast('error', 'Не вдалося зберегти імʼя'); return; }
+      closeOnboarding();
+    } catch (err) {
+      // The network failing must not trap anybody in the guide: the seeded
+      // name still stands, so leaving costs nothing.
+      toast('error', 'Не вдалося зберегти імʼя');
+      closeOnboarding();
+    } finally {
+      btn.disabled = false;
+    }
+  });
   renderTrending();
   rollPoolPick();
   onboardOverlay.classList.add('open');
