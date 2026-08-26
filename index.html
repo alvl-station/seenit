@@ -655,14 +655,19 @@
     body.sheet-nav #bandGrip {
       display: block;
       position: fixed; left: 0; right: 0; z-index: 86;
-      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 11px);
-      height: 22px;
+      /* Half above the edge, half below — so the offset is always half the
+         height, and the two numbers move together. */
+      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 14px);
+      height: 28px;
       touch-action: none; cursor: ns-resize;
       -webkit-tap-highlight-color: transparent;
-      background: linear-gradient(var(--steel), var(--steel)) center / 34px 4px no-repeat;
+      /* 56x6 rather than 34x4 (owner's call): at the smaller size it read
+         as a seam between the tab and the catalogue rather than as
+         something to take hold of. */
+      background: linear-gradient(var(--steel), var(--steel)) center / 56px 6px no-repeat;
     }
     body.sheet-nav #bandGrip:active {
-      background: linear-gradient(var(--flash), var(--flash)) center / 34px 4px no-repeat;
+      background: linear-gradient(var(--flash), var(--flash)) center / 56px 6px no-repeat;
     }
     .band-resizing { user-select: none; }
 
