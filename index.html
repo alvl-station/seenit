@@ -218,7 +218,12 @@
     background: rgba(194,20,20,.2);
     pointer-events: none;
   }
-  body.add-mode .card.is-selected::after { background: rgba(242,243,246,.22); }
+  /* .38, not .22 (owner-reported: the white was too faint to read as
+     chosen). Compared side by side over a poster at .22 / .30 / .38 / .46:
+     by .46 the image flattens toward grey and stops being the film you
+     picked, and .38 is the last step that separates chosen from unchosen at
+     a glance while the poster still reads. */
+  body.add-mode .card.is-selected::after { background: rgba(242,243,246,.38); }
   .card-select-mark {
     position: absolute; top: 8px; left: 8px; z-index: 3;
     width: 22px; height: 22px; border-radius: 50%;
@@ -235,6 +240,19 @@
      you press — the removing mode takes the whole card and needs no such
      hint. */
   body.add-mode .card-select-mark { cursor: pointer; }
+  /* And it has to be reachable (owner-reported: hard to hit). 22px is half
+     the 44px this project requires of every icon, and in the removing mode
+     that never showed because the whole card is the target — here the box is
+     the only one.
+     The second of the two ways CONVENTIONS.md gives: the cell stays tight
+     and an invisible area is added under it, exactly as .tgl::after does.
+     Square, not round: the area is invisible either way, and a circle
+     inscribed in it loses the corners — measured 41px across against the
+     46px the box spans, which is the difference between "hard to hit" and
+     not. */
+  body.add-mode .card-select-mark::before {
+    content: ''; position: absolute; inset: -12px;
+  }
   body.add-mode .card-select-mark--tap:active { transform: scale(.92); }
   /* The state plate (§07): white on blood — the exception the book grants
      to exactly this element. Mono, one line, an exit, nothing else. */
