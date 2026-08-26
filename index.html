@@ -9452,7 +9452,14 @@ document.getElementById('collectionPlateClose').addEventListener('click', closeC
 function renderPlateActions() {
   const el = document.getElementById('collectionPlateActions');
   const col = openCatalogCollection;
-  if (!col || col.source === 'default') { el.hidden = true; el.innerHTML = ''; return; }
+  // «Рекомендує <name>» carries no actions, like the shared ones. There is
+  // nothing here to unlink: it is not a link somebody added, it is what the
+  // subscription shows. The way to be rid of it is to unfollow the person,
+  // and «Прибрати з полиці» would offer to delete a reference that does not
+  // exist.
+  if (!col || col.source === 'default' || col.source === 'recommends') {
+    el.hidden = true; el.innerHTML = ''; return;
+  }
   el.hidden = false;
   el.innerHTML = col.source === 'own'
     ? `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>
@@ -9895,7 +9902,14 @@ function renderRecs() {
     const recommended = MOVIES.filter(m => isMarked(liked, m));
     const likedToggle = `<button class="opt${likedPublic ? ' active' : ''}" id="likedPublicBtn" type="button">Рекомендації видно всім</button>`;
     const recHtml = recommended.length
-      ? `<div class="recs-group"><div class="cf-label">Рекомендую</div><div class="opts" style="margin-bottom:10px">${likedToggle}</div>${pickGridHtml(recommended.map(m => ({
+      ? `<div class="recs-group"><div class="cf-label">Рекомендую</div><div class="opts" style="margin-bottom:10px">${likedToggle}</div>
+         <!-- Said where the person controls it, not buried in a guide
+              (owner's call). Two things worth knowing before you recommend
+              something, and the second is the one nobody would guess: a film
+              you put in a private collection drops out of this list for
+              everyone else, while staying recommended for you. -->
+         <div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>
+         ${pickGridHtml(recommended.map(m => ({
           title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
           year: m.year, poster_url: m.poster_url,
         })))}</div>`
@@ -9957,6 +9971,9 @@ function renderRecs() {
   // «Мої» and on the add screen — this tab is the outside world's.
   const groups = [
     ['default', 'Добірки SeenIt'],
+    // Before the ones you chose to link, because you did not choose these —
+    // they arrived with the people you follow, and they change on their own.
+    ['recommends', 'Рекомендують'],
     ['linked', 'Від інших'],
   ];
   body.innerHTML = groups.map(([source, title]) => {
