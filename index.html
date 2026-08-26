@@ -555,6 +555,7 @@
   /* ---------- bottom sheets: the menu and the ФІЛЬТР drawer (§07/§09) ---------- */
   /* Light on purpose (owner's call): the drawer is a quick pick, not a
      modal moment — the catalogue should stay readable behind it. */
+  .band-grip { display: none; }
   .sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.3); }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 81;
@@ -645,41 +646,30 @@
        and both are visible. */
     body.sheet-nav .sheet-backdrop { pointer-events: none; }
 
-    /* The grip: the top edge of the band, draggable to set how much of the
-       screen it takes. Drawn as a sticky pseudo-element so it stays at the
-       top while the tab's own contents scroll under it — an absolutely
-       positioned bar would scroll away with them and leave the handle
-       somewhere in the middle of a list.
-       The bar is a background, not a border, so one box draws both the
-       opaque strip and the handle on it. */
-    body.sheet-nav #menuSheet::before,
-    body.sheet-nav #settingsSheet::before,
-    body.sheet-nav #trashSheet::before,
-    body.sheet-nav #adminSheet::before,
-    body.sheet-nav #filterSheet::before,
-    body.sheet-nav .modal-overlay > .modal::before {
-      content: ''; display: block; position: sticky; top: 0; z-index: 4;
-      /* flex: none because .modal is a flex column: as a flex item the grip
-         would shrink with everything else, and it shrank all the way to
-         zero — a handle nobody could see or grab. */
-      flex: none;
-      height: 14px; margin: -18px -18px 4px;
-      border-radius: 16px 16px 0 0;
-      background:
-        linear-gradient(var(--steel), var(--steel)) center 5px / 34px 4px no-repeat,
-        var(--coal2);
-      cursor: ns-resize;
+    /* The grip sits ON the band's top edge, half above and half below, and
+       is fixed rather than living inside the band — inside, it scrolled
+       with the contents, covered the back arrow, and disappeared whenever a
+       panel re-rendered. Above the menu (84) so it can be grabbed while the
+       menu is what is open; below the dialogs (90), which must never be
+       reached past. */
+    body.sheet-nav #bandGrip {
+      display: block;
+      position: fixed; left: 0; right: 0; z-index: 86;
+      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 11px);
+      height: 22px;
+      touch-action: none; cursor: ns-resize;
+      -webkit-tap-highlight-color: transparent;
+      background: linear-gradient(var(--steel), var(--steel)) center / 34px 4px no-repeat;
     }
-    /* The modal panels carry their own padding inside, so the strip has no
-       negative margin to undo there. */
-    body.sheet-nav .modal-overlay > .modal::before {
-      margin: 0;
-      background:
-        linear-gradient(var(--steel), var(--steel)) center 5px / 34px 4px no-repeat,
-        var(--surface);
+    body.sheet-nav #bandGrip:active {
+      background: linear-gradient(var(--flash), var(--flash)) center / 34px 4px no-repeat;
     }
-    /* While a drag is in flight the browser must not also scroll. */
-    .band-resizing { touch-action: none; user-select: none; }
+    .band-resizing { user-select: none; }
+
+    /* Clear of the grip, and above it. The arrow used to be painted over by
+       the strip that ran along the top edge (owner-reported: «стрілка чимось
+       перекрита»). */
+    body.sheet-nav .modal-overlay > .modal > .modal-close { top: 16px; z-index: 5; }
 
     /* Back, not closed: red, and no disc behind it. The disc is what makes
        the cross read as «dismiss this»; an arrow with nothing behind it
@@ -2154,6 +2144,13 @@
      whole catalogue searched, untouched by tabs or the genre ribbon. -->
 <!-- The menu sheet: what the slimmed header no longer carries. Rows keep
      their historical ids — all the wiring and the tests hold onto them. -->
+<!-- The handle that sets how much of the screen the bottom band takes.
+     A real element, fixed to the band's top edge, rather than a pseudo-
+     element inside the band: inside, it had to be hit by coordinate (which
+     worked on one tab and not the others), it painted over the back arrow,
+     and it vanished every time a panel re-rendered its innerHTML. Out here
+     it is one node that nothing redraws and nothing covers. -->
+<div class="band-grip" id="bandGrip" role="separator" aria-orientation="horizontal" aria-label="Висота панелі"></div>
 <div class="sheet-backdrop" id="menuBackdrop" hidden></div>
 <div class="sheet" id="menuSheet" aria-hidden="true">
   <!-- The menu's own way out (owner's call). It used to have none: tapping
@@ -7321,14 +7318,24 @@ function applyBandHeight() {
 }
 applyBandHeight();
 
-/** The element occupying the band, if the event landed in one. */
-function bandElementFrom(target) {
-  if (!target || !target.closest) return null;
-  const sheet = target.closest('.sheet');
-  if (sheet && sheetIsBand(sheet.id)) return sheet;
-  const modal = target.closest('.modal-overlay > .modal');
-  if (modal && BAND_OVERLAY_IDS.includes(modal.parentElement.id)) return modal;
+/** Whatever is occupying the band right now, or null. */
+function openBandElement() {
+  if (_menuEl.classList.contains('open')) return _menuEl;
+  for (const id of BAND_SHEET_IDS) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('open')) return el;
+  }
+  for (const id of BAND_OVERLAY_IDS) {
+    const ov = document.getElementById(id);
+    if (ov && ov.classList.contains('open')) return ov.querySelector('.modal');
+  }
   return null;
+}
+
+/** True if the event landed inside whatever is occupying the band. */
+function inBandElement(target) {
+  const el = openBandElement();
+  return !!(el && target && target.nodeType === 1 && el.contains(target));
 }
 
 /** The floor for this screen: just under its own title. */
@@ -7343,23 +7350,23 @@ function bandFloor(el) {
   return Math.round(top + title.offsetHeight + 12);
 }
 
+const _bandGrip = document.getElementById('bandGrip');
 let _bandDrag = null;
 function onBandPointerDown(e) {
   if (!menuIsNav() || _bandDrag) return;
   if (e.button != null && e.button !== 0) return;
-  const el = bandElementFrom(e.target);
+  const el = openBandElement();
   if (!el) return;
   const rect = el.getBoundingClientRect();
-  if (e.clientY - rect.top > BAND_GRIP_PX) return;   // not the grip
   const max = menuNaturalHeight();
   const min = Math.min(bandFloor(el), max);
   if (max - min < 8) return;                          // nothing to adjust
-  _bandDrag = { el, startY: e.clientY, startH: rect.height, min, max };
-  el.classList.add('band-resizing');
-  // Non-passive on purpose: without this the scroller under the grip takes
-  // the gesture and the band never moves.
+  _bandDrag = { startY: e.clientY, startH: rect.height || max, min, max };
+  document.body.classList.add('band-resizing');
+  // Non-passive on purpose: without this the page takes the gesture and the
+  // band never moves.
   e.preventDefault();
-  try { el.setPointerCapture(e.pointerId); } catch (err) { /* mouse in jsdom */ }
+  try { _bandGrip.setPointerCapture(e.pointerId); } catch (err) { /* mouse, or jsdom */ }
 }
 function onBandPointerMove(e) {
   if (!_bandDrag) return;
@@ -7371,8 +7378,8 @@ function onBandPointerMove(e) {
 }
 function onBandPointerUp() {
   if (!_bandDrag) return;
-  const { el, max } = _bandDrag;
-  el.classList.remove('band-resizing');
+  const { max } = _bandDrag;
+  document.body.classList.remove('band-resizing');
   _bandDrag = null;
   // Dragged back to the top is not a setting, it is the absence of one —
   // storing it would pin the band to today's row count and stop it growing
@@ -7384,10 +7391,40 @@ function onBandPointerUp() {
     else localStorage.removeItem(BAND_HEIGHT_KEY);
   } catch (err) { /* the height still holds for this session */ }
 }
-document.addEventListener('pointerdown', onBandPointerDown, { passive: false });
+_bandGrip.addEventListener('pointerdown', onBandPointerDown, { passive: false });
 document.addEventListener('pointermove', onBandPointerMove, { passive: false });
 document.addEventListener('pointerup', onBandPointerUp);
 document.addEventListener('pointercancel', onBandPointerUp);
+
+/* ---------- no scrolling the catalogue THROUGH a tab ----------
+ *
+ * `overscroll-behavior: contain` only binds a container that can actually
+ * scroll. A tab whose contents fit — the menu with few rows, «Добірки» with
+ * a couple of entries — is not a scrollport at all, so the gesture goes
+ * straight to the document and the catalogue moves under a screen that is
+ * covering it (owner-reported). Same at either end of one that does scroll,
+ * in browsers that have not implemented `contain`.
+ *
+ * So the last word is here: inside the band, a drag that the band itself
+ * cannot answer is refused rather than handed on. Above the band nothing is
+ * touched — that catalogue is meant to scroll, and it does.
+ */
+let _bandTouchY = null;
+document.addEventListener('touchstart', (e) => {
+  _bandTouchY = e.touches && e.touches.length === 1 ? e.touches[0].clientY : null;
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!menuIsNav() || _bandTouchY == null) return;
+  if (!e.touches || e.touches.length !== 1) return;
+  if (!inBandElement(e.target)) return;
+  const el = openBandElement();
+  const y = e.touches[0].clientY;
+  const dy = y - _bandTouchY;                     // > 0 means the finger went down
+  _bandTouchY = y;
+  const canScrollUp = el.scrollTop > 0;
+  const canScrollDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+  if ((dy > 0 && !canScrollUp) || (dy < 0 && !canScrollDown)) e.preventDefault();
+}, { passive: false });
 
 /* ---------- back, rather than closed ----------
  *
