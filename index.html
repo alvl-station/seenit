@@ -320,6 +320,10 @@
   }
   /* The row and its unfollow travel together, and the row keeps all the
      room it had — the × is the narrow one. */
+  /* First in the list and marked as different in kind: it is the one row
+     here nobody curated and nobody can link — following the person is what
+     brings it. */
+  .friend-col.is-recommends { border-color: var(--flash); }
   .friend-row-pair { display: flex; align-items: stretch; gap: 2px; }
   .friend-row-pair .friend-row { flex: 1; min-width: 0; }
   .friend-unfollow {
@@ -327,10 +331,13 @@
     /* Wide enough to be a target rather than a decoration — the same 44px
        rule every icon here follows. */
     min-width: 44px;
-    background: none; border: 1px solid var(--border); border-radius: 2px;
-    color: var(--text-muted); cursor: pointer;
+    background: none; border: 1px solid var(--blood); border-radius: 2px;
+    /* Red, like the button on the person's own screen — the same act, and
+       the row beside it is a tap away, so it should never read as neutral. */
+    color: var(--blood); cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+  .friend-unfollow:active { color: var(--flash); border-color: var(--flash); }
   @media (hover: hover) { .friend-unfollow:hover { color: var(--flash); border-color: var(--flash); } }
   .recs-list-pair { display: inline-flex; align-items: stretch; }
   .recs-list-del {
@@ -1135,21 +1142,27 @@
   .friend-col-add svg { width: 15px; height: 15px; }
   .friend-col-add:hover { background: rgba(0, 0, 0, .25); }
   .friend-col-add[disabled] { opacity: .4; cursor: default; }
-  .friend-col-have {
+  /* Two different sentences that happen to look alike: «вже додано» is a
+     state of THIS collection, «з підпискою» explains where the recommends
+     row comes from. Same quiet setting, separate names, so a rule (or a
+     test) about one never silently catches the other. */
+  .friend-col-have, .friend-col-note {
     flex: none; padding-right: 12px;
     font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--slate);
   }
   .friend-col.is-have .friend-col-name { color: var(--ash); }
 
-  /* «Підписатися» is the action and wears the action's weight. «Ви
-     підписані» is a STATE — the same button, already done — and a filled
-     blood block for it shouted louder than anything else on the screen while
-     asking for nothing. Quiet, outlined, still tappable to undo. */
+  /* «Відписатися» is red because it takes something away — their
+     recommends collection leaves the shelf with the subscription. Blood at
+     rest, flash on press: flash is never a resting colour (BRAND §palette).
+     It shouted, once, when it was a quiet state label wearing a loud block;
+     now it names a destructive action and the volume is the warning. */
   #friendFollow.opt.active {
-    background: none; border-color: var(--border); color: var(--ash);
+    background: var(--blood); border-color: var(--blood); color: var(--paper);
   }
+  #friendFollow.opt.active:active { background: var(--flash); border-color: var(--flash); }
   @media (hover: hover) {
-    #friendFollow.opt.active:hover { border-color: var(--blood); color: var(--dust); }
+    #friendFollow.opt.active:hover { background: var(--flash); border-color: var(--flash); }
   }
 
   /* ---------- boot splash ----------
@@ -9840,13 +9853,33 @@ async function showFriend(username) {
  * them — «Друзі» and «Добірки» → «Від друзів». Two renderings of the same
  * thing drift, and the «+» is the part that must not.
  */
-function friendColsHtml(cols) {
+/**
+ * One person's collections, with what they recommend at the top of them.
+ *
+ * «Рекомендовано <name>» is listed AS a collection and always first (owner's
+ * call). It is the one list on this screen that needs no curating and is
+ * never empty by accident, so it is the most useful thing to open — and it
+ * was previously a grid of posters at the BOTTOM, under everything, where it
+ * read as an afterthought rather than as the person's main answer to "what
+ * should I watch".
+ *
+ * It carries no «+»: it is not a collection anybody can link. Following the
+ * person is what puts it on your shelf, and it leaves when you unfollow, so
+ * offering to add it would be offering something that is already decided.
+ */
+function friendColsHtml(cols, person) {
   // Already on the shelf is not an error and not a second «+» — the row says
   // so and stops offering. linkedKeys is the shelf's own truth, so a
   // collection added from anywhere else reads as added here too.
   const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
-  return (cols || []).length
-    ? `<div class="friend-cols">${cols.map(c => {
+  const rec = person && (person.recommended || []).length
+    ? `<div class="friend-col is-recommends">
+         <span class="friend-col-name">Рекомендовано ${esc(person.username)} <span class="friend-col-count">${person.recommended.length} ${pluralFilmsAndShows(person.recommended.length)}</span></span>
+         <span class="friend-col-note">${person.following ? 'у тебе на полиці' : 'з підпискою'}</span>
+       </div>`
+    : '';
+  const rows = (cols || []).length
+    ? `${cols.map(c => {
         const have = linkedKeys.has(c.key);
         return `<div class="friend-col${have ? ' is-have' : ''}">
             <!-- The count says WHAT it counts, in blood (owner's call). A
@@ -9860,24 +9893,27 @@ function friendColsHtml(cols) {
               ? '<span class="friend-col-have">вже в тебе</span>'
               : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
           </div>`;
-      }).join('')}</div>`
-    : '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+      }).join('')}`
+    : '';
+  if (!rec && !rows) {
+    return '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+  }
+  return `<div class="friend-cols">${rec}${rows}</div>`;
 }
 
 function renderFriendDetail(body) {
   const p = openFriend;
-  const colsHtml = friendColsHtml(p.collections);
-  // Not gated on recommended_public any more: the SERVER decides who may
-  // read the list — everyone if it was opened, otherwise this person's
-  // followers — and it simply does not send what the reader may not see.
-  // Checking the flag here would hide from a follower a list the server had
-  // already handed over.
-  const recHtml = (p.recommended || []).length
-    ? `<div class="cf-label" style="margin-top:14px">Рекомендує</div>${pickGridHtml((p.recommended || []).map(m => ({
-        title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
-        year: m.year, poster_url: m.poster_url,
-      })))}`
-    : '';
+  // What they recommend is the FIRST row of their collections now, not a
+  // grid at the bottom — see friendColsHtml. It was under everything else,
+  // where the person's main answer to "what should I watch" read as an
+  // afterthought.
+  //
+  // Not gated on recommended_public: the SERVER decides who may read the
+  // list — everyone if it was opened, otherwise this person's followers —
+  // and it simply does not send what the reader may not see. Checking the
+  // flag here would hide from a follower a list the server had already
+  // handed over.
+  const colsHtml = friendColsHtml(p.collections, p);
   body.innerHTML = `
     <div class="friend-head">
       <button class="btn-ghost friend-back" id="friendBack" type="button">← Усі</button>
@@ -9889,7 +9925,7 @@ function renderFriendDetail(body) {
            tells you the state, because it could not be offered otherwise. -->
       ${p.following === null ? '' : `<button class="opt${p.following ? ' active' : ''}" id="friendFollow" type="button">${p.following ? 'Відписатися' : 'Підписатися'}</button>`}
     </div>
-    ${colsHtml}${recHtml}`;
+    ${colsHtml}`;
   body.querySelector('#friendBack').addEventListener('click', () => { openFriend = null; renderFriends(); });
   const follow = body.querySelector('#friendFollow');
   if (follow) follow.addEventListener('click', () => togglePersonFollow(p.username, !p.following, follow));
@@ -9899,6 +9935,20 @@ function renderFriendDetail(body) {
 
 /** Follow or unfollow, from wherever the button was drawn. */
 async function togglePersonFollow(username, on, btn) {
+  // Unfollowing is asked about, following is not. They are not symmetrical:
+  // the × sits a finger-width from the row that opens the person, and what
+  // leaves with the subscription is not just the name — their recommends
+  // collection goes off the shelf with it. Following back is one tap; being
+  // asked once is cheaper than discovering the loss later.
+  if (!on) {
+    const ok = await askConfirm({
+      title: `Відписатися від ${username}?`,
+      lines: [`Добірка «Рекомендовано ${username}» зникне з твоєї полиці.`,
+              'Підписатися знову можна будь-коли.'],
+      goText: 'Відписатися',
+    });
+    if (!ok) return;
+  }
   if (btn) btn.disabled = true;
   try {
     const res = await fetch(`${API_PROXY}/library/subs/${encodeURIComponent(username)}`, {
@@ -9969,7 +10019,7 @@ function renderRecsFriend(body) {
       <button class="btn-ghost friend-back" id="recsFriendBack" type="button">← Усі</button>
       <span class="friend-title">${esc(p.username)}</span>
     </div>
-    ${friendColsHtml(p.collections)}`;
+    ${friendColsHtml(p.collections, p)}`;
   body.querySelector('#recsFriendBack').addEventListener('click', () => { _recsFriend = null; renderRecs(); });
   body.querySelectorAll('[data-add-col]').forEach(el =>
     el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
