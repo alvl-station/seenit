@@ -2543,6 +2543,43 @@ function parseCollectionKey(key) {
   return { owner, collectionId };
 }
 
+/* ---------- sharing a collection as a link ----------
+ *
+ * The key was already the whole address — owner/collection_id, a pair
+ * because two people can both own "my_films". Sharing handed that string
+ * over and expected it to be pasted somewhere. A link carries the same pair
+ * and needs no explaining.
+ *
+ * In the HASH rather than the query string, and that is not cosmetic: the
+ * page is served by GitHub Pages, which has no routing — a path or a query
+ * it does not recognise is a 404 before the app ever runs. Everything after
+ * # never reaches the server.
+ */
+function collectionLink(origin, key) {
+  const pair = parseCollectionKey(key);
+  if (!pair) return null;
+  const base = String(origin || '').replace(/[#?].*$/, '').replace(/\/+$/, '');
+  return `${base}/#/c/${encodeURIComponent(pair.owner)}/${encodeURIComponent(pair.collectionId)}`;
+}
+
+/**
+ * A link (or just its hash) -> the collection it points at, or null.
+ *
+ * Tolerant about what it is handed — a whole URL, the hash alone, with or
+ * without the leading slash — because this reads something a person may have
+ * typed, pasted, or had mangled by a chat app on the way.
+ */
+function parseCollectionLink(href) {
+  const hash = String(href || '').split('#')[1] || '';
+  const m = hash.match(/^\/?c\/([^/?#]+)\/([^/?#]+)/);
+  if (!m) return null;
+  try {
+    return parseCollectionKey(`${decodeURIComponent(m[1])}/${decodeURIComponent(m[2])}`);
+  } catch (err) {
+    return null;   // malformed percent-encoding is not an address
+  }
+}
+
 /** One film inside a collection I own. */
 function collectionFilmUrl(base, collectionId, tmdbId) {
   const n = Number(tmdbId);
@@ -4524,7 +4561,7 @@ if (typeof module !== 'undefined' && module.exports) {
     toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
     CATALOGUE_PAGE, MY_FILMS_ID, MY_FILMS_NAME,
     markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
-    refUrl, parseCollectionKey,
+    refUrl, parseCollectionKey, collectionLink, parseCollectionLink,
     localCatalogueKey, localCatalogueVersionKey, localCatalogueSyncedAtKey,
     needsFullCatalogueLoad, CATALOGUE_FULL_RELOAD_MS,
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify, collectionIdFrom,
@@ -4726,6 +4763,17 @@ const logoutBtn = document.getElementById('logoutBtn');
  * ever lifts it, so if Firebase never answers (blocked script, dead network
  * on a cold load) the spinner would turn forever with no way past it. After
  * 8 seconds the login screen is the honest thing to show. */
+// Declared up here, not beside the functions that use it: the capture below
+// runs before them, and a `let` reached before its declaration throws rather
+// than reading undefined. It is only touched when sessionStorage refuses —
+// private mode — which is exactly the path least likely to be exercised.
+let _pendingCollection = null;
+
+// Read BEFORE auth does anything: registering, the Google redirect and a
+// stray refresh can all reload the page, and a target held only in memory
+// would not survive any of them.
+rememberPendingCollection();
+
 const bootSplash = document.getElementById('bootSplash');
 let authAnswered = false;
 let bootLifted = false;
@@ -4895,7 +4943,6 @@ auth.onAuthStateChanged(user => {
       // page lands, and the marks re-render over it when they arrive.
       loadCatalog();
       loadMarks(user.uid);
-      loadShelf();
       loadSubs();
       loadServices(user.uid);
       loadMe();
@@ -4905,9 +4952,18 @@ auth.onAuthStateChanged(user => {
       const marksPath = userMarksPath(user.uid, 'watched');
       if (marksPath) {
         db.ref(`kino/users/${user.uid}/onboarded`).once('value')
-          .then(snap => { if (!snap.val()) openOnboarding(); })
+          .then(snap => {
+            // Somebody who followed a link came here to see a collection,
+            // not to read the guide. It is SKIPPED and NOT marked as read
+            // (owner's call): they still have it coming the next time they
+            // open the app on their own, which is when it is worth reading.
+            if (!snap.val() && !hasPendingCollection()) openOnboarding();
+          })
           .catch(() => { /* offline: the guide can wait */ });
       }
+      // After the shelf, because "is this collection already mine" cannot be
+      // answered before it has loaded.
+      loadShelf().then(openPendingCollection).catch(() => { /* reported inside */ });
     }
   } else {
     // Emptied on the way OUT as well as on the way in. The screen is hidden
@@ -5785,6 +5841,94 @@ function resetAccountState() {
   likedPublic = false;
   moviesLoaded = false;
   render();
+}
+
+/** Clipboard where it is allowed, and a prompt to copy from where it is not. */
+function copyOrPrompt(text, done) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => window.prompt('Посилання на добірку:', text));
+  } else {
+    window.prompt('Посилання на добірку:', text);
+  }
+}
+
+/* ---------- arriving on a shared collection link ----------
+ *
+ * Somebody hands you a link to their collection. You may not be signed in;
+ * you may not have an account at all. Either way the link has to still mean
+ * something at the end of that, which is the whole difficulty: signing in
+ * reloads nothing here, but registering, the Google redirect and a stray
+ * refresh all can, and each would lose a target held only in memory.
+ *
+ * So it is written to sessionStorage the moment the page opens and read back
+ * after sign-in. sessionStorage rather than localStorage on purpose: it
+ * belongs to this tab and this visit, and a link followed last week must not
+ * reopen a collection today.
+ *
+ * The hash is cleared immediately. Leaving it would reopen the collection on
+ * every refresh, long after the person had gone somewhere else.
+ */
+const PENDING_COLLECTION_KEY = 'seenit_pending_collection';
+
+function rememberPendingCollection() {
+  const target = parseCollectionLink(window.location.href);
+  if (!target) return;
+  try {
+    sessionStorage.setItem(PENDING_COLLECTION_KEY, `${target.owner}/${target.collectionId}`);
+  } catch (err) {
+    // Private mode can refuse storage. The link then works only if the
+    // person is already signed in, which is better than not at all.
+    _pendingCollection = `${target.owner}/${target.collectionId}`;
+  }
+  // Same address, no hash: replaceState leaves no entry to go «back» into.
+  try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (err) { /* older engines */ }
+}
+function takePendingCollection() {
+  let key = _pendingCollection;
+  _pendingCollection = null;
+  try {
+    key = key || sessionStorage.getItem(PENDING_COLLECTION_KEY);
+    sessionStorage.removeItem(PENDING_COLLECTION_KEY);
+  } catch (err) { /* nothing stored */ }
+  return key || null;
+}
+
+function hasPendingCollection() {
+  if (_pendingCollection) return true;
+  try { return !!sessionStorage.getItem(PENDING_COLLECTION_KEY); } catch (err) { return false; }
+}
+
+/**
+ * Opens the collection the link pointed at, linking it onto the shelf first
+ * if it is not there.
+ *
+ * Called after the shelf has loaded, because "is it already mine" cannot be
+ * answered before that — and answering it wrong means either a duplicate
+ * link or an attempt to open a collection the app does not hold.
+ */
+async function openPendingCollection() {
+  const key = takePendingCollection();
+  if (!key) return;
+  const pair = parseCollectionKey(key);
+  if (!pair) return;
+  let col = shelf.find(c => c.key === key);
+  if (!col) {
+    try {
+      const res = await fetch(refUrl(API_PROXY, pair.owner, pair.collectionId), {
+        method: 'PUT', headers: await proxyHeaders({ accept: 'application/json' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadShelf();
+      col = shelf.find(c => c.key === key);
+    } catch (err) {
+      // A private collection, a deleted one, or a mistyped link. Saying so
+      // beats landing somebody on the catalogue with no explanation.
+      toast('error', 'Не вдалося відкрити добірку за посиланням');
+      return;
+    }
+  }
+  if (col) openCollectionAsCatalog(col);
+  else toast('error', 'Такої добірки більше немає');
 }
 
 /* ---------- what this account is allowed to do ----------
@@ -9321,12 +9465,19 @@ function renderPlateActions() {
   if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
   const share = el.querySelector('#plateShareBtn');
   if (share) share.addEventListener('click', () => {
-    const done = () => toast('success', `Ключ скопійовано: ${col.key}`);
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(col.key).then(done).catch(() => window.prompt('Ключ добірки:', col.key));
-    } else {
-      window.prompt('Ключ добірки:', col.key);
+    // A LINK, not the key it is built from (owner's call). The key was the
+    // whole address already, but it had to be explained and pasted
+    // somewhere; a link opens the collection by itself, and takes whoever
+    // follows it through signing in or signing up on the way.
+    const url = collectionLink(window.location.href, col.key) || col.key;
+    const done = () => toast('success', 'Посилання скопійовано');
+    // The native sheet where there is one: it is how a link reaches a chat,
+    // and on a phone that is where it is going.
+    if (navigator.share) {
+      navigator.share({ title: col.name, url }).catch(() => copyOrPrompt(url, done));
+      return;
     }
+    copyOrPrompt(url, done);
   });
   const pub = el.querySelector('#platePublicBtn');
   if (pub) pub.addEventListener('click', async () => {
