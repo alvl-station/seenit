@@ -1227,6 +1227,11 @@
   }
   .acc-form input:focus { outline: none; border-color: var(--flash); }
   .acc-hint { font-size: 11.5px; color: var(--text-muted); margin: -2px 0 10px; line-height: 1.45; }
+  /* The username field answers as you type, and the answer has to be
+     distinguishable from the rule it replaces — muted grey saying "taken"
+     reads as more instructions rather than as a refusal. */
+  .acc-hint.is-bad { color: var(--flash); }
+  .acc-hint.is-good { color: var(--ok); }
   .acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   .acc-services { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
   /* The native checkbox goes away visually but stays in the DOM: it is what
@@ -3967,9 +3972,17 @@ function youtubeVideoId(url) {
  */
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
+  // playsinline=1 is not optional on iOS and its absence is why the trailer
+  // hung on first open (owner-reported, twice). Without it Safari refuses to
+  // start a video INSIDE the frame and waits to be taken fullscreen — which
+  // never happens here, so the player sits at "unstarted" and our cover,
+  // which lifts on PLAYING and nothing else, stays up for ever. A second
+  // open looked fine because by then the video was cached and Safari let it
+  // through.
+  //
   // loop=1 alone loops a PLAYLIST, not a video — for a single video YouTube
   // requires playlist to repeat the same id, or it just stops at the end.
-  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
+  return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
 }
 
 /* ---------- the name people find you under ----------
@@ -3984,6 +3997,16 @@ function youtubeEmbedUrl(url) {
  * a romanisation is the app deciding how somebody is spelled, and it would
  * be wrong often enough to be insulting.
  */
+// Four, not one: a one- or two-letter name is not a handle anybody could
+// usefully search for, and the short ones are what a land-grab takes first.
+// Mirrors USERNAME_MIN in the Worker.
+const USERNAME_MIN = 4;
+
+/** Long enough to store? Measured on the normalized form, never the typing. */
+function searchNameLongEnough(raw) {
+  return normalizeSearchName(raw).length >= USERNAME_MIN;
+}
+
 function normalizeSearchName(raw) {
   return String(raw || '').trim().toLowerCase()
     // A space is a separator, not noise: «Vlad Aloshyn» is vlad.aloshyn.
@@ -4225,7 +4248,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TMDB_GENRE_MAP, mapGenre, primaryGenre, isAnime, slugify, collectionIdFrom,
     pickTrailer, youtubeVideoId, youtubeEmbedUrl,
     PROVIDER_KINDS, MEGOGO_LOGO, providerLogoUrl, providerKindLabel, providerLinkUrl, sortProviders,
-    normalizeSearchName, defaultSearchName,
+    normalizeSearchName, defaultSearchName, searchNameLongEnough, USERNAME_MIN,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, trashTimeLeftLabel,
@@ -5624,12 +5647,35 @@ function liftTrailerVeil() {
     if (!iframe.contentWindow) return;
     iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 'seenit-trailer', channel: 'widget' }), '*');
   };
-  iframe.addEventListener('load', () => {
+  // Subscribing AND asking it to play, repeatedly, until it says it is
+  // playing. Two separate failures made this necessary, and neither can be
+  // observed from out here:
+  //
+  //   The player may not answer «listening» for seconds on a cold start. The
+  //   old three attempts all landed inside the first 1.2s, so a slow player
+  //   was never subscribed at all — no state ever arrived, nothing could
+  //   react to it, and the cover stayed up for ever.
+  //
+  //   Autoplay may simply not take (measured: state -1, still -1 twelve
+  //   seconds later). Waiting to be TOLD that, then asking, needs the first
+  //   failure not to have happened.
+  //
+  //   So playVideo goes out on the same schedule rather than only in reply
+  //   to a state message. It costs nothing when the video is already
+  //   playing, and it is allowed at all because the embed is muted.
+  const wake = () => {
+    if (!iframe.contentWindow) return;
     subscribe();
-    // Asked more than once on purpose: the frame's load and the player's
-    // readiness inside it are not the same moment, and a subscription sent
-    // into the gap is simply dropped.
-    _veilTimers.push(setTimeout(subscribe, 400), setTimeout(subscribe, 1200));
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+  };
+  iframe.addEventListener('load', () => {
+    wake();
+    // Backing off rather than hammering: dense at the start, where a fast
+    // player is missed by a hair, then spaced out to cover a slow one
+    // without a message every frame for ten seconds.
+    for (const delay of [300, 800, 1500, 2500, 4000, 6000, 9000]) {
+      _veilTimers.push(setTimeout(wake, delay));
+    }
   }, { once: true });
 
   _playerListener = (e) => {
@@ -5662,7 +5708,9 @@ function liftTrailerVeil() {
     }
     if (state === 1) {   // PLAYING
       lift();
-      clearPlayerListener();
+      // The pending wake-ups have nothing left to do, and a playVideo
+      // arriving after somebody has paused it by hand would fight them.
+      clearVeilWatch();
     }
   };
   window.addEventListener('message', _playerListener);
@@ -7853,24 +7901,22 @@ function openAccount() {
          you are signed in as» (owner-reported: it looked like debug text). -->
     <div class="acc-label">Акаунт</div>
     <div class="acc-name">${esc(username)}</div>
-    <!-- The name people find you under, and it is NOT the one above: that
-         one comes from Google and is only ever shown to you. This one is
-         stored, and it is what «Друзі» searches. Folded shut like the
-         password form — most people will never touch it, and a form standing
-         open reads as something you were supposed to fill in. -->
-    <button class="acc-toggle" type="button" id="accNameToggle" aria-expanded="false">
-      <span>Імʼя для пошуку</span>
-      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <form class="acc-form" id="accNameForm" hidden>
+    <!-- Username stands open, unlike the password form below it (owner's
+         call). A password is a rare errand and folds away; this is the one
+         thing on this screen other people see, and hiding it behind a
+         disclosure meant nobody would find it. It is NOT the name above —
+         that one comes from Google and is only ever shown to you. -->
+    <form class="acc-form" id="accNameForm">
       <label class="acc-field">
-        <span class="acc-field-lbl">Як вас знаходити</span>
-        <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="${esc(defaultSearchName(user))}">
+        <span class="acc-field-lbl">Username</span>
+        <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(defaultSearchName(user))}" placeholder="${esc(defaultSearchName(user))}">
       </label>
-      <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>
-      <div class="acc-form-actions">
+      <div class="acc-hint" id="accNameNote">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>
+      <!-- Hidden until something is actually different (owner's call): a
+           Save standing there over an unchanged field invites a tap that
+           does nothing, and reads as work waiting to be done. -->
+      <div class="acc-form-actions" id="accNameActions" hidden>
         <button class="btn on-watched" type="submit" id="accNameBtn">Зберегти</button>
-        <button class="btn" type="button" id="accNameCancel">Скасувати</button>
       </div>
     </form>
     ${viaGoogle ? `
@@ -7933,38 +7979,98 @@ function openAccount() {
     passToggle.addEventListener('click', () => setPassOpen(accountBox.querySelector('#accPassForm').hidden));
     accountBox.querySelector('#accPassCancel').addEventListener('click', () => setPassOpen(false));
   }
-  // The searchable name, same fold as the password form above.
-  const nameToggle = accountBox.querySelector('#accNameToggle');
-  if (nameToggle) {
-    const nameForm = accountBox.querySelector('#accNameForm');
+  // Username: open, live-checked, and saved on its own button.
+  const nameForm = accountBox.querySelector('#accNameForm');
+  if (nameForm) {
     const nameInput = accountBox.querySelector('#accName');
-    const setNameOpen = open => {
-      nameForm.hidden = !open;
-      nameToggle.setAttribute('aria-expanded', String(open));
-      if (open) nameInput.focus();
+    const note = accountBox.querySelector('#accNameNote');
+    const saveBtn = accountBox.querySelector('#accNameBtn');
+    const actions = accountBox.querySelector('#accNameActions');
+    const RULE = `Латинські літери, цифри, крапка, дефіс і підкреслення. Від ${USERNAME_MIN} до 32 символів.`;
+    const seeded = defaultSearchName(auth.currentUser);
+    let checkTimer = null;
+    let checkedFor = null;   // the name the note is currently describing
+
+    // What is on the server right now. Save appears only when the field
+    // says something else — so this must be the STORED name, not one
+    // derived from Google. Until the answer arrives the derived spelling
+    // stands in, which is what the server seeded anyway.
+    let saved = defaultSearchName(auth.currentUser);
+    proxyHeaders()
+      .then(headers => fetch(`${API_PROXY}/library/me`, { headers }))
+      .then(r => (r.ok ? r.json() : null))
+      .then(me => {
+        if (!me || !me.username) return;
+        saved = me.username;
+        // Only if nobody has started typing — replacing what somebody is
+        // in the middle of writing would be worse than showing a guess.
+        if (document.activeElement !== nameInput) nameInput.value = me.username;
+        syncSaveVisibility();
+      })
+      .catch(() => { /* the derived spelling stands */ });
+    const syncSaveVisibility = () => {
+      const now = normalizeSearchName(nameInput.value);
+      actions.hidden = now === saved || !searchNameLongEnough(now);
     };
-    nameToggle.addEventListener('click', () => setNameOpen(nameForm.hidden));
-    accountBox.querySelector('#accNameCancel').addEventListener('click', () => setNameOpen(false));
-    // Normalising as you type, rather than on save, so the spelling that
-    // gets stored is the one you watched yourself produce. Saving something
-    // other than what the field showed is the kind of small dishonesty that
-    // makes people stop trusting a form.
+
+    const setNote = (text, kind) => {
+      note.textContent = text;
+      note.classList.toggle('is-bad', kind === 'bad');
+      note.classList.toggle('is-good', kind === 'good');
+    };
+
+    // Debounced, because this runs while somebody types and every keystroke
+    // would otherwise be a request. 400ms is a pause, not a rhythm.
+    const CHECK_AFTER_MS = 400;
+    const check = async (name) => {
+      try {
+        const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(name)}/free`, {
+          headers: await proxyHeaders(),
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        if (normalizeSearchName(nameInput.value) !== name) return;   // typed on since
+        checkedFor = name;
+        if (body.free) setNote(body.mine ? 'Це ваш поточний username' : `${name} вільний`, 'good');
+        else setNote(`${name} вже зайнятий`, 'bad');
+      } catch (err) {
+        // The check is a courtesy; the UNIQUE index is the guard. Failing
+        // quietly leaves the rule showing and Save still works.
+      }
+    };
+
     nameInput.addEventListener('input', () => {
+      // Normalising as you type, so the spelling that gets stored is the one
+      // you watched yourself produce. A field that accepts one thing and
+      // saves another is the kind of small dishonesty that makes people stop
+      // trusting a form.
       const at = nameInput.selectionStart;
       const before = nameInput.value;
       const after = normalizeSearchName(before);
-      if (after === before) return;
-      nameInput.value = after;
-      // Keep the caret where the typing was, not thrown to the end.
-      const shift = before.length - after.length;
-      try { nameInput.setSelectionRange(Math.max(0, at - shift), Math.max(0, at - shift)); } catch (err) { /* not all inputs allow it */ }
+      if (after !== before) {
+        nameInput.value = after;
+        const shift = before.length - after.length;
+        try { nameInput.setSelectionRange(Math.max(0, at - shift), Math.max(0, at - shift)); } catch (err) { /* not all inputs allow it */ }
+      }
+      syncSaveVisibility();
+      clearTimeout(checkTimer);
+      checkedFor = null;
+      setNote(RULE, null);
+      // Nothing is asked until the name could actually be stored. Below the
+      // minimum every keystroke would fetch an answer that is always "no",
+      // and «зайнятий» is the wrong word for «надто коротко».
+      if (!searchNameLongEnough(after)) return;
+      checkTimer = setTimeout(() => check(after), CHECK_AFTER_MS);
     });
+
     nameForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const wanted = normalizeSearchName(nameInput.value) || defaultSearchName(auth.currentUser);
-      if (!wanted) { toast('error', 'Потрібні латинські літери або цифри'); return; }
-      const btn = accountBox.querySelector('#accNameBtn');
-      btn.disabled = true;
+      const wanted = normalizeSearchName(nameInput.value) || seeded;
+      if (!searchNameLongEnough(wanted)) {
+        setNote(`Щонайменше ${USERNAME_MIN} символи латиницею або цифрами`, 'bad');
+        return;
+      }
+      saveBtn.disabled = true;
       try {
         const res = await fetch(`${API_PROXY}/library/users/me/name`, {
           method: 'PUT',
@@ -7972,15 +8078,19 @@ function openAccount() {
           body: JSON.stringify({ username: wanted }),
         });
         const body = await res.json().catch(() => ({}));
-        if (res.status === 409) { toast('error', 'Таке імʼя вже зайняте'); return; }
+        // 409 is the UNIQUE index objecting — the live check is only ever a
+        // courtesy, and two people can pass it on the same name at once.
+        if (res.status === 409) { setNote(`${wanted} вже зайнятий`, 'bad'); return; }
         if (!res.ok) { toast('error', body.error || 'Не вдалося зберегти'); return; }
         nameInput.value = body.username || wanted;
+        saved = body.username || wanted;
+        syncSaveVisibility();
+        setNote('Збережено', 'good');
         toast('ok', `Вас знайдуть як ${body.username || wanted}`);
-        setNameOpen(false);
       } catch (err) {
         toast('error', 'Не вдалося зберегти');
       } finally {
-        btn.disabled = false;
+        saveBtn.disabled = false;
       }
     });
   }
