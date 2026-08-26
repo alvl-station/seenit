@@ -565,86 +565,66 @@
   }
   .sheet.open { transform: none; visibility: visible; transition: transform .22s ease-out; }
 
-  /* ---------- the menu as navigation, on a phone ----------
+  /* ---------- the menu and its screens, on a phone ----------
    *
-   * Owner's call. Picking a row used to dismiss the menu, so moving between
-   * «Добірки», «Друзі» and «Акаунт» was three trips back to the hamburger.
-   * The menu stays now, the picked screen comes DOWN from the top, and the
-   * screen scrolls inside itself rather than pushing the menu off the
-   * bottom — which is what makes the menu usable as a set of tabs.
+   * Owner's call, second pass. A screen picked from the menu opens the way
+   * a sheet opens — from the BOTTOM, in the menu's own place — rather than
+   * hanging from the top with the menu still under it. One thing at the
+   * bottom edge at a time, always in the same spot, so the thumb never has
+   * to go looking.
    *
-   * Three things have to be true at once for that to work:
-   *   the panel must sit ABOVE the menu's backdrop (it was at z-index 50,
-   *   under it at 80, so it would have opened invisible);
-   *   the menu must sit above the panel, or it stops being tappable;
-   *   the panel must end where the menu begins, hence --menu-h, measured
-   *   because the row count changes with the account.
+   * The way out of a screen is BACK, not closed: it returns to the menu it
+   * came from, so picking the wrong row costs one tap instead of reopening
+   * the hamburger.
    *
-   * Phone only: past 640px there is room for the sheets to work the way
-   * they always have. */
+   * And the catalogue behind stays live. Locking it made sense when a
+   * screen covered everything; a sheet covers the bottom half, and the top
+   * half is a perfectly good catalogue that used to refuse to move.
+   *
+   * Phone only: past 640px the sheets already sit where there is room for
+   * them and nothing here applies. */
   @media (max-width: 640px) {
-    body.menu-nav #menuSheet { z-index: 84; }
-
-    /* The screens that are modals. The overlay keeps its darkening but
-       gives up its padding: the panel is hung from the top edge. */
-    body.menu-nav .modal-overlay {
+    /* «Добірки», «Друзі» and «Акаунт» are modals; the rest are already
+       sheets. This is what makes the two arrive the same way. */
+    body.sheet-nav .modal-overlay {
       z-index: 82;
-      align-items: flex-start;
-      /* No side padding: the panel is exactly as wide as the menu below it
-         (owner's call). Inset by even 10px it read as a window floating
-         over the menu rather than as the other half of the same control —
-         and the two edges not lining up is what gave that away. */
+      align-items: flex-end;
       padding: 0;
-      /* The overlay itself must not scroll — the PANEL does. An overlay
-         that scrolls takes the panel's top edge away with it, and «comes
-         down from the top» stops being true after the first flick. */
       overflow: hidden;
+      /* Touches pass through to the catalogue above the sheet — see the
+         backdrop rule below for why that is the point. */
+      background: none; backdrop-filter: none; pointer-events: none;
     }
-    body.menu-nav .modal-overlay > .modal {
-      /* Full width, like the sheets — .modal caps itself at 560px, which is
-         wider than a phone and so never bit, but stating it keeps the two
-         from drifting apart on a wide phone or a folded screen. */
-      max-width: none; border-left: 0; border-right: 0;
-      max-height: calc(100dvh - var(--menu-h, 0px) - 20px);
+    body.sheet-nav .modal-overlay > .modal {
+      pointer-events: auto;
+      max-width: none; border-left: 0; border-right: 0; border-bottom: 0;
+      border-radius: 16px 16px 0 0;
+      max-height: 80vh;
       overflow-y: auto;
-      border-top-left-radius: 0; border-top-right-radius: 0;
-      animation: panel-down .22s ease-out;
+      animation: sheet-up .22s ease-out;
     }
 
-    /* The screens that are sheets — Налаштування, Кошик, Адмін. Same idea,
-       flipped: they came up from the bottom, which is where the menu now
-       lives, so they would have opened underneath it. */
-    body.menu-nav #settingsSheet,
-    body.menu-nav #trashSheet,
-    body.menu-nav #adminSheet {
-      top: 0; bottom: auto; z-index: 82;
-      border-radius: 0 0 16px 16px;
-      max-height: calc(100dvh - var(--menu-h, 0px) - 20px);
-      transform: translateY(-105%);
-    }
-    body.menu-nav #settingsSheet.open,
-    body.menu-nav #trashSheet.open,
-    body.menu-nav #adminSheet.open { transform: none; }
+    /* Nothing blocks the catalogue. The uncovered part of the screen is a
+       working catalogue — it scrolls, and what the thumb lands on is what
+       it looks like it will land on. The cost is that tapping outside no
+       longer dismisses; the back arrow and the hamburger are the ways out,
+       and both are visible. */
+    body.sheet-nav .sheet-backdrop { pointer-events: none; }
 
-    /* One darkening, not two stacked. The menu's backdrop is already
-       covering the catalogue; a second one over it only makes the panel
-       look like it is behind glass. */
-    body.menu-nav #settingsBackdrop,
-    body.menu-nav #trashBackdrop,
-    body.menu-nav #adminBackdrop { display: none; }
+    /* Back, not closed: red, and no disc behind it. The disc is what makes
+       the cross read as «dismiss this»; an arrow with nothing behind it
+       reads as a direction. */
+    .modal-close.is-back, .hicon.is-back {
+      background: none; color: var(--flash);
+    }
+    .modal-close.is-back:active, .hicon.is-back:active { color: var(--blood); }
   }
-  /* All the way from above the edge, not a 14px hint of one. The owner's
-     word for it was «вилізає зверху вниз»: it should read as the screen
-     ARRIVING from somewhere, the way the sheets read as arriving from the
-     bottom — a window that simply appears says nothing about where the
-     menu sent you. The overlay clips it, so nothing is visible up there
-     before it starts. */
-  @keyframes panel-down {
-    from { transform: translateY(-100%); }
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
     to   { transform: none; }
   }
   @media (prefers-reduced-motion: reduce) {
-    body.menu-nav .modal-overlay > .modal { animation: none; }
+    body.sheet-nav .modal-overlay > .modal { animation: none; }
   }
   /* A screen that opens OVER the catalogue needs more room under its name
      than a sheet does — there is no edge above it to separate it from what
@@ -7117,49 +7097,101 @@ function wireSheet(sheetId, backdropId) {
     backdrop.hidden = false;
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
-    lockScroll(sheet);
-    if (isMenu) { document.body.classList.add('menu-nav'); syncMenuHeight(); }
+    // On a phone the catalogue behind stays live (owner's call). Locking it
+    // was right when a screen covered everything; a sheet covers the bottom
+    // half, and the top half is a working catalogue that used to refuse to
+    // move. Everywhere else the lock stands.
+    if (!menuIsNav()) lockScroll(sheet);
+    if (isMenu || sheetIsMenuScreen(sheetId)) {
+      syncSheetNav();
+      // These three carry a close in the corner; whether it means «close»
+      // or «back» depends on how the sheet was reached, so it is decided
+      // here rather than baked into the markup.
+      paintExitControl(document.getElementById(`${sheetId.replace(/Sheet$/, '')}CloseBtn`));
+    }
   };
   const close = () => {
-    // Only in nav mode, and that guard is the whole correctness of it. There
-    // a panel is POSITIONED against the menu, so the menu leaving strands
-    // it; everywhere else the panel is an ordinary modal that has nothing to
-    // do with the menu, and cascading would close the very screen the row
-    // just opened — the row's own handler runs first, this one bubbles.
-    if (isMenu && menuIsNav()) closeMenuPanels();
     backdrop.hidden = true;
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
     unlockScroll(sheet);
-    if (isMenu) { document.body.classList.remove('menu-nav'); syncMenuHeight(); }
+    if (isMenu || sheetIsMenuScreen(sheetId)) syncSheetNav();
   };
   backdrop.addEventListener('click', close);
   return { open, close };
 }
+
+/* The sheets a menu row can put on screen. «ФІЛЬТР» is not one of them: it
+ * belongs to the catalogue, not to the menu, and going «back» from it to a
+ * menu nobody opened would be an answer to a question nobody asked. */
+const MENU_SHEET_IDS = ['settingsSheet', 'trashSheet', 'adminSheet'];
+function sheetIsMenuScreen(id) { return MENU_SHEET_IDS.includes(id); }
+
+/* True while the menu, or something the menu opened, is on screen. Drives
+ * the body flag the phone stylesheet keys off. */
+function menuScreenShowing() {
+  if (document.getElementById('menuSheet').classList.contains('open')) return true;
+  if (MENU_SHEET_IDS.some(id => document.getElementById(id).classList.contains('open'))) return true;
+  return ['recsOverlay', 'friendsOverlay', 'accountOverlay']
+    .some(id => document.getElementById(id).classList.contains('open'));
+}
+function syncSheetNav() {
+  document.body.classList.toggle('sheet-nav', menuIsNav() && menuScreenShowing());
+}
+
+/* One thing at the bottom edge at a time.
+ *
+ * With the catalogue left live behind a screen, the header is live too —
+ * which means the hamburger and ФІЛЬТР can be tapped while «Добірки» is
+ * open. Both of those are sheets at z-index 81 and the screen sits at 82,
+ * so without this they would open UNDERNEATH it: a menu you can hear but
+ * not see. Whatever the menu put at that edge steps aside first.
+ */
+const MENU_SCREEN_CLOSERS = [];
+function closeMenuScreens() {
+  if (!menuIsNav()) return;
+  MENU_SCREEN_CLOSERS.forEach(fn => { try { fn(); } catch (err) { /* one bad closer must not strand the rest */ } });
+}
+
 const menuSheet = wireSheet('menuSheet', 'menuBackdrop');
 
-/* Everything a menu row can put on screen. Closing the menu closes them
- * too: a panel hanging from the top with nothing under it belongs to a menu
- * that is no longer there, and the only way back would be the hamburger the
- * panel is covering. */
-const MENU_PANEL_CLOSERS = [];
-function closeMenuPanels() { MENU_PANEL_CLOSERS.forEach(fn => { try { fn(); } catch (err) { /* one bad closer must not strand the rest */ } }); }
-
-/* The menu's own height, so a panel can be told how much room is left.
- * Measured rather than assumed: the row count changes with the account —
- * «Друзі» appears with the first subscription, «Адмін» with the role. */
-const _menuEl = document.getElementById('menuSheet');
-function syncMenuHeight() {
-  const h = _menuEl.classList.contains('open') ? _menuEl.getBoundingClientRect().height : 0;
-  document.documentElement.style.setProperty('--menu-h', `${Math.round(h)}px`);
+/* ---------- back, rather than closed ----------
+ *
+ * On a phone the menu is the only door to these six screens, so leaving one
+ * means going back to it. Saying so is the difference between picking the
+ * wrong row costing one tap and costing three. The control is the same
+ * button in the same corner; only what it means changes, so it changes what
+ * it looks like: an arrow, red, with no disc behind it. The disc is what
+ * makes a cross read as «dismiss»; an arrow with nothing behind it reads as
+ * a direction.
+ *
+ * There is deliberately no «did this come from the menu» flag. It would be
+ * guarding a case that does not exist — no other control opens any of these
+ * — and it would depend on a listener order that is not ours to rely on: a
+ * row's own handler runs before the menu's delegated one, so the flag was
+ * being read one tap late. If a screen ever gains a second door, that is
+ * when the question becomes worth asking.
+ */
+function paintExitControl(btn) {
+  if (!btn) return;
+  const back = menuIsNav();
+  btn.innerHTML = back ? ICON.back : ICON.close;
+  btn.classList.toggle('is-back', back);
+  btn.title = back ? 'Назад до меню' : 'Закрити';
+  btn.setAttribute('aria-label', btn.title);
 }
-if (typeof ResizeObserver === 'function') new ResizeObserver(syncMenuHeight).observe(_menuEl);
-window.addEventListener('resize', syncMenuHeight);
+/** What an exit control does: step back to the menu, or simply close. */
+function exitScreen(closeFn) {
+  const back = menuIsNav();
+  closeFn();
+  if (back) menuSheet.open();
+}
+
 const filterSheet = wireSheet('filterSheet', 'filterBackdrop');
 const trashSheet = wireSheet('trashSheet', 'trashBackdrop');
 const settingsSheet = wireSheet('settingsSheet', 'settingsBackdrop');
 document.getElementById('settingsBtn').addEventListener('click', settingsSheet.open);
-document.getElementById('settingsCloseBtn').addEventListener('click', settingsSheet.close);
+document.getElementById('settingsCloseBtn').addEventListener('click', () => exitScreen(settingsSheet.close));
 
 /* ---------- the Адмін sheet ----------
  *
@@ -7173,24 +7205,18 @@ document.getElementById('settingsCloseBtn').addEventListener('click', settingsSh
  * instead of a row that opens something the account may not use.
  */
 const adminSheet = wireSheet('adminSheet', 'adminBackdrop');
-// Registered here rather than at each definition so the list is one thing
-// to read: everything a menu row can put on screen.
-MENU_PANEL_CLOSERS.push(
-  () => trashSheet.close(),
+// Listed in one place so the set is a thing to read rather than to hunt for.
+MENU_SCREEN_CLOSERS.push(
   () => settingsSheet.close(),
+  () => trashSheet.close(),
   () => adminSheet.close(),
   () => closeRecs(),
   () => closeFriends(),
   () => closeAccount(),
 );
 const adminBtn = document.getElementById('adminBtn');
-adminBtn.addEventListener('click', () => {
-  // The delegated handler above decides whether the menu goes; this one only
-  // opens. Closing here as well is what used to make «Адмін» the one row
-  // that dismissed the menu even when every other row kept it.
-  adminSheet.open();
-});
-document.getElementById('adminCloseBtn').addEventListener('click', adminSheet.close);
+adminBtn.addEventListener('click', () => adminSheet.open());
+document.getElementById('adminCloseBtn').addEventListener('click', () => exitScreen(adminSheet.close));
 function syncAdminRow() { adminBtn.style.display = mayEditCatalogue() ? '' : 'none'; }
 
 /**
@@ -7275,7 +7301,7 @@ document.getElementById('trashBtn').addEventListener('click', () => {
   renderTrash();
   trashSheet.open();
 });
-document.getElementById('trashCloseBtn').addEventListener('click', trashSheet.close);
+document.getElementById('trashCloseBtn').addEventListener('click', () => exitScreen(trashSheet.close));
 document.getElementById('trashList').addEventListener('click', async e => {
   const btn = e.target.closest('.trash-restore');
   if (!btn) return;
@@ -7307,21 +7333,17 @@ document.getElementById('trashList').addEventListener('click', async e => {
     btn.disabled = false;
   }
 });
-document.getElementById('menuBtn').addEventListener('click', menuSheet.open);
-document.getElementById('filterBtn').addEventListener('click', filterSheet.open);
-/* A row opens a SCREEN, and on a phone the menu stays open behind it so the
- * next screen is one tap away rather than three (owner's call). On a wider
- * viewport the sheet still says its piece and closes.
- *
- * «Вийти» is the exception in both: it is not a screen, there is nothing to
- * come back to a menu for, and leaving the menu standing over a login page
- * would be the app arguing with itself. */
-const MENU_ACTION_ROWS = ['logoutBtn'];
+document.getElementById('menuBtn').addEventListener('click', () => { closeMenuScreens(); menuSheet.open(); });
+document.getElementById('filterBtn').addEventListener('click', () => { closeMenuScreens(); filterSheet.open(); });
+/* A row hands the bottom edge over: the menu goes, the screen takes its
+ * place there. One thing at that edge at a time, always in the same spot,
+ * so the thumb never has to go looking. Getting back to the menu is the
+ * screen's own arrow — see exitScreen(). */
 document.getElementById('menuSheet').addEventListener('click', e => {
   const row = e.target.closest('.sheet-row');
   // An inactive row explains itself in place — the sheet stays put.
   if (!row || row.getAttribute('aria-disabled') === 'true') return;
-  if (!menuIsNav() || MENU_ACTION_ROWS.includes(row.id)) menuSheet.close();
+  menuSheet.close();
 });
 
 /* The word ФІЛЬТР keeps ONE colour, whatever is set inside the drawer
@@ -9262,7 +9284,9 @@ function openAccount() {
     <div class="acc-actions">
       <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>
     </div>`;
-  accountBox.querySelector('#accCloseBtn').addEventListener('click', closeAccount);
+  const accExit = accountBox.querySelector('#accCloseBtn');
+  paintExitControl(accExit);
+  accExit.addEventListener('click', () => exitScreen(closeAccount));
   accountBox.querySelector('#accServices').addEventListener('change', e => {
     const box = e.target.closest('input[data-service]');
     if (!box) return;
@@ -9528,9 +9552,10 @@ function openAccount() {
       .finally(() => { btn.disabled = false; });
   });
   accountOverlay.classList.add('open');
-  lockScroll(accountOverlay);
+  if (!menuIsNav()) lockScroll(accountOverlay);
+  syncSheetNav();
 }
-function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); }
+function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); syncSheetNav(); }
 
 function openOnboarding() {
   // The name comes FIRST, before the guide (owner's call), because it is the
@@ -10041,9 +10066,10 @@ let likedPublic = false;
 function openRecs() {
   renderRecs();
   recsOverlay.classList.add('open');
-  lockScroll(recsOverlay);
+  if (!menuIsNav()) lockScroll(recsOverlay);
+  syncSheetNav();
 }
-function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); }
+function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); syncSheetNav(); }
 
 function pickGridHtml(items, { ranks = false } = {}) {
   return `<div class="trend-grid">${items.map((m, i) => `
@@ -10105,7 +10131,9 @@ function renderFriendsSearch() {
     friendsView = 'list';
     renderFriends();
   });
-  friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
+  const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
+  paintExitControl(friendsExit);
+  friendsExit.addEventListener('click', () => exitScreen(closeFriends));
   wireFriendFind();
   // The screen exists to be typed into, so it opens ready for that.
   const input = friendsBox.querySelector('#friendFind');
@@ -10144,7 +10172,8 @@ function openFriends(username = null) {
   // is open (a tab, a person, a «+» that reloads the shelf), and an unnamed
   // hold would be added again on each one and released only once — the
   // freeze that closeModal() paid for.
-  lockScroll(friendsOverlay);
+  if (!menuIsNav()) lockScroll(friendsOverlay);
+  syncSheetNav();
   renderFriends();
   if (username) showFriend(username);
 }
@@ -10153,6 +10182,7 @@ function closeFriends() {
   openFriend = null;
   friendsView = 'list';
   unlockScroll(friendsOverlay);
+  syncSheetNav();
 }
 
 function personRowHtml(p, opts = {}) {
@@ -10211,7 +10241,9 @@ function renderFriends() {
   });
   friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
-  friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
+  const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
+  paintExitControl(friendsExit);
+  friendsExit.addEventListener('click', () => exitScreen(closeFriends));
   // No wireFriendFind() here any more: the field lives on the search screen
   // now, and wiring an element this view does not draw would be reaching for
   // nothing on every render.
@@ -10554,7 +10586,9 @@ function renderRecs() {
     <div id="recsbody"></div>`;
   recsBox.querySelectorAll('[data-recs-src]').forEach(el =>
     el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; _recsFriend = null; renderRecs(); }));
-  recsBox.querySelector('#recsCloseBtn').addEventListener('click', closeRecs);
+  const recsExit = recsBox.querySelector('#recsCloseBtn');
+  paintExitControl(recsExit);
+  recsExit.addEventListener('click', () => exitScreen(closeRecs));
 
   const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
   if (recsSource === 'friends') {
