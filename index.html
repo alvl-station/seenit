@@ -2448,8 +2448,13 @@ const AWARDS_DATA = {
   { key: 'fipresci', match: /fipresci|фіпресі/i, name: 'FIPRESCI Prize',
     description: 'Приз Міжнародної федерації кінопреси, який вручають на великих фестивалях.' },
   // "Art Directors Guild" is a DIFFERENT body, and it appears in this very
-  // catalog — hence the lookbehind rather than a bare "directors guild".
-  { key: 'dga', match: /\bdga\b|(?<!art )directors guild(?: of america)?|гільді[а-яіїєґ]* режисер[а-яіїєґ]*/i, name: 'DGA Award',
+  // catalog. This used to say so with a lookbehind — until an iPad mini 4
+  // showed a flash of the splash and nothing else: Safari only learned
+  // lookbehind in 16.4, and a regex LITERAL it cannot parse takes the whole
+  // bundle down before a line of it runs. The decoy is stripped in
+  // matchAward() instead (AWARD_DECOYS in logic.js), which is the same
+  // answer written in a way every browser can read.
+  { key: 'dga', match: /\bdga\b|directors guild(?: of america)?|гільді[а-яіїєґ]* режисер[а-яіїєґ]*/i, name: 'DGA Award',
     description: 'Премія Гільдії режисерів США — її вручають самі режисери.' },
   { key: 'pga', match: /\bpga\b|producers guild(?: of america)?|гільді[а-яіїєґ]* продюсер[а-яіїєґ]*/i, name: 'PGA Award',
     description: 'Премія Гільдії продюсерів США.' },
@@ -2959,10 +2964,23 @@ function pickLatinPersonName(details) {
   return aka ? aka.trim() : null;
 }
 
+/**
+ * Names that would be swallowed by a pattern meant for somebody else.
+ *
+ * "Art Directors Guild" is not the DGA, and it is in this very catalogue.
+ * A lookbehind said so in one character; Safari only learned lookbehind in
+ * 16.4, and a regex literal it cannot parse takes the entire bundle down
+ * before a line of it runs — which is what an iPad mini 4 was doing.
+ * Removing the decoy before matching is the same answer, and every browser
+ * can read it.
+ */
+const AWARD_DECOYS = /art\s+directors\s+guild/gi;
+
 function matchAward(str) {
-  const s = (str || '').trim();
+  const s = String(str || '').trim();
   if (!s) return null;
-  const found = AWARD_INFO.find(a => a.match.test(s));
+  const hay = s.replace(AWARD_DECOYS, ' ');
+  const found = AWARD_INFO.find(a => a.match.test(hay));
   return found ? { key: found.key, name: found.name, description: found.description } : null;
 }
 
@@ -4877,8 +4895,13 @@ function extractTitleCandidates(text) {
     let m;
     while ((m = re.exec(text))) quoted.push(cleanCandidate(m[1]));
   }
+  // The opening group CONSUMES the character before the trigger word
+  // rather than looking behind at it: \b is ASCII-only, so a Unicode word
+  // boundary has to be spelled out, and the lookbehind that used to spell
+  // it is a parse error on Safari before 16.4 — fatal for the whole file.
+  // Non-capturing, so the title is still group 1.
   const triggerRe = new RegExp(
-    `(?<![\\p{L}\\p{N}])(?:${TITLE_TRIGGER_WORDS.join('|')})(?![\\p{L}\\p{N}])[:\\-–—]?\\s+([^\\n"«»“”‘’ʼ—#@/]{2,80})`, 'giu'
+    `(?:^|[^\\p{L}\\p{N}])(?:${TITLE_TRIGGER_WORDS.join('|')})(?![\\p{L}\\p{N}])[:\\-–—]?\\s+([^\\n"«»“”‘’ʼ—#@/]{2,80})`, 'giu'
   );
   let tm;
   while ((tm = triggerRe.exec(text))) triggered.push(cleanCandidate(tm[1]));
