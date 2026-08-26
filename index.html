@@ -970,26 +970,19 @@
      owner's iPhone rather than over them, and the extra machinery was not
      worth what it was buying. Covering somebody else's chrome for longer is
      not a fight this card needs to win. */
-  .trailer-veil {
+  /* The ground under the player, not a cover over it. It was a cover with
+     «Завантажується» on it; the owner had it moved under the frame so taps
+     could reach the player, and then removed the words — what a still frame
+     needs is not a status but something that is not a hole.
+     Static and dim on purpose: a mark that breathes is claiming progress it
+     cannot observe from behind a cross-origin frame. */
+  .trailer-ground {
     position: absolute; inset: 0; z-index: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-    /* Nudged up off dead center: the title plate sits along the bottom edge
-       of this same frame, so a mark centred on the box reads as centred low
-       against what you actually see. */
-    padding-bottom: 34px;
+    display: flex; align-items: center; justify-content: center;
     background: var(--coal2);
-    transition: opacity .25s ease;
+    pointer-events: none;
   }
-  .trailer-veil .boot-mark { width: 72px; }
-  .trailer-veil .boot-word { font-size: 10px; }
-  /* Nothing lifts it any more: it is UNDER the player, so YouTube's own
-     paint covers it the moment there is anything to cover it with — about
-     400ms, measured. Until then it fills what would otherwise be an empty
-     frame, which is the longest and ugliest part of the wait.
-     What it no longer does is hide YouTube's title and play button. That is
-     the price of the player being on top, and the owner picked it knowingly:
-     a video that starts is worth more than a tidy half-second. */
-  .trailer-veil { pointer-events: none; }
+  .trailer-ground svg { width: 72px; height: auto; opacity: .35; }
   .modal-poster { width: 100%; background: var(--surface2); }
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
@@ -6657,18 +6650,18 @@ function openModal(m) {
   // over the frame on a translucent layer in both kinds: it never vanishes
   // under a playing video.
   const embedUrl = youtubeEmbedUrl(m.trailer_url);
-  // A veil over the player while it wakes up (owner's call). It covers the
-  // one moment the card has no answer for otherwise: YouTube paints its own
-  // cover first — the title, the channel, a play button — and that is
-  // somebody else's poster appearing inside our card. Ours goes on top until
-  // the video is actually there.
+  // The mark BEHIND the player, and nothing else (owner's call). This was a
+  // cover with «Завантажується» on it and a breathing mark; the cover is
+  // gone and so is the word. What is left is the ground the frame sits on,
+  // so that if the player never paints — no network, a dead embed, an
+  // iframe the browser refused — the card shows the app's own mark instead
+  // of a black hole. It is not a status: it says nothing about loading,
+  // because it cannot know, and it disappears the moment YouTube has
+  // anything at all to draw.
   const markEl = document.getElementById('markTemplate');
-  const veil = `<div class="trailer-veil">
-      <div class="boot-mark" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>
-      <div class="boot-word">Завантажується</div>
-    </div>`;
+  const ground = `<div class="trailer-ground" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>`;
   const frame = embedUrl
-    ? `<div class="modal-trailer">${veil}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
+    ? `<div class="modal-trailer">${ground}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"
          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>`
     : posterHtml(m, 'modal-poster');
   // The control opens in the REMEMBERED state, and the card then puts the
@@ -6782,11 +6775,11 @@ function openModal(m) {
  * why it must be), and it stops on PLAYING so a play command never arrives
  * after somebody has paused it by hand.
  */
-let _veilTimers = [];
+let _trailerTimers = [];
 let _playerListener = null;
 
 function nudgeTrailerToPlay() {
-  clearVeilWatch();
+  clearTrailerWatch();
   const box = modalBox.querySelector('.modal-trailer');
   if (!box) return;
   const iframe = box.querySelector('iframe');
@@ -6834,7 +6827,7 @@ function nudgeTrailerToPlay() {
   // that is the earliest moment the player could possibly answer.
   wake();
   for (const delay of [150, 400, 800, 1500, 2500, 4000, 6000, 9000]) {
-    _veilTimers.push(setTimeout(wake, delay));
+    _trailerTimers.push(setTimeout(wake, delay));
   }
   iframe.addEventListener('load', wake, { once: true });
 
@@ -6858,7 +6851,7 @@ function nudgeTrailerToPlay() {
     if (state === 1) {   // PLAYING
       // The pending wake-ups have nothing left to do, and a playVideo
       // arriving after somebody has paused it by hand would fight them.
-      clearVeilWatch();
+      clearTrailerWatch();
     }
   };
   window.addEventListener('message', _playerListener);
@@ -6868,9 +6861,9 @@ function clearPlayerListener() {
   if (_playerListener) window.removeEventListener('message', _playerListener);
   _playerListener = null;
 }
-function clearVeilWatch() {
-  _veilTimers.forEach(clearTimeout);
-  _veilTimers = [];
+function clearTrailerWatch() {
+  _trailerTimers.forEach(clearTimeout);
+  _trailerTimers = [];
   clearPlayerListener();
 }
 
@@ -6929,7 +6922,7 @@ function closeModal() {
   // same shape of leak the scroll lock had.
   _unmuteTimers.forEach(clearTimeout);
   _unmuteTimers = [];
-  clearVeilWatch();
+  clearTrailerWatch();
   _modalMovie = null;
   unlockScroll(overlay);
 }
