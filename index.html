@@ -656,18 +656,21 @@
       display: block;
       position: fixed; left: 0; right: 0; z-index: 86;
       /* Half above the edge, half below — so the offset is always half the
-         height, and the two numbers move together. */
-      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 14px);
-      height: 28px;
+         height, and the two numbers move together. The half that sits over
+         the catalogue takes those pixels away from it: 28px of cards at the
+         very top of the strip stop being tappable, which is the price of a
+         grip this easy to find. */
+      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 28px);
+      height: 56px;
       touch-action: none; cursor: ns-resize;
       -webkit-tap-highlight-color: transparent;
-      /* 56x6 rather than 34x4 (owner's call): at the smaller size it read
-         as a seam between the tab and the catalogue rather than as
-         something to take hold of. */
-      background: linear-gradient(var(--steel), var(--steel)) center / 56px 6px no-repeat;
+      /* 112x12 on a 56px target. It started at 34x4 and has been doubled
+         twice on the owner's call: small, it read as a seam between the tab
+         and the catalogue rather than as something to take hold of. */
+      background: linear-gradient(var(--steel), var(--steel)) center / 112px 12px no-repeat;
     }
     body.sheet-nav #bandGrip:active {
-      background: linear-gradient(var(--flash), var(--flash)) center / 56px 6px no-repeat;
+      background: linear-gradient(var(--flash), var(--flash)) center / 112px 12px no-repeat;
     }
     .band-resizing { user-select: none; }
 
