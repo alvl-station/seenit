@@ -311,6 +311,27 @@
   .plate-edit { margin-left: auto; }
   /* The chip and its delete travel together, so a wrapped list never leaves
      an × on its own line beside somebody else's collection. */
+  /* Blood, and set apart from the name it follows: it is a fact about the
+     collection rather than part of what it is called. */
+  .friend-col-count {
+    color: var(--flash);
+    font-family: var(--font-mono); font-size: 10.5px;
+    letter-spacing: .06em; white-space: nowrap;
+  }
+  /* The row and its unfollow travel together, and the row keeps all the
+     room it had — the × is the narrow one. */
+  .friend-row-pair { display: flex; align-items: stretch; gap: 2px; }
+  .friend-row-pair .friend-row { flex: 1; min-width: 0; }
+  .friend-unfollow {
+    display: flex; align-items: center; justify-content: center;
+    /* Wide enough to be a target rather than a decoration — the same 44px
+       rule every icon here follows. */
+    min-width: 44px;
+    background: none; border: 1px solid var(--border); border-radius: 2px;
+    color: var(--text-muted); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (hover: hover) { .friend-unfollow:hover { color: var(--flash); border-color: var(--flash); } }
   .recs-list-pair { display: inline-flex; align-items: stretch; }
   .recs-list-del {
     display: flex; align-items: center; justify-content: center;
@@ -2913,6 +2934,22 @@ function pluralFilms(n) {
   return 'фільмів';
 }
 
+/**
+ * «фільмів та серіалів», agreeing with the number in front of it.
+ *
+ * A collection holds both kinds and the count says nothing about which, so
+ * naming only films would be wrong about half of them. Both halves decline
+ * together — "1 фільм та серіал", "2 фільми та серіали", "6 фільмів та
+ * серіалів" — because a phrase where only one word agrees reads as a
+ * mistake, and a fixed "фільмів та серіалів" after a 1 is one.
+ */
+function pluralFilmsAndShows(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'фільм та серіал';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'фільми та серіали';
+  return 'фільмів та серіалів';
+}
+
 /** Ids in `marks` that no longer have a movie — the ones safe to sweep. */
 function orphanedMarkIds(marks, movies) {
   const known = new Set((movies || []).map(markKey).filter(Boolean));
@@ -4571,7 +4608,7 @@ if (typeof module !== 'undefined' && module.exports) {
     findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
-    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, trashTimeLeftLabel,
+    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -9647,9 +9684,26 @@ function renderFriends() {
       : '<div class="add-hint">На тебе ще ніхто не підписався. Щоб тебе було видно, відкрий бодай одну добірку — приватні не показуються нікому.</div>';
     return;
   }
-  body.innerHTML = `<div class="friend-list">${list.map(personRowHtml).join('')}</div>`;
+  // Unfollowing from the list itself, and only under ПІДПИСКИ: a follower is
+  // somebody else's decision and there is nothing here to undo. Beside the
+  // row rather than inside it — one target for "open this person" and
+  // "stop following them" is how a subscription gets dropped by a thumb
+  // aiming to read it.
+  const canUnfollow = friendsTab === 'subscriptions';
+  body.innerHTML = `<div class="friend-list">${list.map(p => (canUnfollow
+    ? `<span class="friend-row-pair">${personRowHtml(p)}<button class="friend-unfollow" type="button" data-unfollow="${esc(p.username)}" title="Відписатися" aria-label="Відписатися від ${esc(p.username)}">
+         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+       </button></span>`
+    : personRowHtml(p))).join('')}</div>`;
   body.querySelectorAll('[data-person]').forEach(el =>
     el.addEventListener('click', () => showFriend(el.dataset.person)));
+  body.querySelectorAll('[data-unfollow]').forEach(el =>
+    el.addEventListener('click', async (e) => {
+      // The row is right beside it; without this the tap would also open the
+      // person you just stopped following.
+      e.stopPropagation();
+      await togglePersonFollow(el.dataset.unfollow, false, el);
+    }));
 }
 
 /**
@@ -9735,7 +9789,13 @@ function friendColsHtml(cols) {
     ? `<div class="friend-cols">${cols.map(c => {
         const have = linkedKeys.has(c.key);
         return `<div class="friend-col${have ? ' is-have' : ''}">
-            <span class="friend-col-name">${esc(c.name)}${c.count ? ` · ${c.count}` : ''}</span>
+            <!-- The count says WHAT it counts, in blood (owner's call). A
+                 bare «· 6» beside a name reads as part of the name — a date,
+                 a version, anything — and this list is the one place you
+                 judge somebody else's collection before opening it. -->
+            <span class="friend-col-name">${esc(c.name)}${c.count
+              ? ` <span class="friend-col-count">${c.count} ${pluralFilmsAndShows(c.count)}</span>`
+              : ''}</span>
             ${have
               ? '<span class="friend-col-have">вже в тебе</span>'
               : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
@@ -9762,7 +9822,12 @@ function renderFriendDetail(body) {
     <div class="friend-head">
       <button class="btn-ghost friend-back" id="friendBack" type="button">← Усі</button>
       <span class="friend-title">${esc(p.username)}</span>
-      ${p.following === null ? '' : `<button class="opt${p.following ? ' active' : ''}" id="friendFollow" type="button">${p.following ? 'Ви підписані' : 'Підписатися'}</button>`}
+      <!-- The label is the ACTION, not the state (owner-reported: no way to
+           unsubscribe). «Ви підписані» described where you already were and
+           read as a badge, so the one thing the button did — unfollowing —
+           was invisible. «Відписатися» says what the tap does, and still
+           tells you the state, because it could not be offered otherwise. -->
+      ${p.following === null ? '' : `<button class="opt${p.following ? ' active' : ''}" id="friendFollow" type="button">${p.following ? 'Відписатися' : 'Підписатися'}</button>`}
     </div>
     ${colsHtml}${recHtml}`;
   body.querySelector('#friendBack').addEventListener('click', () => { openFriend = null; renderFriends(); });
