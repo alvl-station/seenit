@@ -314,9 +314,20 @@
   /* Blood, and set apart from the name it follows: it is a fact about the
      collection rather than part of what it is called. */
   .friend-col-count {
+    /* The number alone (owner's call), in its own cell at the end of the
+       row. Two changes with one cause: spelled out and tucked inside the
+       name, it shared an ellipsis with the name and the name always won —
+       «Рекомендовано user 8 фільмів та сері…» clipped the only part of the
+       row that was a fact. A row of collections is read down the right
+       edge, where the words repeat on every line and the digits do not.
+       Tabular figures so those digits line up down that edge. */
+    /* Right after the name, not against the «+». The empty space belongs
+       between the count and the button, which is what keeps the count
+       attached to the thing it counts. */
+    flex: none;
     color: var(--flash);
-    font-family: var(--font-mono); font-size: 10.5px;
-    letter-spacing: .06em; white-space: nowrap;
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 11px; letter-spacing: .06em; white-space: nowrap;
   }
   /* The row and its unfollow travel together, and the row keeps all the
      room it had — the × is the narrow one. */
@@ -642,9 +653,13 @@
   .poster-initial { font-family: var(--font-display); font-size: 42px; color: var(--steel); }
 
   /* "Watched" dims the poster itself (§06), not the whole card — the data
-     under it stays readable. 200ms so the tap is visibly answered (§09). */
-  .card.is-watched .poster img { filter: grayscale(1) brightness(.5); }
-  .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.5); }
+     under it stays readable. 200ms so the tap is visibly answered (§09).
+     .36 rather than .5 (owner's call, twice now): the grid is mostly
+     watched films once an account has any history, so the dimming is what
+     separates the few unwatched ones from the wall — half brightness on a
+     dark ground was still close enough to read as another poster. */
+  .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
+  .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
 
   .card-body { display: flex; flex-direction: column; padding: 7px 0 0; flex: 1; }
 
@@ -1118,11 +1133,21 @@
     padding-bottom: 14px; margin-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
+  /* The arrow alone (owner's call). «← Усі» was a ghost BUTTON — a bordered
+     box the width of a word — sitting beside a name, and it read as the
+     loudest thing in the row. The icon shape is the one this app already
+     uses for every other header control, so «back» stops being a special
+     case with its own furniture. */
   .friend-back { flex: none; }
   .friend-title {
     flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    font-size: 18px; color: var(--paper);
+    /* Mono, not the black display face. A person's name set in Archivo
+       Black shouted over the screen it was only labelling (owner's call:
+       no bold). The tracking is what carries it now — the same treatment
+       the section labels wear, one size up. */
+    font-family: var(--font-mono); font-weight: 400;
+    text-transform: uppercase; letter-spacing: .18em;
+    font-size: 14px; color: var(--paper);
   }
 
   .friend-cols { display: flex; flex-direction: column; gap: 1px; }
@@ -1132,13 +1157,18 @@
     background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
   }
   .friend-col-name {
-    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    /* Takes only what it needs and is the ONLY thing that gives way: the
+       row reads name → count → space → «+» (owner's call), so a long name
+       ellipsises rather than pushing the count off the end. */
+    flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--dust);
   }
   /* The «+» is an icon at 15px inside a 44px target, like every other icon
      in the app — the drawing is small, the tappable area never is. */
   .friend-col-add {
-    flex: none; width: var(--control-h); height: var(--control-h);
+    /* margin-left:auto is the empty space — the «+» sits at the far edge on
+       every row, so the column of them is straight however long the names. */
+    flex: none; margin-left: auto; width: var(--control-h); height: var(--control-h);
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; border-radius: 3px;
     color: var(--flash); cursor: pointer;
@@ -1146,12 +1176,8 @@
   .friend-col-add svg { width: 15px; height: 15px; }
   .friend-col-add:hover { background: rgba(0, 0, 0, .25); }
   .friend-col-add[disabled] { opacity: .4; cursor: default; }
-  /* Two different sentences that happen to look alike: «вже додано» is a
-     state of THIS collection, «з підпискою» explains where the recommends
-     row comes from. Same quiet setting, separate names, so a rule (or a
-     test) about one never silently catches the other. */
-  .friend-col-have, .friend-col-note {
-    flex: none; padding-right: 12px;
+  .friend-col-have {
+    flex: none; margin-left: auto; padding-right: 12px;
     font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--slate);
   }
   .friend-col.is-have .friend-col-name { color: var(--ash); }
@@ -1664,15 +1690,20 @@
   }
   #addModeCollection .acc-actions { margin-top: 10px; }
 
-  /* The three panes read as TABS (§07): words in the display face, the
-     active one underlined in blood — same language as the catalog's own
-     tabs, not pills. */
+  /* The three panes read as TABS (§07), the active one underlined in blood
+     — same language as the catalog's own tabs, not pills.
+     MONO, not the display face, and that is a bug fix as much as a taste
+     call (owner-reported, with a screenshot): Archivo Black carries no
+     Cyrillic, so «ВІД ДРУЗІВ» and «МОЇ» fell back to a regular weight while
+     «SEENIT» rendered in the black one. Three tabs in a row, one of them
+     visibly heavier than the others, for no reason a reader could see. The
+     mono face has both alphabets and one weight, so the row is even. */
   .add-tabs { display: flex; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
   .add-tab {
     flex: 1; text-align: center;
     background: none; border: none; padding: 8px 0; cursor: pointer;
-    font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    letter-spacing: .02em; font-size: 11.5px; color: var(--ash);
+    font-family: var(--font-mono); font-weight: 400; text-transform: uppercase;
+    letter-spacing: .12em; font-size: 11px; color: var(--ash);
     border-bottom: 2px solid transparent; margin-bottom: -1px;
     transition: color .15s, border-color .15s;
     -webkit-tap-highlight-color: transparent;
@@ -1827,11 +1858,17 @@
   <div class="login">
     <div class="login-mark"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m1d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#8e0000"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m1d)"><g fill="#8e0000"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m1d)"><g fill="#8e0000"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m1d)"><g fill="#8e0606"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
     <h1><span class="wordmark">Seen<em>It</em></span></h1>
-    <div class="login-sub">Трекер переглянутого</div>
+    <div class="login-sub">Мережа поціновувачів кіно</div>
     <form id="loginForm">
+      <!-- «Username», not «Імʼя користувача» (owner's call). The two read
+           as the same thing in Ukrainian and are not: this field is the
+           HANDLE — Latin, no spaces, unique, and it becomes the address the
+           account signs in with. What a person is CALLED is a separate
+           field in «Акаунт», and it takes spaces, capitals and any alphabet.
+           Labelling this one «імʼя» is what invited a real name into it. -->
       <label class="login-field">
-        <span class="login-lbl">Ім'я користувача</span>
-        <input id="loginUser" type="text" autocomplete="username" required>
+        <span class="login-lbl">Username</span>
+        <input id="loginUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
       </label>
       <label class="login-field">
         <span class="login-lbl">Пароль</span>
@@ -1940,8 +1977,14 @@
      box and was covered by it. -->
 <div class="col-plate" id="collectionPlate" hidden>
   <span class="col-plate-name" id="collectionPlateName"></span>
-  <button class="hicon col-plate-close" id="collectionPlateClose" type="button" title="Назад до каталогу">
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+  <!-- An arrow, not a cross (owner's call). A cross ends something; this
+       returns you to the screen you opened the collection FROM — the
+       person's page, «Добірки», wherever it was — and only falls back to
+       the catalogue when there was no such screen. Wearing a cross, it
+       looked like the way out of the app's current mode, and it silently
+       threw away the two taps it had taken to get here. -->
+  <button class="hicon col-plate-close" id="collectionPlateClose" type="button" title="Назад" aria-label="Назад">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
   </button>
 </div>
 <!-- Under the plate rather than inside the header (owner's call). These
@@ -2336,6 +2379,10 @@ const UI_DATA = {
   ratingStar: '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M12 2.5l2.9 6.2 6.6.8-4.9 4.6 1.3 6.5-5.9-3.3-5.9 3.3 1.3-6.5L2.5 9.5l6.6-.8z"/></svg>',
   play: '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M8 5v14l11-7z"/></svg>',
   close: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  // «Back», which is not «close». A cross ends something; an arrow returns
+  // you to where you were. Inside a collection the difference is the whole
+  // point — the way out is the screen you opened it from, not the catalogue.
+  back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   },
 
   // Per-ceremony award icons (see matchAward() in src/logic.js for the name/
@@ -4449,6 +4496,19 @@ function normalizeSearchName(raw) {
  * filled in, because it is what the server would seed, not a choice already
  * made.
  */
+/**
+ * The name a Google account starts out with — as Google has it.
+ *
+ * Deliberately NOT normalizeSearchName: that one is for the handle, and its
+ * whole job is to make a string safe for a URL and a login box. A name has
+ * no such duty. «Vlad Aloshyn» stays «Vlad Aloshyn» here, space and
+ * capitals intact, which is the entire reason the two are separate fields.
+ */
+function defaultDisplayName(user) {
+  const raw = String((user && user.displayName) || '').replace(/\s+/g, ' ').trim();
+  return raw.slice(0, 64) || null;
+}
+
 function defaultSearchName(user) {
   const display = normalizeSearchName(user && user.displayName);
   if (display) return display;
@@ -4678,7 +4738,7 @@ if (typeof module !== 'undefined' && module.exports) {
     findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
-    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName,
+    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -5106,9 +5166,14 @@ function setAuthMode(mode) {
   setLoginError('');
   const register = mode === 'register';
   loginBtn.textContent = register ? 'Зареєструватися' : 'Увійти';
-  document.querySelector('.login-sub').textContent = register
-    ? 'Придумай ім\u02bcя і пароль'
-    : 'Трекер переглянутого';
+  // The same line in both modes (owner's call). «Трекер переглянутого»
+  // described the app of a year ago — one person and their own list. What
+  // it is now is the other people: whose collections you can open, whose
+  // recommendations arrive on your shelf. The register mode used to carry
+  // an instruction here instead, which the fields and the button already
+  // give — and the one moment somebody is deciding whether to sign up is
+  // the worst one to spend on «Придумай імʼя і пароль».
+  document.querySelector('.login-sub').textContent = 'Мережа поціновувачів кіно';
   registerToggle.innerHTML = register
     ? 'Уже є акаунт? <b>Увійти</b>'
     : 'Немає акаунта? <b>Зареєструватися</b>';
@@ -5942,7 +6007,7 @@ function resetAccountState() {
   watched.clear();
   liked.clear();
   shelf.length = 0;
-  _me = { role: '', username: null, mayEdit: false };
+  _me = { role: '', username: null, displayName: null, mayEdit: false };
   syncAdminRow();
   _services = [];
   likedPublic = false;
@@ -6049,7 +6114,7 @@ async function openPendingCollection() {
  * editor that appears because a fetch failed is worse than one that never
  * appears.
  */
-let _me = { role: '', username: null, mayEdit: false };
+let _me = { role: '', username: null, displayName: null, mayEdit: false };
 function mayEditCatalogue() { return !!_me.mayEdit; }
 function loadMe() {
   proxyHeaders()
@@ -6057,7 +6122,7 @@ function loadMe() {
     .then(r => (r.ok ? r.json() : null))
     .then(me => {
       if (!me) return;
-      _me = { role: me.role || '', username: me.username || null, mayEdit: !!me.may_edit_catalogue };
+      _me = { role: me.role || '', username: me.username || null, displayName: me.display_name || null, mayEdit: !!me.may_edit_catalogue };
       syncAdminRow();
       // A card open at the time was drawn without the controls.
       if (overlay.classList.contains('open') && _modalMovie) openModal(_modalMovie);
@@ -8959,7 +9024,23 @@ function openAccount() {
          saying «Користувач» would be noise on every screen to tell somebody
          what they already assume. -->
     <div class="acc-label">Акаунт${mayEditCatalogue() ? '<span class="acc-role">Admin</span>' : ''}</div>
-    <div class="acc-name">${esc(username)}</div>
+    <div class="acc-name" id="accWho">${esc(_me.displayName || username)}</div>
+    <!-- The NAME, above the username, because it is the one people read.
+         Nothing is normalised here: spaces, capitals, apostrophes, Cyrillic
+         — a person's name is theirs to spell (owner's call, after the app
+         turned «Vlad Aloshyn» into «vlad.aloshyn» on his own account).
+         No «Перевірити» either: a name cannot be taken, so there is nothing
+         to ask about — it just saves. -->
+    <form class="acc-form" id="accDisplayForm">
+      <label class="acc-field">
+        <span class="acc-field-lbl">Імʼя</span>
+        <span class="acc-field-inline">
+          <input id="accDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || '')}" placeholder="Як вас звати">
+          <button class="acc-field-btn" type="submit" id="accDisplayBtn" hidden>Зберегти</button>
+        </span>
+      </label>
+      <div class="acc-hint" id="accDisplayNote">Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.</div>
+    </form>
     <!-- Username stands open, unlike the password form below it (owner's
          call). A password is a rare errand and folds away; this is the one
          thing on this screen other people see, and hiding it behind a
@@ -9042,6 +9123,63 @@ function openAccount() {
     passToggle.addEventListener('click', () => setPassOpen(accountBox.querySelector('#accPassForm').hidden));
     accountBox.querySelector('#accPassCancel').addEventListener('click', () => setPassOpen(false));
   }
+  // The name: no check, because a name cannot be taken. It saves, and the
+  // button is there only when there is something to save.
+  const dispForm = accountBox.querySelector('#accDisplayForm');
+  if (dispForm) {
+    const dispInput = accountBox.querySelector('#accDisplay');
+    const dispBtn = accountBox.querySelector('#accDisplayBtn');
+    const dispNote = accountBox.querySelector('#accDisplayNote');
+    const RULE = 'Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.';
+    // Trailing and doubled spaces are the only thing the server tidies, so
+    // comparing on the tidied form is what stops «Vlad » from looking like
+    // a change worth a button.
+    const tidy = v => String(v || '').replace(/\s+/g, ' ').trim();
+    let savedName = _me.displayName || '';
+
+    const syncDispBtn = () => { dispBtn.hidden = tidy(dispInput.value) === tidy(savedName); };
+    dispInput.addEventListener('input', () => {
+      dispNote.textContent = RULE;
+      dispNote.classList.remove('is-bad', 'is-good');
+      syncDispBtn();
+    });
+
+    dispForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const wanted = tidy(dispInput.value);
+      dispBtn.disabled = true;
+      try {
+        const res = await fetch(`${API_PROXY}/library/users/me/display-name`, {
+          method: 'PUT',
+          headers: await proxyHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ display_name: wanted }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          dispNote.textContent = body.error || 'Не вдалося зберегти імʼя';
+          dispNote.classList.add('is-bad');
+          return;
+        }
+        savedName = body.display_name || '';
+        _me.displayName = savedName || null;
+        dispInput.value = savedName;
+        // The heading above says who you are; leaving it on the old name
+        // would make the save look like it had not happened.
+        const who = accountBox.querySelector('#accWho');
+        if (who) who.textContent = savedName || (_me.username || '');
+        dispNote.textContent = savedName ? 'Збережено' : 'Імʼя прибрано — вас видно за username';
+        dispNote.classList.add('is-good');
+        syncDispBtn();
+      } catch (err) {
+        toast('error', 'Не вдалося зберегти імʼя');
+      } finally {
+        dispBtn.disabled = false;
+      }
+    });
+
+    syncDispBtn();
+  }
+
   // Username: type it in full, ask whether it is free, then claim it.
   const nameForm = accountBox.querySelector('#accNameForm');
   if (nameForm) {
@@ -9251,10 +9389,19 @@ function openOnboarding() {
   onboardBox.innerHTML = `
     <div class="onb-step">
       <div class="onb-step-n">1</div>
-      <p><b>Як вас знаходити.</b> Це імʼя бачитимуть інші, коли шукатимуть вас у «Друзях». Можна лишити як є або змінити тут чи згодом в «Акаунті».</p>
+      <p><b>Як вас звати і як вас знайти.</b> Імʼя бачитимуть інші. Username — те, за чим вас шукають у «Друзях». Обидва можна змінити згодом в «Акаунті».</p>
     </div>
+    <!-- Two fields, because they are two things (owner's call). Merging
+         them is what made «Vlad Aloshyn» into «vlad.aloshyn»: one of them
+         has to survive in a URL and a login box, and the other has no such
+         duty and should be spelled however its owner spells it. -->
     <label class="acc-field">
-      <span class="acc-field-lbl">Імʼя для пошуку</span>
+      <span class="acc-field-lbl">Імʼя</span>
+      <input id="onbDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || defaultDisplayName(auth.currentUser) || '')}" placeholder="Як вас звати">
+    </label>
+    <div class="acc-hint">З пробілами, великими літерами, будь-якою абеткою — як завгодно.</div>
+    <label class="acc-field">
+      <span class="acc-field-lbl">Username</span>
       <input id="onbName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(seeded)}" placeholder="${esc(seeded)}">
     </label>
     <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>`
@@ -9290,6 +9437,22 @@ function openOnboarding() {
   }
   onboardBox.querySelector('#onbDoneBtn').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
+    // The NAME saves first and quietly. It cannot be taken, so it cannot
+    // fail in a way worth stopping somebody at the door for — and if it
+    // does fail, holding the guide open over it would trap a person behind
+    // a field that is not required in the first place.
+    const onbDisplay = onboardBox.querySelector('#onbDisplay');
+    const wantedName = onbDisplay ? String(onbDisplay.value || '').replace(/\s+/g, ' ').trim() : '';
+    if (onbDisplay && wantedName !== (_me.displayName || '')) {
+      try {
+        const res = await fetch(`${API_PROXY}/library/users/me/display-name`, {
+          method: 'PUT',
+          headers: await proxyHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ display_name: wantedName }),
+        });
+        if (res.ok) _me.displayName = wantedName || null;
+      } catch (err) { /* the guide should not end on a failed courtesy */ }
+    }
     const wanted = onbName ? normalizeSearchName(onbName.value) : '';
     // Unchanged from what the server already seeded, or emptied entirely:
     // nothing to save, and the guide should not stand between somebody and
@@ -9570,7 +9733,29 @@ function syncDeleteAvailability() {
   if (!canEdit && deleteMode) setDeleteMode(false);
   if (!canEdit && addMode) setAddMode(false);
 }
+/**
+ * Where the collection was opened FROM, so «back» can go there.
+ *
+ * Recorded at the moment of opening rather than guessed at closing time:
+ * by then the overlay is shut and the only honest answer left would be
+ * "the catalogue", which is what the cross used to do and what the owner
+ * asked to stop. Null means the collection was opened from the catalogue
+ * itself, and then the catalogue IS the previous screen.
+ */
+let collectionOrigin = null;
+
+function captureCollectionOrigin() {
+  if (friendsOverlay.classList.contains('open')) {
+    return { kind: 'friends', person: openFriend && openFriend.username, view: friendsView };
+  }
+  if (recsOverlay.classList.contains('open')) {
+    return { kind: 'recs', source: recsSource, person: _recsFriend && _recsFriend.username };
+  }
+  return null;
+}
+
 function openCollectionAsCatalog(col) {
+  collectionOrigin = captureCollectionOrigin();
   openCatalogCollection = {
     key: col.key, name: col.name, owner: col.owner,
     collection_id: col.collection_id, source: col.source, public: col.public,
@@ -9581,6 +9766,9 @@ function openCollectionAsCatalog(col) {
   renderPlateActions();
   syncDeleteAvailability();
   closeRecs();
+  // Both overlays, and both after captureCollectionOrigin() above: an
+  // overlay closed first is an overlay «back» can no longer name.
+  if (friendsOverlay.classList.contains('open')) closeFriends();
   window.scrollTo(0, 0);
   // A collection you just opened is «here» — a scope left over from the
   // last one would search the wrong place.
@@ -9598,6 +9786,23 @@ function closeCollectionCatalog() {
   syncSearchScope();
   renderChips();
   render();
+  // Back to where it was opened from. Reopening the OVERLAY is not enough:
+  // it has to come back on the same person and the same tab, or «back»
+  // lands somewhere the person has never been and reads as a new screen.
+  const from = collectionOrigin;
+  collectionOrigin = null;
+  if (!from) return;
+  if (from.kind === 'friends') {
+    // openFriends() resets to the list and renders; passing the person lets
+    // it land back on them in one call rather than flashing the list first.
+    openFriends(from.person || null);
+    return;
+  }
+  if (from.kind === 'recs') {
+    recsSource = from.source || 'seenit';
+    openRecs();
+    if (from.person) openRecsFriend(from.person);
+  }
 }
 document.getElementById('collectionPlateClose').addEventListener('click', closeCollectionCatalog);
 
@@ -9981,8 +10186,8 @@ function friendColsHtml(cols, person) {
   const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
   const rec = person && (person.recommended || []).length
     ? `<div class="friend-col is-recommends" data-open-recommends="1" role="button" tabindex="0">
-         <span class="friend-col-name">${esc(recommendsCollectionName(person.username))} <span class="friend-col-count">${person.recommended.length} ${pluralFilmsAndShows(person.recommended.length)}</span></span>
-         <span class="friend-col-note">${person.following ? 'у тебе на полиці' : 'з підпискою'}</span>
+         <span class="friend-col-name">${esc(recommendsCollectionName(person.username))}</span>
+         <span class="friend-col-count">${person.recommended.length}</span>
        </div>`
     : '';
   const rows = (cols || []).length
@@ -9993,9 +10198,9 @@ function friendColsHtml(cols, person) {
                  bare «· 6» beside a name reads as part of the name — a date,
                  a version, anything — and this list is the one place you
                  judge somebody else's collection before opening it. -->
-            <span class="friend-col-name">${esc(c.name)}${c.count
-              ? ` <span class="friend-col-count">${c.count} ${pluralFilmsAndShows(c.count)}</span>`
-              : ''}</span>
+            <span class="friend-col-name">${esc(c.name)}</span>${c.count
+              ? `<span class="friend-col-count">${c.count}</span>`
+              : ''}
             ${have
               ? '<span class="friend-col-have">вже в тебе</span>'
               : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
@@ -10023,7 +10228,7 @@ function renderFriendDetail(body) {
   const colsHtml = friendColsHtml(p.collections, p);
   body.innerHTML = `
     <div class="friend-head">
-      <button class="btn-ghost friend-back" id="friendBack" type="button">← Усі</button>
+      <button class="hicon friend-back" id="friendBack" type="button" title="Назад" aria-label="Назад до списку">${ICON.back}</button>
       <span class="friend-title">${esc(p.username)}</span>
       <!-- The label is the ACTION, not the state (owner-reported: no way to
            unsubscribe). «Ви підписані» described where you already were and
@@ -10061,7 +10266,6 @@ function renderFriendDetail(body) {
 function openRecommendsOf(person) {
   const films = person.recommended || [];
   if (!films.length) return;
-  closeFriends();
   openCollectionAsCatalog({
     key: `${person.uid}/${RECOMMENDS_COLLECTION_ID}`,
     name: recommendsCollectionName(person.username),
@@ -10159,7 +10363,7 @@ function renderRecsFriend(body) {
   const p = _recsFriend;
   body.innerHTML = `
     <div class="friend-head">
-      <button class="btn-ghost friend-back" id="recsFriendBack" type="button">← Усі</button>
+      <button class="hicon friend-back" id="recsFriendBack" type="button" title="Назад" aria-label="Назад до списку">${ICON.back}</button>
       <span class="friend-title">${esc(p.username)}</span>
     </div>
     ${friendColsHtml(p.collections, p)}`;
