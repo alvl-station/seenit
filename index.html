@@ -9583,6 +9583,48 @@ function pickGridHtml(items, { ranks = false } = {}) {
  */
 const friendsOverlay = document.getElementById('friendsOverlay');
 const friendsBox = document.getElementById('friendsBox');
+/* Which of the two screens «Друзі» is showing. Not a boolean: a third view
+ * is easy to imagine here, and a name says what it is at every read. */
+let friendsView = 'list';
+
+/**
+ * Finding somebody new — its own screen, reached by the magnifier.
+ *
+ * It gets the whole sheet rather than a strip at the bottom of the list,
+ * which is what lets the results have room: the field is at the top where a
+ * keyboard leaves it visible, and everything below is the answer.
+ *
+ * «Назад» rather than closing: you came here from the list and that is where
+ * you belong afterwards, most likely having found the person you were
+ * looking for.
+ */
+function renderFriendsSearch() {
+  friendsBox.innerHTML = `
+    <div class="sheet-head">
+      <div class="sheet-title">Знайти людину</div>
+      <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>
+      </button>
+    </div>
+    <div class="friend-find">
+      <div class="field-clear-wrap">
+        <input id="friendFind" type="text" placeholder="Імʼя, яким людина входить у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>
+      </div>
+      <div id="friendFindOut" class="friend-suggest" hidden></div>
+    </div>
+    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>
+    <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
+  friendsBox.querySelector('#friendsSearchBack').addEventListener('click', () => {
+    friendsView = 'list';
+    renderFriends();
+  });
+  friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
+  wireFriendFind();
+  // The screen exists to be typed into, so it opens ready for that.
+  const input = friendsBox.querySelector('#friendFind');
+  if (input) input.focus();
+}
 const friendsBtn = document.getElementById('friendsBtn');
 let friendsTab = 'subscriptions';
 let openFriend = null;   // { username, collections, recommended, following }
@@ -9607,6 +9649,10 @@ function syncFriendsRow() {
 
 function openFriends(username = null) {
   openFriend = null;
+  // Always on the list, never on the search you left open last time: «Друзі»
+  // is opened to see who you have, and reopening onto an empty search field
+  // would hide that behind an errand nobody asked for twice.
+  friendsView = 'list';
   friendsOverlay.classList.add('open');
   // Named, like every other overlay: this screen re-renders itself while it
   // is open (a tab, a person, a «+» that reloads the shelf), and an unnamed
@@ -9619,6 +9665,7 @@ function openFriends(username = null) {
 function closeFriends() {
   friendsOverlay.classList.remove('open');
   openFriend = null;
+  friendsView = 'list';
   unlockScroll(friendsOverlay);
 }
 
@@ -9651,28 +9698,36 @@ function renderFriends() {
   // and «Налаштування» do (owner's call). Without it a panel that opens over
   // the catalogue is just a floating list — you can tell what it holds but
   // not what you opened.
-  // The search sits at the BOTTOM (owner's call), under the people you
-  // already have: those are what the screen is for most of the time, and a
-  // field above them pushed them down to serve the rarer errand. Its results
-  // open under it, where the thumb already is.
+  // Two screens behind one sheet, not one screen carrying both errands
+  // (owner's call). The list is what you open «Друзі» for almost every time;
+  // finding somebody new is rare, and a field for it — wherever it sat — was
+  // furniture on the common screen. It now lives behind the magnifier in the
+  // corner, which is the same gesture the catalogue already uses for search.
+  if (friendsView === 'search') { renderFriendsSearch(); return; }
+
   friendsBox.innerHTML = `
-    <div class="sheet-title">Друзі</div>
+    <div class="sheet-head">
+      <div class="sheet-title">Друзі</div>
+      <button class="hicon" id="friendsSearchBtn" type="button" title="Знайти людину" aria-label="Знайти людину">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
     <div class="add-tabs">
       ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}
     </div>
     <div id="friendsBody"></div>
-    <div class="friend-find">
-      <div class="field-clear-wrap">
-        <input id="friendFind" type="text" placeholder="Знайти людину за імʼям" autocapitalize="none" autocorrect="off" spellcheck="false">
-        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>
-      </div>
-      <div id="friendFindOut" class="friend-suggest" hidden></div>
-    </div>
     <div class="acc-actions"><button class="btn-ghost" id="friendsCloseBtn">Закрити</button></div>`;
+  friendsBox.querySelector('#friendsSearchBtn').addEventListener('click', () => {
+    friendsView = 'search';
+    openFriend = null;
+    renderFriends();
+  });
   friendsBox.querySelectorAll('[data-friends-tab]').forEach(el =>
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
   friendsBox.querySelector('#friendsCloseBtn').addEventListener('click', closeFriends);
-  wireFriendFind();
+  // No wireFriendFind() here any more: the field lives on the search screen
+  // now, and wiring an element this view does not draw would be reaching for
+  // nothing on every render.
   const body = friendsBox.querySelector('#friendsBody');
 
   if (openFriend) { renderFriendDetail(body); return; }
@@ -9754,6 +9809,11 @@ function wireFriendFind() {
 }
 
 async function showFriend(username) {
+  // Picking somebody LEAVES the search. It is the errand's ending: you came
+  // to find this person, and staying on the field would leave them behind
+  // it. Found by a test, which clicked a suggestion and watched nothing
+  // open.
+  friendsView = 'list';
   const body = friendsBox.querySelector('#friendsBody');
   if (body) body.innerHTML = '<div class="add-hint">Відкриваю…</div>';
   try {
