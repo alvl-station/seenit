@@ -98,7 +98,18 @@
     padding: 16px 24px 10px; max-width: 1280px; margin: 0 auto;
     position: sticky; top: 0; z-index: 46;
     background: var(--bg);
-    border-bottom: 1px solid var(--border);
+  }
+  /* The seam, drawn INSIDE the padding rather than as a border on the box
+     (owner-reported: the line ran past the app on both sides).
+     A border-bottom spans the header's whole box, padding included — 24px
+     wider on each side than anything in it, and than the plate and the grid
+     below, which are inset to the same column. So the one horizontal line on
+     the screen was the one thing not lining up with the edges it sits
+     between. A block child ends exactly at the content box. */
+  header::after {
+    content: ''; display: block; height: 1px;
+    background: var(--border);
+    margin-top: 10px; margin-bottom: -10px;
   }
   /* The topbar (vol. II §10): the WORD left, three icon cells right. The
      mark itself no longer appears here — it stays on the login screen, the
@@ -266,7 +277,13 @@
        Below the plate's own resting place, so the two travel as one block:
        the plate stops at header + 8, and this stops just under it. */
     position: sticky; top: calc(var(--header-h, 0px) + var(--plate-h, 44px) + 12px); z-index: 44;
-    background: var(--bg); padding-top: 4px;
+    /* No ground of its own (owner's call). A band was added here so posters
+       could not be seen through the pinned row — and it read as a grey strip
+       laid across the screen under the plate, which is a heavier thing than
+       the problem it solved. The buttons carry their own surfaces; between
+       them the shelf shows through, and that is the app behind its own
+       controls rather than a bar. */
+    background: none;
     /* The page's column, same frame the plate and the grid live in — it sits
        under the plate now, not inside the header. */
     width: calc(100% - 48px); max-width: 1232px; margin-left: auto; margin-right: auto;
@@ -1497,7 +1514,9 @@
 
     header { padding: 18px 18px 12px; }
     main { padding-left: 18px; padding-right: 18px; }
-    .col-plate { width: calc(100% - 36px); }
+    /* The plate and its buttons travel as one block, so they share one
+       width — 6px apart looked like a mistake rather than a hierarchy. */
+    .col-plate, .col-plate-actions { width: calc(100% - 36px); }
 
     .tabs { gap: 14px; }
 
