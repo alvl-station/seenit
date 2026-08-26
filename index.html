@@ -599,10 +599,35 @@
       pointer-events: auto;
       max-width: none; border-left: 0; border-right: 0; border-bottom: 0;
       border-radius: 16px 16px 0 0;
-      max-height: 80vh;
+      /* Exactly the menu's height — no more and no less (owner's call). A
+         sheet sized to its own contents moved the bottom edge between
+         «Налаштування» and «Добірки», so the catalogue above jumped on
+         every tab change and the back arrow was never twice in the same
+         place. --menu-h is measured; 80vh is only what stands in before the
+         first measurement lands. */
+      height: var(--menu-h, 80vh);
       overflow-y: auto;
+      /* No scroll UNDER them (owner's call). Without this, a drag on a tab
+         that has nothing left to scroll hands the gesture to the catalogue
+         behind — which is exactly the surface this tab is covering. */
+      overscroll-behavior: contain;
       animation: sheet-up .22s ease-out;
     }
+
+    /* The sheets the menu opens are cut to the same height, for the same
+       reason: they are the same thing wearing different contents. */
+    body.sheet-nav #settingsSheet,
+    body.sheet-nav #trashSheet,
+    body.sheet-nav #adminSheet {
+      height: var(--menu-h, auto);
+      max-height: 80vh;
+      overscroll-behavior: contain;
+    }
+    /* NOT the menu itself. --menu-h is measured FROM it, so giving it that
+       height back would close a loop: the menu would be frozen at whatever
+       it measured first and could never grow when «Друзі» or «Адмін»
+       appears. It sizes to its rows, and everything else sizes to it. */
+    body.sheet-nav #menuSheet { overscroll-behavior: contain; }
 
     /* Nothing blocks the catalogue. The uncovered part of the screen is a
        working catalogue — it scrolls, and what the thumb lands on is what
@@ -2086,7 +2111,17 @@
      their historical ids — all the wiring and the tests hold onto them. -->
 <div class="sheet-backdrop" id="menuBackdrop" hidden></div>
 <div class="sheet" id="menuSheet" aria-hidden="true">
-  <div class="sheet-title">Меню</div>
+  <!-- The menu's own way out (owner's call). It used to have none: tapping
+       the backdrop was it, and once the backdrop stopped blocking touches
+       so the catalogue could scroll behind, that way out went with it. A
+       cross here, because from the menu there is nothing to go BACK to —
+       the arrow inside a tab is the one that means «back». -->
+  <div class="sheet-head">
+    <div class="sheet-title">Меню</div>
+    <button class="hicon" id="menuCloseBtn" type="button" title="Закрити" aria-label="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
   <button class="sheet-row" id="recsBtn" type="button">Добірки</button>
   <!-- Hidden until there is somebody to show: a row that opens an empty
        screen is a promise the app cannot keep. It appears with the first
@@ -7102,11 +7137,11 @@ function wireSheet(sheetId, backdropId) {
     // half, and the top half is a working catalogue that used to refuse to
     // move. Everywhere else the lock stands.
     if (!menuIsNav()) lockScroll(sheet);
-    if (isMenu || sheetIsMenuScreen(sheetId)) {
-      syncSheetNav();
-      // These three carry a close in the corner; whether it means «close»
-      // or «back» depends on how the sheet was reached, so it is decided
-      // here rather than baked into the markup.
+    if (isMenu || sheetIsMenuScreen(sheetId)) syncSheetNav();
+    // The menu's own cross is NOT repainted: from the menu there is nowhere
+    // to go back to, so a cross is what it means. Only the screens the menu
+    // opens turn theirs into an arrow.
+    if (sheetIsMenuScreen(sheetId)) {
       paintExitControl(document.getElementById(`${sheetId.replace(/Sheet$/, '')}CloseBtn`));
     }
   };
@@ -7154,6 +7189,29 @@ function closeMenuScreens() {
 }
 
 const menuSheet = wireSheet('menuSheet', 'menuBackdrop');
+
+/* ---------- one height for everything at that edge ----------
+ *
+ * Owner's call: the screen divides into the menu's share and the rest, and
+ * every tab takes the menu's share exactly — no more and no less. A sheet
+ * that sized itself to its own contents made the bottom edge move between
+ * «Налаштування» and «Добірки», so the catalogue above jumped every time
+ * you changed tabs and the back arrow was never twice in the same place.
+ *
+ * Measured, not assumed: the row count changes with the account — «Друзі»
+ * appears with the first subscription, «Адмін» with the role. And measured
+ * whether or not the menu is open: it is laid out either way (hidden by a
+ * transform and `visibility`, both of which leave the box alone), and a tab
+ * can be the first thing on screen after a reload.
+ */
+const _menuEl = document.getElementById('menuSheet');
+function syncMenuHeight() {
+  const h = _menuEl.getBoundingClientRect().height;
+  if (h > 0) document.documentElement.style.setProperty('--menu-h', `${Math.round(h)}px`);
+}
+if (typeof ResizeObserver === 'function') new ResizeObserver(syncMenuHeight).observe(_menuEl);
+window.addEventListener('resize', syncMenuHeight);
+syncMenuHeight();
 
 /* ---------- back, rather than closed ----------
  *
@@ -7217,7 +7275,12 @@ MENU_SCREEN_CLOSERS.push(
 const adminBtn = document.getElementById('adminBtn');
 adminBtn.addEventListener('click', () => adminSheet.open());
 document.getElementById('adminCloseBtn').addEventListener('click', () => exitScreen(adminSheet.close));
-function syncAdminRow() { adminBtn.style.display = mayEditCatalogue() ? '' : 'none'; }
+function syncAdminRow() {
+  adminBtn.style.display = mayEditCatalogue() ? '' : 'none';
+  // One row more or fewer is a different menu height, and every tab is cut
+  // to that height.
+  syncMenuHeight();
+}
 
 /**
  * Duplicates, found in the copy of the catalogue the app already holds.
@@ -7334,6 +7397,7 @@ document.getElementById('trashList').addEventListener('click', async e => {
   }
 });
 document.getElementById('menuBtn').addEventListener('click', () => { closeMenuScreens(); menuSheet.open(); });
+document.getElementById('menuCloseBtn').addEventListener('click', menuSheet.close);
 document.getElementById('filterBtn').addEventListener('click', () => { closeMenuScreens(); filterSheet.open(); });
 /* A row hands the bottom edge over: the menu goes, the screen takes its
  * place there. One thing at that edge at a time, always in the same spot,
@@ -10159,6 +10223,7 @@ let openFriend = null;   // { username, collections, recommended, following }
  */
 function syncFriendsRow() {
   friendsBtn.style.display = '';
+  syncMenuHeight();
 }
 
 function openFriends(username = null) {
