@@ -1263,9 +1263,7 @@
     white-space: nowrap;
   }
   @media (hover: hover) { .dup-row:hover { background: var(--coal2); } }
-  /* The Admin row carries the same badge as the account screen, so the two
-     places that mention the role say it the same way. */
-  .sheet-row--admin { display: flex; align-items: center; }
+
   .acc-hint { font-size: 11.5px; color: var(--text-muted); margin: -2px 0 10px; line-height: 1.45; }
   /* The username field answers as you type, and the answer has to be
      distinguishable from the rule it replaces — muted grey saying "taken"
@@ -1791,8 +1789,13 @@
        a decision a test holds onto, and this row was quietly taking that
        place. Both sheets configure rather than act, so they belong together.
        Hidden by default so a failed role lookup shows the ordinary menu
-       rather than a row that opens something the account may not use. -->
-  <button class="sheet-row sheet-row--admin" id="adminBtn" type="button" style="display:none">Адмін<span class="acc-role">Admin</span></button>
+       rather than a row that opens something the account may not use.
+
+       No «Admin» badge here (owner's call): the row is already called
+       Адмін, and a red English word beside it says the same thing twice.
+       The badge earns its place on the account screen, where nothing else
+       states the role. -->
+  <button class="sheet-row" id="adminBtn" type="button" style="display:none">Адмін</button>
   <!-- Inactive on the main screen (owner's call): the catalogue here is
        the shared database — removal lives inside collections, where a
        film falls into the trash for 24 hours first. -->
