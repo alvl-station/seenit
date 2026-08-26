@@ -564,6 +564,88 @@
     transition: transform .22s ease-out, visibility 0s linear .22s;
   }
   .sheet.open { transform: none; visibility: visible; transition: transform .22s ease-out; }
+
+  /* ---------- the menu as navigation, on a phone ----------
+   *
+   * Owner's call. Picking a row used to dismiss the menu, so moving between
+   * «Добірки», «Друзі» and «Акаунт» was three trips back to the hamburger.
+   * The menu stays now, the picked screen comes DOWN from the top, and the
+   * screen scrolls inside itself rather than pushing the menu off the
+   * bottom — which is what makes the menu usable as a set of tabs.
+   *
+   * Three things have to be true at once for that to work:
+   *   the panel must sit ABOVE the menu's backdrop (it was at z-index 50,
+   *   under it at 80, so it would have opened invisible);
+   *   the menu must sit above the panel, or it stops being tappable;
+   *   the panel must end where the menu begins, hence --menu-h, measured
+   *   because the row count changes with the account.
+   *
+   * Phone only: past 640px there is room for the sheets to work the way
+   * they always have. */
+  @media (max-width: 640px) {
+    body.menu-nav #menuSheet { z-index: 84; }
+
+    /* The screens that are modals. The overlay keeps its darkening but
+       gives up its padding: the panel is hung from the top edge. */
+    body.menu-nav .modal-overlay {
+      z-index: 82;
+      align-items: flex-start;
+      /* No side padding: the panel is exactly as wide as the menu below it
+         (owner's call). Inset by even 10px it read as a window floating
+         over the menu rather than as the other half of the same control —
+         and the two edges not lining up is what gave that away. */
+      padding: 0;
+      /* The overlay itself must not scroll — the PANEL does. An overlay
+         that scrolls takes the panel's top edge away with it, and «comes
+         down from the top» stops being true after the first flick. */
+      overflow: hidden;
+    }
+    body.menu-nav .modal-overlay > .modal {
+      /* Full width, like the sheets — .modal caps itself at 560px, which is
+         wider than a phone and so never bit, but stating it keeps the two
+         from drifting apart on a wide phone or a folded screen. */
+      max-width: none; border-left: 0; border-right: 0;
+      max-height: calc(100dvh - var(--menu-h, 0px) - 20px);
+      overflow-y: auto;
+      border-top-left-radius: 0; border-top-right-radius: 0;
+      animation: panel-down .22s ease-out;
+    }
+
+    /* The screens that are sheets — Налаштування, Кошик, Адмін. Same idea,
+       flipped: they came up from the bottom, which is where the menu now
+       lives, so they would have opened underneath it. */
+    body.menu-nav #settingsSheet,
+    body.menu-nav #trashSheet,
+    body.menu-nav #adminSheet {
+      top: 0; bottom: auto; z-index: 82;
+      border-radius: 0 0 16px 16px;
+      max-height: calc(100dvh - var(--menu-h, 0px) - 20px);
+      transform: translateY(-105%);
+    }
+    body.menu-nav #settingsSheet.open,
+    body.menu-nav #trashSheet.open,
+    body.menu-nav #adminSheet.open { transform: none; }
+
+    /* One darkening, not two stacked. The menu's backdrop is already
+       covering the catalogue; a second one over it only makes the panel
+       look like it is behind glass. */
+    body.menu-nav #settingsBackdrop,
+    body.menu-nav #trashBackdrop,
+    body.menu-nav #adminBackdrop { display: none; }
+  }
+  /* All the way from above the edge, not a 14px hint of one. The owner's
+     word for it was «вилізає зверху вниз»: it should read as the screen
+     ARRIVING from somewhere, the way the sheets read as arriving from the
+     bottom — a window that simply appears says nothing about where the
+     menu sent you. The overlay clips it, so nothing is visible up there
+     before it starts. */
+  @keyframes panel-down {
+    from { transform: translateY(-100%); }
+    to   { transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.menu-nav .modal-overlay > .modal { animation: none; }
+  }
   /* A screen that opens OVER the catalogue needs more room under its name
      than a sheet does — there is no edge above it to separate it from what
      it covers. */
@@ -7004,25 +7086,75 @@ searchScopeEl.addEventListener('click', () => {
 });
 
 /* ---------- bottom sheets: the menu and the ФІЛЬТР drawer ---------- */
+
+/* On a phone the menu is NAVIGATION, not a one-shot list of errands
+ * (owner's call). It used to close the moment you picked a row, so moving
+ * between «Добірки», «Друзі» and «Акаунт» meant three trips back to the
+ * hamburger. It stays put now, the picked screen comes DOWN from the top,
+ * and anything that does not fit scrolls inside that screen rather than
+ * pushing the menu off the bottom.
+ *
+ * Phone only. Above 640px there is room for both the way the sheets always
+ * worked and nothing to gain from pinning a menu to the bottom edge.
+ */
+const PHONE_MAX_PX = 640;
+function menuIsNav() {
+  // matchMedia when the browser has it, width when it does not (jsdom, and
+  // anything else headless). Asked fresh each time rather than held in a
+  // MediaQueryList: a phone that rotates crosses this line, and a stale
+  // answer would leave the menu behaving like the other orientation.
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia(`(max-width: ${PHONE_MAX_PX}px)`).matches;
+  }
+  return (window.innerWidth || 0) <= PHONE_MAX_PX;
+}
+
 function wireSheet(sheetId, backdropId) {
   const sheet = document.getElementById(sheetId);
   const backdrop = document.getElementById(backdropId);
+  const isMenu = sheetId === 'menuSheet';
   const open = () => {
     backdrop.hidden = false;
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
     lockScroll(sheet);
+    if (isMenu) { document.body.classList.add('menu-nav'); syncMenuHeight(); }
   };
   const close = () => {
+    // Only in nav mode, and that guard is the whole correctness of it. There
+    // a panel is POSITIONED against the menu, so the menu leaving strands
+    // it; everywhere else the panel is an ordinary modal that has nothing to
+    // do with the menu, and cascading would close the very screen the row
+    // just opened — the row's own handler runs first, this one bubbles.
+    if (isMenu && menuIsNav()) closeMenuPanels();
     backdrop.hidden = true;
     sheet.classList.remove('open');
     sheet.setAttribute('aria-hidden', 'true');
     unlockScroll(sheet);
+    if (isMenu) { document.body.classList.remove('menu-nav'); syncMenuHeight(); }
   };
   backdrop.addEventListener('click', close);
   return { open, close };
 }
 const menuSheet = wireSheet('menuSheet', 'menuBackdrop');
+
+/* Everything a menu row can put on screen. Closing the menu closes them
+ * too: a panel hanging from the top with nothing under it belongs to a menu
+ * that is no longer there, and the only way back would be the hamburger the
+ * panel is covering. */
+const MENU_PANEL_CLOSERS = [];
+function closeMenuPanels() { MENU_PANEL_CLOSERS.forEach(fn => { try { fn(); } catch (err) { /* one bad closer must not strand the rest */ } }); }
+
+/* The menu's own height, so a panel can be told how much room is left.
+ * Measured rather than assumed: the row count changes with the account —
+ * «Друзі» appears with the first subscription, «Адмін» with the role. */
+const _menuEl = document.getElementById('menuSheet');
+function syncMenuHeight() {
+  const h = _menuEl.classList.contains('open') ? _menuEl.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty('--menu-h', `${Math.round(h)}px`);
+}
+if (typeof ResizeObserver === 'function') new ResizeObserver(syncMenuHeight).observe(_menuEl);
+window.addEventListener('resize', syncMenuHeight);
 const filterSheet = wireSheet('filterSheet', 'filterBackdrop');
 const trashSheet = wireSheet('trashSheet', 'trashBackdrop');
 const settingsSheet = wireSheet('settingsSheet', 'settingsBackdrop');
@@ -7041,8 +7173,23 @@ document.getElementById('settingsCloseBtn').addEventListener('click', settingsSh
  * instead of a row that opens something the account may not use.
  */
 const adminSheet = wireSheet('adminSheet', 'adminBackdrop');
+// Registered here rather than at each definition so the list is one thing
+// to read: everything a menu row can put on screen.
+MENU_PANEL_CLOSERS.push(
+  () => trashSheet.close(),
+  () => settingsSheet.close(),
+  () => adminSheet.close(),
+  () => closeRecs(),
+  () => closeFriends(),
+  () => closeAccount(),
+);
 const adminBtn = document.getElementById('adminBtn');
-adminBtn.addEventListener('click', () => { menuSheet.close(); adminSheet.open(); });
+adminBtn.addEventListener('click', () => {
+  // The delegated handler above decides whether the menu goes; this one only
+  // opens. Closing here as well is what used to make «Адмін» the one row
+  // that dismissed the menu even when every other row kept it.
+  adminSheet.open();
+});
 document.getElementById('adminCloseBtn').addEventListener('click', adminSheet.close);
 function syncAdminRow() { adminBtn.style.display = mayEditCatalogue() ? '' : 'none'; }
 
@@ -7162,12 +7309,19 @@ document.getElementById('trashList').addEventListener('click', async e => {
 });
 document.getElementById('menuBtn').addEventListener('click', menuSheet.open);
 document.getElementById('filterBtn').addEventListener('click', filterSheet.open);
-// A menu row performs its action elsewhere (an overlay, a mode) — the sheet
-// itself has said everything it had to and closes.
+/* A row opens a SCREEN, and on a phone the menu stays open behind it so the
+ * next screen is one tap away rather than three (owner's call). On a wider
+ * viewport the sheet still says its piece and closes.
+ *
+ * «Вийти» is the exception in both: it is not a screen, there is nothing to
+ * come back to a menu for, and leaving the menu standing over a login page
+ * would be the app arguing with itself. */
+const MENU_ACTION_ROWS = ['logoutBtn'];
 document.getElementById('menuSheet').addEventListener('click', e => {
   const row = e.target.closest('.sheet-row');
   // An inactive row explains itself in place — the sheet stays put.
-  if (row && row.getAttribute('aria-disabled') !== 'true') menuSheet.close();
+  if (!row || row.getAttribute('aria-disabled') === 'true') return;
+  if (!menuIsNav() || MENU_ACTION_ROWS.includes(row.id)) menuSheet.close();
 });
 
 /* The word ФІЛЬТР keeps ONE colour, whatever is set inside the drawer
