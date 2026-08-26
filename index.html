@@ -1209,6 +1209,11 @@
   .acc-toggle:active { color: var(--paper); }
   /* Open, the form speaks for itself and the heading gets out of the way. */
   .acc-toggle[aria-expanded="true"] { display: none; }
+  /* display:flex defeats the hidden attribute — same specificity, later rule
+     wins — so hidden is restated. The collection plate and the delete bar
+     both learned this already; the username Save button is the third, and it
+     showed permanently because of it (owner-reported). */
+  .acc-form-actions[hidden] { display: none; }
   .acc-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   @media (hover: hover) { .acc-toggle:hover { color: var(--paper); } }
   .acc-form[hidden] { display: none; }
@@ -5668,15 +5673,24 @@ function liftTrailerVeil() {
     subscribe();
     iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
   };
-  iframe.addEventListener('load', () => {
-    wake();
-    // Backing off rather than hammering: dense at the start, where a fast
-    // player is missed by a hair, then spaced out to cover a slow one
-    // without a message every frame for ten seconds.
-    for (const delay of [300, 800, 1500, 2500, 4000, 6000, 9000]) {
-      _veilTimers.push(setTimeout(wake, delay));
-    }
-  }, { once: true });
+  // Started from the moment the card opens, NOT from the iframe's load
+  // event (owner-reported: the trailer still hung after the last attempt).
+  //
+  // Everything hung on that event firing. It is not guaranteed to: a
+  // cross-origin frame on iOS can leave it late or not deliver it at all,
+  // and if it never came, not one message was ever sent — no subscription,
+  // no play, no state to react to, and a cover that lifts on PLAYING only.
+  // The whole mechanism was one unobservable event away from doing nothing.
+  //
+  // Sending into a frame that is not ready yet is harmless — the message is
+  // dropped — so starting early costs nothing and removes the dependency.
+  // The load event still fires one extra wake when it does arrive, because
+  // that is the earliest moment the player could possibly answer.
+  wake();
+  for (const delay of [150, 400, 800, 1500, 2500, 4000, 6000, 9000]) {
+    _veilTimers.push(setTimeout(wake, delay));
+  }
+  iframe.addEventListener('load', wake, { once: true });
 
   _playerListener = (e) => {
     if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin || 'https://x.invalid').hostname || '')) return;
