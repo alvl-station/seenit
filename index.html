@@ -1151,24 +1151,27 @@
   /* The picker unfolds under the actions, in the same rectangular options
      the drawers use — a collection that already has the film is shown, not
      hidden, so the answer to «is it in there?» is on the same screen. */
-  /* The dice's four answers: a two-by-two hand of REAL catalogue cards
-     (cardHtml — owner's call: every label a card carries, exactly as on
-     the shelf). Only the geometry lives here; the cards style themselves.
-
-     The WHOLE card is narrowed, not just its poster (owner's second note:
-     a 74%-wide poster over full-width labels read as two columns that
-     missed each other) — shrinking the card keeps title, meta and toggles
-     aligned under their own cover, and small enough that the hand and the
-     way to redeal share one screen. */
-  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; }
-  .dice-results .card { cursor: pointer; width: 68%; margin: 0 auto; }
-  .dice-cell { display: flex; flex-direction: column; }
-  /* The receipt sits over its card at the card's own width, in the meta
-     row's mono voice: it is data about the roll, not a caption. */
-  .dice-why {
-    width: 68%; margin: 0 auto 4px; min-height: 24px;
-    display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start;
-  }
+  /* The dice's four answers, laid out FOR THE SHEET (owner's third pass on
+     this screen): grid cards shrunk into a bottom sheet were always a
+     compromise — covers fought the redeal button for one viewport, and the
+     labels squeezed. A hand is four ROWS now, the list view's own idea at
+     the sheet's scale: a small cover on the left, and the card's full text
+     block — receipt, title, year·type, rating, the critic strip, the
+     toggles — stacked beside it. Four rows and «Ще раз» share one screen
+     with room to breathe. Still REAL cards (cardHtml): only geometry lives
+     here. */
+  .dice-results { display: flex; flex-direction: column; gap: 16px; }
+  .dice-results .card { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; cursor: pointer; }
+  .dice-results .poster { width: 64px; min-width: 64px; aspect-ratio: 2/3; margin: 0; }
+  .dice-results .poster-initial { font-size: 20px; }
+  .dice-results .card-body { padding-top: 0; min-width: 0; }
+  /* A row has its own height; reserving two title lines would just pad it. */
+  .dice-results .card-title-row h3 { min-height: 0; }
+  .dice-results .card-toggles { margin-top: 6px; padding-top: 0; }
+  /* The receipt leads the text column — indented past the cover so it
+     reads as the first line of the card's own block, in the meta row's
+     mono voice: data about the roll, not a caption. */
+  .dice-why { margin: 0 0 4px 76px; display: flex; flex-wrap: wrap; gap: 3px; }
   .dice-why-tag {
     font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
     text-transform: uppercase; color: var(--dust);
