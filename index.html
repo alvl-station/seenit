@@ -7368,9 +7368,30 @@ function openModal(m) {
  */
 let _trailerTimers = [];
 let _playerListener = null;
+// The supervisor's memory for ONE card: whether playback was ever seen, and
+// how many hard restarts this trailer has spent. Reset when a card opens.
+let _trailerEverPlayed = false;
+let _trailerHardRetries = 0;
 
-function nudgeTrailerToPlay() {
+/** The last resort: a fresh iframe. A player that answered nothing through
+ *  the whole wake schedule is not asleep, it is broken — a play command
+ *  cannot fix a frame that never built a player, but a reload can. Capped:
+ *  two rebuilds that changed nothing mean the network or the embed is the
+ *  problem, and a third would just flicker the cover. */
+function hardRestartTrailer() {
+  const iframe = modalBox.querySelector('.modal-trailer iframe');
+  if (!iframe || _trailerHardRetries >= 2) return;
+  _trailerHardRetries++;
+  const fresh = iframe.cloneNode(false);
+  iframe.replaceWith(fresh);
+  nudgeTrailerToPlay({ keepRetryCount: true });
+  unmuteTrailer();
+}
+
+function nudgeTrailerToPlay({ keepRetryCount = false } = {}) {
   clearTrailerWatch();
+  _trailerEverPlayed = false;
+  if (!keepRetryCount) _trailerHardRetries = 0;
   const box = modalBox.querySelector('.modal-trailer');
   if (!box) return;
   const iframe = box.querySelector('iframe');
@@ -7420,6 +7441,10 @@ function nudgeTrailerToPlay() {
   for (const delay of [150, 400, 800, 1500, 2500, 4000, 6000, 9000]) {
     _trailerTimers.push(setTimeout(wake, delay));
   }
+  // The whole schedule spent and never a PLAYING in reply -> the frame is
+  // broken, not slow. Try once more with a fresh one (owner's ask: when
+  // the state says it did not start, try again).
+  _trailerTimers.push(setTimeout(() => { if (!_trailerEverPlayed) hardRestartTrailer(); }, 11000));
   iframe.addEventListener('load', wake, { once: true });
 
   _playerListener = (e) => {
@@ -7433,16 +7458,24 @@ function nudgeTrailerToPlay() {
       : (msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined);
     // -1 UNSTARTED, 5 CUED: the frame is up and the player is ready, but
     // autoplay did not take. Measured, not guessed — see the note above.
+    // This fires whether or not playback was ever seen: a player that
+    // REGRESSED to unstarted after playing gets nudged too (owner's ask —
+    // keep watching even after it says it is playing). A manual pause is
+    // state 2 and never lands here, so nothing fights the person's thumb.
     if (state === -1 || state === 5) {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+      const frame = modalBox.querySelector('.modal-trailer iframe');
+      if (frame && frame.contentWindow) {
+        frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
       }
       return;
     }
     if (state === 1) {   // PLAYING
       // The pending wake-ups have nothing left to do, and a playVideo
       // arriving after somebody has paused it by hand would fight them.
-      clearTrailerWatch();
+      // The LISTENER stays, deliberately: it is what notices a later
+      // regression to unstarted and answers it above.
+      _trailerEverPlayed = true;
+      clearTrailerTimers();
     }
   };
   window.addEventListener('message', _playerListener);
@@ -7452,9 +7485,12 @@ function clearPlayerListener() {
   if (_playerListener) window.removeEventListener('message', _playerListener);
   _playerListener = null;
 }
-function clearTrailerWatch() {
+function clearTrailerTimers() {
   _trailerTimers.forEach(clearTimeout);
   _trailerTimers = [];
+}
+function clearTrailerWatch() {
+  clearTrailerTimers();
   clearPlayerListener();
 }
 
