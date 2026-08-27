@@ -3420,6 +3420,16 @@ function recommendsCollectionName(username) {
   return `Рекомендовано ${username}`;
 }
 
+/* The star half of the same idea: «Обовʼязково до перегляду — <name>»,
+ * derived by the Worker from the must list minus private collections. A
+ * starred film lives THERE and not in «Рекомендовано» — split server-side,
+ * or the two lists would say the same thing twice. */
+const MUST_COLLECTION_ID = '__must_see';
+function mustCollectionName(username) {
+  const name = String(username || '').trim();
+  return name ? `Обовʼязково до перегляду — ${name}` : 'Обовʼязково до перегляду';
+}
+
 function pluralFilmsAndShows(n) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return 'фільм та серіал';
@@ -5363,7 +5373,7 @@ if (typeof module !== 'undefined' && module.exports) {
     findCatalogueDuplicates,
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
-    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
+    AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
     TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
@@ -11550,6 +11560,14 @@ function friendColsHtml(cols, person) {
          <span class="friend-col-count">${person.recommended.length}</span>
        </div>`
     : '';
+  // The star half, split server-side: a starred film lives HERE and not in
+  // «Рекомендовано» — together they would say the same thing twice.
+  const mustRow = person && (person.must_see || []).length
+    ? `<div class="friend-col is-recommends" data-open-must="1" role="button" tabindex="0">
+         <span class="friend-col-name">${esc(mustCollectionName(person.username))}</span>
+         <span class="friend-col-count">${person.must_see.length}</span>
+       </div>`
+    : '';
   const rows = (cols || []).length
     ? `${cols.map(c => {
         const have = linkedKeys.has(c.key);
@@ -11570,7 +11588,7 @@ function friendColsHtml(cols, person) {
   if (!rec && !rows) {
     return '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
   }
-  return `<div class="friend-cols">${rec}${rows}</div>`;
+  return `<div class="friend-cols">${rec}${mustRow}${rows}</div>`;
 }
 
 function renderFriendDetail(body) {
@@ -11609,6 +11627,13 @@ function renderFriendDetail(body) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecommendsOf(p); }
     });
   }
+  const openMust = body.querySelector('[data-open-must]');
+  if (openMust) {
+    openMust.addEventListener('click', () => openMustOf(p));
+    openMust.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMustOf(p); }
+    });
+  }
   body.querySelectorAll('[data-add-col]').forEach(el =>
     el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
 }
@@ -11623,6 +11648,22 @@ function renderFriendDetail(body) {
  * guess: `recommended` is the same array the row's count came from, so
  * what opens is exactly what the row said it held.
  */
+function openMustOf(person) {
+  const films = person.must_see || [];
+  if (!films.length) return;
+  openCollectionAsCatalog({
+    key: `${person.uid}/${MUST_COLLECTION_ID}`,
+    name: mustCollectionName(person.username),
+    owner: person.uid,
+    collection_id: MUST_COLLECTION_ID,
+    // Same posture as the recommends plate: nothing to remove, nothing to
+    // link — unfollowing is the way out.
+    source: 'recommends',
+    public: true,
+    film_ids: films.map(f => f.tmdb_id).filter(Boolean),
+  });
+}
+
 function openRecommendsOf(person) {
   const films = person.recommended || [];
   if (!films.length) return;
@@ -11734,6 +11775,13 @@ function renderRecsFriend(body) {
     // It is a div acting as a button, so it must answer the keyboard too.
     openRec.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecommendsOf(p); }
+    });
+  }
+  const openMust = body.querySelector('[data-open-must]');
+  if (openMust) {
+    openMust.addEventListener('click', () => openMustOf(p));
+    openMust.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMustOf(p); }
     });
   }
   body.querySelectorAll('[data-add-col]').forEach(el =>
