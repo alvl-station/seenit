@@ -2397,6 +2397,13 @@
     <button class="opt" data-type="фільм" type="button">Фільми</button>
     <button class="opt" data-type="серіал" type="button">Серіали</button>
   </div>
+  <!-- Decades. The labels are half-open on purpose: «1980-1990» next to
+       «1990-2000» puts 1990 in two places at once, and a person who picks
+       one and does not find a film they know is there has been lied to by a
+       label. Rendered from YEAR_BUCKETS so the words and the arithmetic
+       cannot drift apart. -->
+  <div class="sheet-label">Роки</div>
+  <div class="opts" id="yearOpts"></div>
 </div>
 <!-- The full stacked mark in paper, for the empty and error screens —
      injected once at build time, cloned by render() as needed. Stashed at
@@ -4116,7 +4123,67 @@ function matches(m, q) {
  * separate from sorting/grouping so tab/toggle interactions (see
  * CONVENTIONS.md) can be unit-tested without touching the DOM.
  */
-function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, likedIds, watchedIds }) {
+/* ---------- decades ----------
+ *
+ * The owner asked for «до 1980 / 1980-1990 / 1990-2000 / 2000-2010 / 2010 —
+ * донині». Written that way the boundaries OVERLAP: 1990 belongs to two
+ * buckets at once, and a person who picks one and does not find a film they
+ * know is there has been lied to by a label. So the ranges are half-open and
+ * the labels say what they actually do.
+ */
+const YEAR_BUCKETS = [
+  { key: 'pre1980', label: 'до 1980', from: null, to: 1980 },
+  { key: '1980s', label: '1980–1989', from: 1980, to: 1990 },
+  { key: '1990s', label: '1990–1999', from: 1990, to: 2000 },
+  { key: '2000s', label: '2000–2009', from: 2000, to: 2010 },
+  { key: '2010plus', label: '2010 і новіші', from: 2010, to: null },
+];
+
+/**
+ * Is this film inside the chosen decade?
+ *
+ * A film with no year is IN no bucket and shows only when no bucket is
+ * chosen. Putting it in «до 1980» would be inventing a fact; putting it
+ * everywhere would make the filter meaningless.
+ */
+function matchesYearBucket(movie, key) {
+  if (!key || key === 'all') return true;
+  const b = YEAR_BUCKETS.find(x => x.key === key);
+  if (!b) return true;
+  const y = Number(movie && movie.year);
+  if (!Number.isFinite(y) || y <= 0) return false;
+  if (b.from !== null && y < b.from) return false;
+  if (b.to !== null && y >= b.to) return false;
+  return true;
+}
+
+/* ---------- films this catalogue does not carry ----------
+ *
+ * Russian productions are excluded on the owner's call: not shown, and not
+ * spent enrichment budget on.
+ *
+ * Matched as a WHOLE comma-separated item, never as a substring. `country`
+ * holds display names joined by ", " — localised where TMDb had a
+ * translation and English where it did not — so both spellings have to be
+ * listed, and a substring test would be the kind of rule that quietly
+ * catches something it was never aimed at.
+ *
+ * The USSR is deliberately NOT in this list, and that is the decision worth
+ * arguing with if anyone wants to. «Тіні забутих предків» is a Soviet-era
+ * production and a Ukrainian film; a rule that swept up the whole USSR would
+ * delete a shelf of Ukrainian classics to catch something else.
+ */
+const EXCLUDED_COUNTRIES = new Set([
+  'росія', 'russia', 'russian federation', 'российская федерация',
+  'россия', 'рф',
+]);
+function isExcludedProduction(movie) {
+  const raw = String((movie && movie.country) || '');
+  if (!raw) return false;
+  return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
+}
+
+function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, likedIds, watchedIds }) {
   // Marks are keyed by the film's TMDb id, not by its slug — see markKey().
   const has = isMarked;
   const q = (query || '').toLowerCase();
@@ -4139,6 +4206,7 @@ function filterCatalog(movies, { query, tab, showWatched, genre, recommender, ty
     // handles it and this stays a two-way split.
     if (type && type !== 'all' && m.type !== type) return false;
     if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
+    if (!matchesYearBucket(m, years)) return false;
     return true;
   });
 }
@@ -5065,6 +5133,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
+    YEAR_BUCKETS, matchesYearBucket, isExcludedProduction,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -5602,7 +5671,7 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
-let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', searchScope: 'here',
+let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', searchScope: 'here',
   // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
   // whatever you last left it on stays that way for every film after it,
   // until you change it again. Default on — a trailer nobody can hear is a
@@ -5638,7 +5707,7 @@ function saveSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       tab: state.tab, genre: state.genre, sort: state.sort,
       recommender: state.recommender, showWatched: state.showWatched,
-      hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type,
+      hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type, years: state.years,
       trailerSound: state.trailerSound,
       view: document.body.dataset.view, genres: document.body.dataset.genres,
     }));
@@ -5654,6 +5723,7 @@ if (savedSettings.bareCards) { state.hideAwards = true; state.hideScores = true;
 if (savedSettings.hideAwards) state.hideAwards = true;
 if (savedSettings.hideScores) state.hideScores = true;
 if (savedSettings.type) state.type = savedSettings.type;
+if (savedSettings.years) state.years = savedSettings.years;
 if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
@@ -5697,7 +5767,7 @@ function visibleMovies() {
   // same as always — that is the whole contract of «відкрити як каталог».
   return filterCatalog(searchSource(), {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
-    genre: state.genre, recommender: state.recommender, type: state.type,
+    genre: state.genre, recommender: state.recommender, type: state.type, years: state.years,
     likedIds: liked, watchedIds: watched,
   });
 }
@@ -6252,9 +6322,11 @@ function resetFilters() {
   state.genre = 'all';
   state.recommender = 'all';
   state.type = 'all';
+  state.years = 'all';
   syncTabs();
   renderChips();
   syncTypeOpts();
+  syncYearOpts();
   updateRecommenderFilter();
   updateFilterGlow();
   render();
@@ -6485,12 +6557,15 @@ function loadMe() {
 // Takflix is small and kept on purpose: it is the only place Ukrainian
 // cinema lives, and it is the one entry here no global tracker has.
 //
-// Removing «HBO Max» leaves a stale key in Firebase for anyone who ticked
-// it. Harmless: the value is only read to sort provider rows, and there are
-// no HBO Max rows for this region to sort.
+// «HBO Max» and «MUBI» are both gone (owner's call). HBO Max does not
+// operate in Ukraine at all; MUBI was dropped when we could not tell from
+// its pages whether a film has Ukrainian audio, which is the question this
+// audience is actually asking. Both leave a stale key in Firebase for
+// anyone who ticked them — harmless, since the value is only read to sort
+// provider rows and there are no rows of either kind for this region.
 const KNOWN_SERVICES = [
   'Megogo', 'Київстар ТБ', 'sweet.tv', 'Takflix',
-  'Netflix', 'Apple TV', 'Amazon Prime Video', 'Crunchyroll', 'MUBI',
+  'Netflix', 'Apple TV', 'Amazon Prime Video', 'Crunchyroll',
 ];
 let _services = [];
 function myServices() { return _services; }
@@ -7840,6 +7915,30 @@ typeOptsEl.addEventListener('click', e => {
   const b = e.target.closest('.opt'); if (!b) return;
   state.type = (state.type === b.dataset.type) ? 'all' : b.dataset.type;
   syncTypeOpts();
+  syncYearOpts();
+  updateFilterGlow();
+  render();
+  saveSettings();
+});
+
+/* Decades. Same shape as Тип, including that a second tap on the chosen
+ * one clears it (U-6). The buttons are BUILT from YEAR_BUCKETS rather than
+ * written out in the markup, so a label and the arithmetic behind it can
+ * never disagree. */
+const yearOptsEl = document.getElementById('yearOpts');
+if (yearOptsEl) {
+  yearOptsEl.innerHTML = YEAR_BUCKETS
+    .map(b => `<button class="opt" data-years="${b.key}" type="button">${esc(b.label)}</button>`)
+    .join('');
+}
+function syncYearOpts() {
+  if (!yearOptsEl) return;
+  yearOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.years === state.years));
+}
+if (yearOptsEl) yearOptsEl.addEventListener('click', e => {
+  const b = e.target.closest('.opt'); if (!b) return;
+  state.years = (state.years === b.dataset.years) ? 'all' : b.dataset.years;
+  syncYearOpts();
   updateFilterGlow();
   render();
   saveSettings();
@@ -8246,6 +8345,7 @@ updateRecommenderFilter();
   syncTabs();
   syncSortOpts();
   syncTypeOpts();
+  syncYearOpts();
   applyCardLayers();
   updateFilterGlow();
   if (savedSettings.view) {
@@ -8315,6 +8415,22 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
  * Films accumulate rather than replacing what is there, so the reader
  * watches the catalogue fill instead of waiting in front of an empty grid.
  */
+/**
+ * Does this film belong in the catalogue at all?
+ *
+ * Russian productions are excluded on the owner's call — not shown, and not
+ * spent enrichment budget on (the scripts share isExcludedProduction with
+ * this, so the shelf and the nightly passes cannot disagree about it).
+ *
+ * Applied at every door into MOVIES rather than inside the shelf's filter:
+ * a rule that only hid them from the grid would still leave them in search,
+ * in the die, in a collection's contents and in the genre counts. Excluding
+ * them on the way IN is one rule instead of six.
+ */
+function catalogueAccepts(m) {
+  return !!(m && m.id) && !isExcludedProduction(m);
+}
+
 async function loadCatalog() {
   // A readiness beacon, not app logic — the same role __marksLoadedCount
   // plays, and needed for the same reason one step further on.
@@ -8338,7 +8454,7 @@ async function loadCatalog() {
   // leaving the baked 109 on screen as if they were the catalogue.
   MOVIES.length = 0;
   if (paintedFromCache) {
-    cached.forEach(m => { if (m && m.id) MOVIES.push(m); });
+    cached.forEach(m => { if (catalogueAccepts(m)) MOVIES.push(m); });
     // The cache IS a loaded catalog as far as messaging goes. Without this,
     // a search typed during the paint-from-cache window answered
     // "Завантажую каталог…" to a person looking at a fully painted grid —
@@ -8403,13 +8519,16 @@ async function loadCatalog() {
           for (const f of (body.films || [])) {
             if (!f || !f.id) continue;
             const at = byId.get(String(f.tmdb_id || f.id));
+            // A film that becomes excluded — its country corrected upstream —
+            // has to LEAVE, not merely stop arriving.
+            if (!catalogueAccepts(f)) { if (at !== undefined) MOVIES[at] = null; continue; }
             if (at === undefined) MOVIES.push(f); else MOVIES[at] = f;
           }
           for (const gone of (body.removed || [])) {
             const at = byId.get(String(gone));
             if (at !== undefined && MOVIES[at]) MOVIES[at] = null;
           }
-          if ((body.removed || []).length) {
+          if ((body.removed || []).length || MOVIES.some(m => !m)) {
             const kept = MOVIES.filter(Boolean);
             MOVIES.length = 0;
             kept.forEach(m => MOVIES.push(m));
@@ -8445,7 +8564,7 @@ async function loadCatalog() {
       // fresh answer is authoritative, and half of it drawn beats a stale
       // copy held until the last page lands.
       if (first) MOVIES.length = 0;
-      page.forEach(m => { if (m && m.id) MOVIES.push(m); });
+      page.forEach(m => { if (catalogueAccepts(m)) MOVIES.push(m); });
       moviesLoaded = true;
       renderChips();
       updateRecommenderFilter();
@@ -8523,7 +8642,7 @@ async function addFilmToMine(record, { collectionId = MY_FILMS_ID, collectionNam
   // The catalogue in memory is a copy of a query, so it does not learn about
   // the new film on its own. Adding it here keeps the duplicate check, the
   // chips and the counts honest until the next load.
-  if (!MOVIES.some(m => markKey(m) === key)) MOVIES.push(record);
+  if (catalogueAccepts(record) && !MOVIES.some(m => markKey(m) === key)) MOVIES.push(record);
   mine.add(key);
   return res;
 }
