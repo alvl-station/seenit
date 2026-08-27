@@ -2404,6 +2404,12 @@
        cannot drift apart. -->
   <div class="sheet-label">Роки</div>
   <div class="opts" id="yearOpts"></div>
+  <!-- Built from the providers actually present in the catalogue, the same
+       way «Ким рекомендовано» is: an option for a service no film is on
+       would filter to an empty screen. It is therefore absent until the
+       provider pass has run, and appears on its own when it has. -->
+  <div class="sheet-label" id="providerLabel" style="display:none">Де подивитись</div>
+  <div class="opts" id="providerFilter" style="display:none"></div>
 </div>
 <!-- The full stacked mark in paper, for the empty and error screens —
      injected once at build time, cloned by render() as needed. Stashed at
@@ -4123,6 +4129,51 @@ function matches(m, q) {
  * separate from sorting/grouping so tab/toggle interactions (see
  * CONVENTIONS.md) can be unit-tested without touching the DOM.
  */
+/**
+ * Providers that must never reach a card, whatever the data says.
+ *
+ * «Rakuten TV» (owner's call) does not operate in Ukraine — a row for it
+ * sends someone to a storefront that will not serve them. Rows like these
+ * live in records written by earlier passes; the next provider pass will
+ * not produce them, but until it has rewritten every film the stale data
+ * is still what the app is holding. Filtering at DISPLAY time rather than
+ * scrubbing the database keeps the record honest about what the source
+ * said while the card stays honest about what the viewer can do.
+ */
+const EXCLUDED_PROVIDERS = new Set(['Rakuten TV']);
+
+/** The provider rows a film may actually show. */
+function visibleProviders(providers) {
+  return (providers || []).filter(p => p && !EXCLUDED_PROVIDERS.has(p.name));
+}
+
+/**
+ * Every provider named anywhere in the catalogue, commonest first.
+ *
+ * Built from the data rather than from a fixed list: an option for a service
+ * no film is on would filter to an empty screen, and a service that appears
+ * after the next pass would have no option at all. KNOWN_SERVICES is about
+ * what a PERSON pays for; this is about what the catalogue can offer.
+ */
+function providersInCatalogue(movies) {
+  const counts = new Map();
+  for (const m of movies || []) {
+    for (const p of visibleProviders(m && m.providers)) {
+      const name = p && p.name;
+      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'))
+    .map(([name, n]) => ({ name, count: n }));
+}
+
+/** Is this film offered by that provider? */
+function hasProvider(movie, name) {
+  if (!name || name === 'all') return true;
+  return ((movie && movie.providers) || []).some(p => p && p.name === name);
+}
+
 /* ---------- decades ----------
  *
  * The owner asked for «до 1980 / 1980-1990 / 1990-2000 / 2000-2010 / 2010 —
@@ -4183,7 +4234,7 @@ function isExcludedProduction(movie) {
   return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
-function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, likedIds, watchedIds }) {
+function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, provider, likedIds, watchedIds }) {
   // Marks are keyed by the film's TMDb id, not by its slug — see markKey().
   const has = isMarked;
   const q = (query || '').toLowerCase();
@@ -4207,6 +4258,7 @@ function filterCatalog(movies, { query, tab, showWatched, genre, recommender, ty
     if (type && type !== 'all' && m.type !== type) return false;
     if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
     if (!matchesYearBucket(m, years)) return false;
+    if (!hasProvider(m, provider)) return false;
     return true;
   });
 }
@@ -5133,7 +5185,8 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
-    YEAR_BUCKETS, matchesYearBucket, isExcludedProduction,
+    YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
+    EXCLUDED_PROVIDERS, visibleProviders,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -5671,7 +5724,7 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
-let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', searchScope: 'here',
+let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', searchScope: 'here',
   // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
   // whatever you last left it on stays that way for every film after it,
   // until you change it again. Default on — a trailer nobody can hear is a
@@ -5707,7 +5760,7 @@ function saveSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       tab: state.tab, genre: state.genre, sort: state.sort,
       recommender: state.recommender, showWatched: state.showWatched,
-      hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type, years: state.years,
+      hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type, years: state.years, provider: state.provider,
       trailerSound: state.trailerSound,
       view: document.body.dataset.view, genres: document.body.dataset.genres,
     }));
@@ -5724,6 +5777,7 @@ if (savedSettings.hideAwards) state.hideAwards = true;
 if (savedSettings.hideScores) state.hideScores = true;
 if (savedSettings.type) state.type = savedSettings.type;
 if (savedSettings.years) state.years = savedSettings.years;
+if (savedSettings.provider) state.provider = savedSettings.provider;
 if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
@@ -5767,7 +5821,7 @@ function visibleMovies() {
   // same as always — that is the whole contract of «відкрити як каталог».
   return filterCatalog(searchSource(), {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
-    genre: state.genre, recommender: state.recommender, type: state.type, years: state.years,
+    genre: state.genre, recommender: state.recommender, type: state.type, years: state.years, provider: state.provider,
     likedIds: liked, watchedIds: watched,
   });
 }
@@ -6323,12 +6377,16 @@ function resetFilters() {
   state.recommender = 'all';
   state.type = 'all';
   state.years = 'all';
+  state.provider = 'all';
   syncTabs();
   renderChips();
   syncTypeOpts();
   syncYearOpts();
   updateRecommenderFilter();
+  updateProviderFilter();
   updateFilterGlow();
+  // The chips count what the filters left, so they move with them.
+  renderChips();
   render();
   saveSettings();
 }
@@ -6557,6 +6615,12 @@ function loadMe() {
 // Takflix is small and kept on purpose: it is the only place Ukrainian
 // cinema lives, and it is the one entry here no global tracker has.
 //
+// «Crunchyroll» is gone too, and on a ground that does not depend on the
+// availability question I could not settle: it is anime-only, and none of
+// our sources — TMDb (empty for this region), Megogo, sweet.tv, Київстар —
+// will ever produce a Crunchyroll row. The tickbox existed to sort rows
+// that cannot exist.
+//
 // «HBO Max» and «MUBI» are both gone (owner's call). HBO Max does not
 // operate in Ukraine at all; MUBI was dropped when we could not tell from
 // its pages whether a film has Ukrainian audio, which is the question this
@@ -6565,7 +6629,7 @@ function loadMe() {
 // provider rows and there are no rows of either kind for this region.
 const KNOWN_SERVICES = [
   'Megogo', 'Київстар ТБ', 'sweet.tv', 'Takflix',
-  'Netflix', 'Apple TV', 'Amazon Prime Video', 'Crunchyroll',
+  'Netflix', 'Apple TV', 'Amazon Prime Video',
 ];
 let _services = [];
 function myServices() { return _services; }
@@ -6604,7 +6668,10 @@ let _modalMovie = null;
  * first with a "у вас є" marker, since those cost nothing extra to watch.
  */
 function providersHtml(m) {
-  const list = sortProviders(m.providers || [], myServices());
+  // visibleProviders drops the services the owner ruled out (Rakuten TV):
+  // stale rows from earlier passes still carry them until the next
+  // provider pass rewrites every film.
+  const list = sortProviders(visibleProviders(m.providers), myServices());
   if (!list.length) return '';
   const rows = list.map(p => {
     const href = providerLinkUrl(p, m.providers_link);
@@ -7917,6 +7984,8 @@ typeOptsEl.addEventListener('click', e => {
   syncTypeOpts();
   syncYearOpts();
   updateFilterGlow();
+  // The chips count what the filters left, so they move with them.
+  renderChips();
   render();
   saveSettings();
 });
@@ -7927,7 +7996,10 @@ typeOptsEl.addEventListener('click', e => {
  * never disagree. */
 const yearOptsEl = document.getElementById('yearOpts');
 if (yearOptsEl) {
-  yearOptsEl.innerHTML = YEAR_BUCKETS
+  // «Усі» first: the owner asked for an explicit way out — clearing by
+  // re-tapping the chosen decade works but is invisible. data-years="all"
+  // makes the existing sync/click code light it up with no special case.
+  yearOptsEl.innerHTML = [{ key: 'all', label: 'Усі' }, ...YEAR_BUCKETS]
     .map(b => `<button class="opt" data-years="${b.key}" type="button">${esc(b.label)}</button>`)
     .join('');
 }
@@ -7940,6 +8012,8 @@ if (yearOptsEl) yearOptsEl.addEventListener('click', e => {
   state.years = (state.years === b.dataset.years) ? 'all' : b.dataset.years;
   syncYearOpts();
   updateFilterGlow();
+  // The chips count what the filters left, so they move with them.
+  renderChips();
   render();
   saveSettings();
 });
@@ -8159,12 +8233,22 @@ function renderChips() {
   // Counted over the SOURCE, not over the whole catalogue: inside an open
   // collection the ribbon must describe the collection (owner-reported —
   // the numbers read as lies otherwise).
-  // The query counts too, now that it narrows the page itself: a ribbon
-  // reading «Трилери (3)» while the screen shows one film would be
-  // describing something nobody can see. The genre itself is deliberately
-  // NOT applied — a chip must keep the number that says what picking it
-  // would give you.
-  for (const m of searchSource().filter(m => matches(m, state.query))) {
+  //
+  // EVERY filter counts, not only the query (owner's call). A ribbon
+  // reading «Трилери (48)» beside a shelf narrowed to the 1990s and to
+  // sweet.tv is describing a catalogue nobody is looking at. The same
+  // filterCatalog the grid uses does the counting, so the two cannot give
+  // different answers about the same films.
+  //
+  // The GENRE itself is the one thing left out, and deliberately: a chip
+  // has to keep the number that says what picking it would give you. Count
+  // it in and every chip but the active one reads (0).
+  for (const m of filterCatalog(searchSource(), {
+    query: state.query, tab: state.tab, showWatched: state.showWatched,
+    genre: 'all', recommender: state.recommender, type: state.type,
+    years: state.years, provider: state.provider,
+    likedIds: liked, watchedIds: watched,
+  })) {
     counts[m.genre_group] = (counts[m.genre_group] || 0) + 1;
   }
   const activeG = state.genre || 'all';
@@ -8334,11 +8418,49 @@ recommenderFilterEl.addEventListener('click', e => {
   // A second tap on the chosen name clears it (U-6).
   state.recommender = (state.recommender === b.dataset.rec) ? 'all' : b.dataset.rec;
   updateRecommenderFilter();
+  updateProviderFilter();
   updateFilterGlow();
+  // The chips count what the filters left, so they move with them.
+  renderChips();
   render();
   saveSettings();
 });
 updateRecommenderFilter();
+
+/* «Де подивитись» as a filter. Built from the catalogue, like the one
+ * above, and for the same reason: an option for a service no film is on
+ * would filter to an empty screen. It is therefore absent until the
+ * provider pass has run, and appears on its own when it has. */
+const providerFilterEl = document.getElementById('providerFilter');
+function updateProviderFilter() {
+  const label = document.getElementById('providerLabel');
+  if (!providerFilterEl || !label) return;
+  const values = providersInCatalogue(MOVIES);
+  if (!values.length) {
+    providerFilterEl.style.display = 'none'; label.style.display = 'none';
+    // A chosen provider that has left the catalogue must not go on filtering
+    // invisibly: the drawer would show nothing and the shelf would be empty
+    // with no way to see why.
+    state.provider = 'all';
+    return;
+  }
+  if (!values.some(v => v.name === state.provider)) state.provider = 'all';
+  providerFilterEl.innerHTML = values.map(v =>
+    `<button class="opt${state.provider === v.name ? ' active' : ''}" data-prov="${esc(v.name)}" type="button">${esc(v.name)}</button>`).join('');
+  providerFilterEl.style.display = '';
+  label.style.display = '';
+}
+if (providerFilterEl) providerFilterEl.addEventListener('click', e => {
+  const b = e.target.closest('.opt'); if (!b) return;
+  state.provider = (state.provider === b.dataset.prov) ? 'all' : b.dataset.prov;
+  updateProviderFilter();
+  updateFilterGlow();
+  // The chips count what the filters left, so they move with them.
+  renderChips();
+  render();
+  saveSettings();
+});
+updateProviderFilter();
 
 /* ---------- apply restored settings (tab / view / sort) to the DOM once, at startup ---------- */
 (function applySavedSettingsToDom() {
