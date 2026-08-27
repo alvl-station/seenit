@@ -7440,6 +7440,16 @@ function unmuteTrailer() {
 }
 function closeModal() {
   overlay.classList.remove('open');
+  // Back to the hand the film came from (owner-reported: the picks were
+  // gone after a look at one of them). Re-rendered, not just reopened, so
+  // a mark made inside the card shows on the dealt row too.
+  if (_diceReturn) {
+    _diceReturn = false;
+    if (_dicePicks.length) {
+      renderDiceResults(_dicePicks);
+      diceSheet.open();
+    }
+  }
   // The card only ever stopped being VISIBLE. The iframe stayed in the DOM
   // and the trailer went on playing behind it — audible, if the sound button
   // had been used (owner-reported). Removing the element is what stops
@@ -7564,6 +7574,9 @@ overlay.addEventListener('click', e => {
     // a filter was now on or where to switch it off (owner-reported). It
     // opens the search panel instead: half a screen, the name already in the
     // field, and closing it puts everything back.
+    // Leaving for the SEARCH, not back to the hand: the dice sheet must not
+    // reopen over the results the person just asked for.
+    _diceReturn = false;
     closeModal();
     searchInput.value = actor.dataset.actor;
     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -8580,6 +8593,11 @@ if (diceBtn) diceBtn.addEventListener('click', () => {
 });
 document.getElementById('diceAgainBtn').addEventListener('click', rollTheDice);
 document.getElementById('diceCloseBtn').addEventListener('click', () => diceSheet.close());
+/* Opening a dealt film must not COST the hand (owner-reported: closing the
+ * card lost all four picks). The sheet steps aside for the modal and comes
+ * back when the modal closes — same picks, re-rendered so any marks made
+ * inside the card show on the hand. */
+let _diceReturn = false;
 diceResultsEl.addEventListener('click', e => {
   // The same gestures the shelf's cards answer, minus the modes that make
   // no sense inside a hand of four. A toggle marks and repaints the SAME
@@ -8597,6 +8615,7 @@ diceResultsEl.addEventListener('click', e => {
     || catalogSource().find(x => x.id === card.dataset.id);
   if (!m) return;
   diceSheet.close();
+  _diceReturn = true;
   openModal(m);
 });
 
