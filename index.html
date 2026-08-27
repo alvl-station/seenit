@@ -2769,7 +2769,7 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing "Інше" bucket.
-  GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Вестерни', 'Документальні', 'Інше'],
+  GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -4522,6 +4522,12 @@ const TOPLIST_DEFS = [
   // keywords. Every other list excludes the same keyword, so a parody
   // lands here and nowhere else.
   { key: 'parody',    title: 'Топ-100 пародій',        genres: [],        group: null,             minVotes: 150, withKeywords: 9755 },   // 9755 = PARODY_KEYWORD_ID, declared below
+  // A THEME, not a genre (owner's call): a comic-book film is an action, a
+  // fantasy, even a drama — pulling them off their genre shelves would
+  // trade one confusion for another. Either keyword qualifies: TMDb tags
+  // adaptations `based on comic` and the capes-first films `superhero`,
+  // and the catalogue carries hundreds of each (keyword report).
+  { key: 'comics',    title: 'Топ-100 за коміксами',   genres: [],        group: null,             minVotes: 300, withKeywords: [9717, 9715] },
   { key: 'animation', title: 'Топ-100 мультфільмів',   genres: [16],      group: 'Мультфільми',    minVotes: 250 },
   { key: 'docs',      title: 'Топ-100 документальних', genres: [99],      group: 'Документальні',  minVotes: 80 },
 ];
@@ -4796,6 +4802,17 @@ function hasKeyword(meta, id, name) {
 function isParody(meta) {
   return hasKeyword(meta, PARODY_KEYWORD_ID, 'parody');
 }
+
+/**
+ * Stand-up specials are their own kind of thing (owner's call), and TMDb
+ * cannot say so by genre — every one of them is plain Comedy there. The
+ * keyword is the only marker that exists, and the catalogue holds dozens
+ * of specials wearing it (Карлін, Мерфі, Чаппелл…, per the keyword report).
+ */
+const STANDUP_KEYWORD_ID = 9716;
+function isStandup(meta) {
+  return hasKeyword(meta, STANDUP_KEYWORD_ID, 'stand-up comedy');
+}
 function isAnime(genreIds, meta) {
   const ids = genreIds || [];
   if (!ids.some(id => ANIMATION_GENRE_IDS.includes(Number(id)))) return false;
@@ -4810,15 +4827,32 @@ function isAnime(genreIds, meta) {
  * place either way.
  */
 function primaryGenre(genreIds, meta) {
-  // Two overrides before the order rule, both for things TMDb's genre list
-  // cannot say. Anime goes first deliberately: it describes the MEDIUM and
-  // the origin, which stays true even of a parody — a Japanese animated
-  // spoof is still shelved with anime.
-  if (isAnime(genreIds, meta)) return { genre: 'аніме', group: 'Аніме' };
+  const ids = (genreIds || []).map(Number);
+  // Overrides before the order rule, each for something TMDb's genre list
+  // cannot say — checked in the order of how much they claim:
+  //
+  // Anime first: it describes the MEDIUM and the origin, which stays true
+  // even of a parody — a Japanese animated spoof is still shelved with
+  // anime. Parody next, stand-up after it (TMDb files every special as
+  // plain Comedy; the keyword is the only marker there is).
+  if (isAnime(ids, meta)) return { genre: 'аніме', group: 'Аніме' };
   if (isParody(meta)) return { genre: 'пародія', group: 'Пародії' };
-  for (const id of (genreIds || [])) {
-    if (TMDB_GENRE_MAP[id]) return TMDB_GENRE_MAP[id];
+  if (isStandup(meta)) return { genre: 'стендап', group: 'Стендап' };
+  // Animation anywhere in the list wins over whatever TMDb put first, for
+  // the same medium-over-genre reason as anime: «Луні Тюнз» filed under
+  // Бойовики and «Війна клонів» under Військові were exactly this rule
+  // missing (the keyword report has the list).
+  if (ids.some(id => ANIMATION_GENRE_IDS.includes(id))) {
+    return TMDB_GENRE_MAP[16];
   }
+  // Horror beats Family when Family would otherwise win: «Гелловін» was on
+  // the family shelf. A scary film for kids does exist («Каспер») — but
+  // TMDb marks THOSE Family-first without Horror at all; a film carrying
+  // both is a horror someone also filed as watchable-with-kids, and the
+  // scary half is the one a browsing parent needs to see.
+  const first = ids.find(id => TMDB_GENRE_MAP[id]);
+  if (first === 10751 && ids.includes(27)) return TMDB_GENRE_MAP[27];
+  if (first !== undefined) return TMDB_GENRE_MAP[first];
   return { genre: 'драма', group: 'Драми' };
 }
 
@@ -5074,7 +5108,34 @@ function userTasteStats(movies, marks) {
  *   0..1   quality prior off the film's own rating, so an unknown film
  *          with a dire score does not ride a genre match to the top
  */
-const DICE_RECENCY_SPAN = 30;
+/* Freshness is a MULTIPLIER over the whole score now, by decade (owner's
+ * two rulings in one: newer films deserve real extra weight, and pre-1985
+ * films should barely surface — 0.12 is «майже не мають шансів», not a
+ * ban: a beloved director from 1972 still outrolls a 1975 stranger, both
+ * just rarely). The table is the tuning knob; a film with no year sits in
+ * the middle rather than being quietly banned for a data gap. */
+// The owner's own ladder, verbatim: the LAST FIVE YEARS above everything
+// and rolling — «з кожним роком все оновлюється», so the window is counted
+// from today, never from a hard-coded year — then 2020–today, then each
+// decade down, and everything before 1980 «майже не може випасти».
+const DICE_FRESH_YEARS = 5;
+const DICE_FRESH_MULT = 2.0;
+const DICE_DECADE_MULT = [
+  { from: 2020, mult: 1.6 },
+  { from: 2010, mult: 1.2 },
+  { from: 2000, mult: 0.9 },
+  { from: 1990, mult: 0.6 },
+  { from: 1980, mult: 0.3 },
+  { from: 0,    mult: 0.12 },
+];
+function diceDecadeMult(year, nowYear) {
+  const y = Number(year);
+  if (!Number.isFinite(y) || y <= 0) return 0.5;
+  const now = Number(nowYear) || new Date().getFullYear();
+  if (y > now - DICE_FRESH_YEARS) return DICE_FRESH_MULT;
+  return (DICE_DECADE_MULT.find(d => y >= d.from) || { mult: 0.12 }).mult;
+}
+
 function diceScore(m, stats, { now } = {}) {
   let score = 1;
   if (stats && stats.weight > 0) {
@@ -5085,14 +5146,9 @@ function diceScore(m, stats, { now } = {}) {
     score += Math.min(3, actorW * 0.5);
     score += 2 * ((stats.genres[m.genre_group] || 0) / stats.weight);
   }
-  const y = Number(m && m.year);
-  const nowYear = Number(now) || new Date().getFullYear();
-  if (Number.isFinite(y) && y > 0) {
-    score += 1.5 * Math.min(1, Math.max(0, (y - (nowYear - DICE_RECENCY_SPAN)) / DICE_RECENCY_SPAN));
-  }
   const r = ratingNum(m);
   if (r) score += Math.min(1, Math.max(0, (r - 6) / 3));
-  return score;
+  return score * diceDecadeMult(m && m.year, now);
 }
 
 /**
@@ -5452,7 +5508,7 @@ if (typeof module !== 'undefined' && module.exports) {
     trendingIdentity, trendingCacheKey, parseTmdbTrending, parseItunesTopMovies,
     mergeTrendingSources, resolveTrendingEntry, trendingListChanged,
     TOPLIST_DEFS, parseDiscoverMovies, buildToplist, toplistsChanged, belongsInToplist,
-    toplistExcludesParody, isParody, PARODY_KEYWORD_ID,
+    toplistExcludesParody, isParody, PARODY_KEYWORD_ID, isStandup, STANDUP_KEYWORD_ID,
     CATALOGUE_PAGE, MY_FILMS_ID, MY_FILMS_NAME,
     markKey, isMarked, poolListUrl, poolVersionUrl, markUrl, collectionFilmUrl,
     refUrl, parseCollectionKey, collectionLink, parseCollectionLink,
@@ -5466,7 +5522,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
-    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons,
+    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
