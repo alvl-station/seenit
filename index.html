@@ -5055,26 +5055,37 @@ function userTasteStats(movies, marks) {
 /**
  * One candidate's weight on the die.
  *
- * Additive and bounded, so no single signal can drown the rest:
- *   1     base — with no history at all the die is uniform, as it was
- *   0..4  genre affinity: the genre's share of everything the person has
- *         weighted-watched
- *   0..3  a director they have already watched (capped: a fifth film by
- *         the same director proves love, a fifteenth proves nothing more)
- *   0..2  familiar faces in the cast, summed small so an ensemble of
- *         half-known actors cannot outrank a beloved director
- *   0..1  quality prior off the film's own rating, so an unknown film with
- *         a dire score does not ride a genre match to the top
+ * Additive and bounded — and the CAPS are the hierarchy (owner's ruling):
+ * режисер > актор > жанр > рік. Raw points cannot reorder it: a beloved
+ * director may hold fewer raw points than a big genre and still outrank
+ * it, because his cap sits above the genre's ceiling.
+ *
+ *   1      base — with no history at all the die is uniform, as it was
+ *   0..5   a director they have already watched. Weight 2 (one liked
+ *          film) already clears the whole genre ceiling — «його вагомість
+ *          перекреслює жанр», by construction.
+ *   0..3   familiar faces in the cast, summed
+ *   0..2   genre affinity: the genre's share of everything weighted-watched
+ *   0..1.5 freshness: this year's film takes it all, fading to nothing
+ *          over thirty years — «чим свіжіший, тим частіше випадає»
+ *   0..1   quality prior off the film's own rating, so an unknown film
+ *          with a dire score does not ride a genre match to the top
  */
-function diceScore(m, stats) {
+const DICE_RECENCY_SPAN = 30;
+function diceScore(m, stats, { now } = {}) {
   let score = 1;
   if (stats && stats.weight > 0) {
-    score += 4 * ((stats.genres[m.genre_group] || 0) / stats.weight);
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
-    score += Math.min(3, dirW * 0.75);
+    score += Math.min(5, dirW * 1.25);
     let actorW = 0;
     for (const a of (m.cast || []).slice(0, 5)) actorW += stats.actors[String(a)] || 0;
-    score += Math.min(2, actorW * 0.25);
+    score += Math.min(3, actorW * 0.5);
+    score += 2 * ((stats.genres[m.genre_group] || 0) / stats.weight);
+  }
+  const y = Number(m && m.year);
+  const nowYear = Number(now) || new Date().getFullYear();
+  if (Number.isFinite(y) && y > 0) {
+    score += 1.5 * Math.min(1, Math.max(0, (y - (nowYear - DICE_RECENCY_SPAN)) / DICE_RECENCY_SPAN));
   }
   const r = ratingNum(m);
   if (r) score += Math.min(1, Math.max(0, (r - 6) / 3));
@@ -5088,17 +5099,13 @@ function diceScore(m, stats) {
  * they weigh, at most `max` of them; an empty answer means the card rode
  * luck and its rating, and the caller should say THAT rather than nothing.
  */
-function diceReasons(m, stats, { max = 2 } = {}) {
+function diceReasons(m, stats, { max = 2, now } = {}) {
   const reasons = [];
   if (stats && stats.weight > 0) {
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
     if (dirW >= 2) {
       const name = splitPeople(m.director).find(d => (stats.directors[d] || 0) === dirW);
       reasons.push({ kind: 'director', label: `реж. ${name} — у тебе ${dirW}` });
-    }
-    const share = (stats.genres[m.genre_group] || 0) / stats.weight;
-    if (share >= 0.1 && m.genre_group) {
-      reasons.push({ kind: 'genre', label: `${m.genre_group} — ${Math.round(share * 100)}% твого` });
     }
     const known = (m.cast || []).slice(0, 5)
       .map(a => ({ a: String(a), w: stats.actors[String(a)] || 0 }))
@@ -5107,11 +5114,19 @@ function diceReasons(m, stats, { max = 2 } = {}) {
     if (known.length) {
       reasons.push({ kind: 'actor', label: `${known[0].a} — у тебе ${known[0].w}` });
     }
+    const share = (stats.genres[m.genre_group] || 0) / stats.weight;
+    if (share >= 0.1 && m.genre_group) {
+      reasons.push({ kind: 'genre', label: `${m.genre_group} — ${Math.round(share * 100)}% твого` });
+    }
   }
-  // Weight order, not discovery order: the director cap (3) sits above the
-  // actors' (2), and a strong genre share can outrank both — sort by what
-  // actually moved the score.
-  const rank = { director: 1, genre: 2, actor: 3 };
+  const y = Number(m && m.year);
+  const nowYear = Number(now) || new Date().getFullYear();
+  if (Number.isFinite(y) && y >= nowYear - 5) {
+    reasons.push({ kind: 'fresh', label: `свіжий — ${y}` });
+  }
+  // The caps' own order (owner's ruling): режисер > актор > жанр > рік —
+  // the receipt names what the score actually weighed heaviest.
+  const rank = { director: 1, actor: 2, genre: 3, fresh: 4 };
   reasons.sort((a, b) => rank[a.kind] - rank[b.kind]);
   return reasons.slice(0, max);
 }
