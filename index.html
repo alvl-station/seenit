@@ -1151,6 +1151,23 @@
   /* The picker unfolds under the actions, in the same rectangular options
      the drawers use — a collection that already has the film is shown, not
      hidden, so the answer to «is it in there?» is on the same screen. */
+  /* The dice's four answers: a two-by-two hand of small cards inside the
+     sheet. Buttons, because each one IS the action of opening that film. */
+  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dice-pick {
+    display: flex; flex-direction: column; gap: 6px; text-align: left;
+    background: none; border: 1px solid var(--border); padding: 8px; cursor: pointer;
+    color: inherit; font: inherit;
+  }
+  .dice-pick:active { border-color: var(--blood); }
+  .dice-poster { aspect-ratio: 2 / 3; overflow: hidden; background: var(--border); position: relative; }
+  .dice-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dice-poster.fallback { display: flex; align-items: center; justify-content: center; }
+  .dice-poster .poster-initial { font-size: 32px; color: var(--ash); }
+  .dice-pick-title { font-weight: 600; font-size: 13px; line-height: 1.25; color: var(--ink); }
+  .dice-pick-meta { font-size: 11px; color: var(--ash); }
+  #diceSheet .acc-actions { margin-top: 12px; }
+
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
   .pick-collection .lbl {
@@ -2383,6 +2400,20 @@
      mode, the genre ribbon) moved to НАЛАШТУВАННЯ in the menu (owner's
      call): a filter answers «which films», a setting answers «how they
      look», and one drawer holding both made neither obvious. -->
+<!-- The dice's answer: four films drawn by the person's own taste
+     (userTasteStats/rollDice in logic.js). A sheet like ФІЛЬТР — the same
+     strip of glass at the same edge — filled by renderDiceResults(). -->
+<div class="sheet-backdrop" id="diceBackdrop" hidden></div>
+<div class="sheet" id="diceSheet" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="sheet-title">Кубик радить</div>
+    <button class="hicon" id="diceCloseBtn" type="button" title="Закрити" aria-label="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="dice-results" id="diceResults"></div>
+  <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Ще раз</button></div>
+</div>
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
 <div class="sheet" id="filterSheet" aria-hidden="true">
   <!-- Its own cross, for the same reason the menu grew one: on a phone the
@@ -2796,6 +2827,12 @@ function userMarksPath(uid, list) {
 function localMarksKey(uid, list) {
   if (!MARK_LISTS.includes(list)) return null;
   return uid ? `seenit_${uid}_${list}` : null;
+}
+
+/** The offline copy of the taste profile, scoped per account the same way
+ *  the marks are and for the same reason. */
+function localStatsKey(uid) {
+  return uid ? `seenit_${uid}_stats` : null;
 }
 
 /**
@@ -4921,6 +4958,113 @@ function pickRandomFilm(items, watchedIds, rnd) {
   return from[Math.min(Math.max(i, 0), from.length - 1)];
 }
 
+/* ---------- the personalised dice ----------
+ *
+ * The die stopped being uniform (owner's ask): it reads the person's own
+ * history and leans toward what they demonstrably love, while staying a
+ * DIE — a weighted draw, not a leaderboard, so two rolls give two answers.
+ *
+ * The statistics stand on films the person has SEEN; the marks grade how
+ * hard each one counts. The owner's own notation: a plain recommendation
+ * is «+», «обовʼязково до перегляду» is «+++» — so the heart doubles a
+ * film's vote and the star doubles it again.
+ */
+const TASTE_WEIGHTS = { watched: 1, liked: 2, must: 4 };
+
+/** How hard one film votes in the person's taste profile. */
+function filmTasteWeight(m, { watchedIds, likedIds, mustIds }) {
+  if (!markKey(m) || !isMarked(watchedIds, m)) return 0;
+  if (isMarked(mustIds, m)) return TASTE_WEIGHTS.must;
+  if (isMarked(likedIds, m)) return TASTE_WEIGHTS.liked;
+  return TASTE_WEIGHTS.watched;
+}
+
+/** "A, B" -> ['A', 'B'] — the shape `director` is stored in. */
+function splitPeople(joined) {
+  return String(joined || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/**
+ * The person's taste, computed from their marks over the catalogue.
+ *
+ * Genres, directors and actors each accumulate the WEIGHT of every seen
+ * film they appear in — so a director watched five times and starred once
+ * outranks one watched twice, which is exactly the "улюблений режисер"
+ * the owner asked the die to know about. `weight` is the total, kept so a
+ * share can be computed without re-walking the counts.
+ */
+function userTasteStats(movies, marks) {
+  const stats = { films: 0, weight: 0, genres: {}, directors: {}, actors: {} };
+  const bump = (map, name, w) => { map[name] = (map[name] || 0) + w; };
+  for (const m of movies || []) {
+    const w = filmTasteWeight(m, marks);
+    if (!w) continue;
+    stats.films++;
+    stats.weight += w;
+    if (m.genre_group) bump(stats.genres, m.genre_group, w);
+    for (const d of splitPeople(m.director)) bump(stats.directors, d, w);
+    for (const a of (m.cast || []).slice(0, 5)) bump(stats.actors, String(a), w);
+  }
+  return stats;
+}
+
+/**
+ * One candidate's weight on the die.
+ *
+ * Additive and bounded, so no single signal can drown the rest:
+ *   1     base — with no history at all the die is uniform, as it was
+ *   0..4  genre affinity: the genre's share of everything the person has
+ *         weighted-watched
+ *   0..3  a director they have already watched (capped: a fifth film by
+ *         the same director proves love, a fifteenth proves nothing more)
+ *   0..2  familiar faces in the cast, summed small so an ensemble of
+ *         half-known actors cannot outrank a beloved director
+ *   0..1  quality prior off the film's own rating, so an unknown film with
+ *         a dire score does not ride a genre match to the top
+ */
+function diceScore(m, stats) {
+  let score = 1;
+  if (stats && stats.weight > 0) {
+    score += 4 * ((stats.genres[m.genre_group] || 0) / stats.weight);
+    const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
+    score += Math.min(3, dirW * 0.75);
+    let actorW = 0;
+    for (const a of (m.cast || []).slice(0, 5)) actorW += stats.actors[String(a)] || 0;
+    score += Math.min(2, actorW * 0.25);
+  }
+  const r = ratingNum(m);
+  if (r) score += Math.min(1, Math.max(0, (r - 6) / 3));
+  return score;
+}
+
+/**
+ * The roll: `count` films drawn without replacement, probability
+ * proportional to diceScore — never anything already watched (owner's
+ * call: the old fallback-to-rewatch is gone; fewer than `count` unseen
+ * films means a shorter answer, and none means an empty one the caller
+ * has to own up to).
+ *
+ * rnd is injected so a test can pin the physics; the app passes
+ * Math.random.
+ */
+function rollDice(items, stats, { watchedIds, count = 4, rnd = Math.random } = {}) {
+  const scored = (items || [])
+    .filter(m => m && markKey(m) && !isMarked(watchedIds, m))
+    .map(m => ({ m, s: diceScore(m, stats) }));
+  const picked = [];
+  while (scored.length && picked.length < count) {
+    const total = scored.reduce((n, x) => n + x.s, 0);
+    let roll = rnd() * total;
+    let i = 0;
+    for (; i < scored.length - 1; i++) {
+      roll -= scored[i].s;
+      if (roll <= 0) break;
+    }
+    picked.push(scored.splice(i, 1)[0].m);
+  }
+  return picked;
+}
+
 function youtubeEmbedUrl(url) {
   const id = youtubeVideoId(url);
   // playsinline=1 is not optional on iOS and its absence is why the trailer
@@ -5225,6 +5369,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
+    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
@@ -5379,6 +5524,7 @@ async function loadMarks(uid) {
     window.watched = watched;
     window.liked = liked;
     window.must = must;
+    if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
     // A readiness beacon, not app logic: the e2e fixture waits on it so a
     // scenario's first "remember the count" read cannot race the marks
     // arriving from the database — which produced remembered-null against
@@ -7343,6 +7489,7 @@ document.addEventListener('keydown', e => {
   if (searchIsOpen()) closeSearch();
   menuSheet.close();
   filterSheet.close();
+  diceSheet.close();
   settingsSheet.close();
 });
 
@@ -7377,6 +7524,7 @@ async function toggle(act, id) {
   // instead of jumping back to the top of the catalogue.
   const before = { watched: watched.has(key), liked: liked.has(key), must: must.has(key) };
   for (const op of ops) (op.on ? setOf(op.list).add(key) : setOf(op.list).delete(key));
+  tasteStatsChanged();
   render({ keepDrawn: true });
   const uid = auth.currentUser && auth.currentUser.uid;
   const saveLocal = () => {
@@ -7404,6 +7552,7 @@ async function toggle(act, id) {
     before.watched ? watched.add(key) : watched.delete(key);
     before.liked ? liked.add(key) : liked.delete(key);
     before.must ? must.add(key) : must.delete(key);
+    tasteStatsChanged();
     saveLocal();
     render({ keepDrawn: true });
     toast('error', 'Не вдалося зберегти позначку — спробуй ще раз');
@@ -7648,7 +7797,7 @@ function sheetIsMenuScreen(id) { return MENU_SHEET_IDS.includes(id); }
  * catalogue behind itself while every other tab had stopped (owner-
  * reported). The band is about geometry; «back» is about where you came
  * from, and those are different questions. */
-const BAND_SHEET_IDS = [...MENU_SHEET_IDS, 'filterSheet'];
+const BAND_SHEET_IDS = [...MENU_SHEET_IDS, 'filterSheet', 'diceSheet'];
 const BAND_OVERLAY_IDS = ['recsOverlay', 'friendsOverlay', 'accountOverlay'];
 function sheetIsBand(id) { return id === 'menuSheet' || BAND_SHEET_IDS.includes(id); }
 
@@ -8228,9 +8377,94 @@ function syncDice() {
   if (!diceBtn) return;
   diceBtn.hidden = visibleMovies().length === 0;
 }
+
+/* ---------- the personalised dice ----------
+ *
+ * The taste profile is computed from the marks over the in-memory
+ * catalogue (userTasteStats, logic.js) — milliseconds of work, so it is
+ * recomputed lazily whenever a mark moves rather than kept incrementally.
+ * The durable copy goes to /library/stats (debounced: a marking spree is
+ * one write, not ten) with a local cache beside it, keyed per account the
+ * same way the marks are.
+ */
+let _tasteStats = null;
+let _statsSaveTimer = null;
+function tasteStats() {
+  if (!_tasteStats) {
+    _tasteStats = userTasteStats(MOVIES, { watchedIds: watched, likedIds: liked, mustIds: must });
+  }
+  return _tasteStats;
+}
+function tasteStatsChanged() {
+  _tasteStats = null;
+  clearTimeout(_statsSaveTimer);
+  _statsSaveTimer = setTimeout(saveTasteStats, 8000);
+}
+async function saveTasteStats() {
+  const uid = auth.currentUser && auth.currentUser.uid;
+  const cacheKey = localStatsKey(uid);
+  if (!cacheKey) return;
+  const stats = tasteStats();
+  const text = JSON.stringify(stats);
+  // Unchanged since the last save — nothing to send. This is what makes the
+  // debounced write idle-cheap: reopening the app with no new marks costs
+  // no request at all.
+  if (localStore.get(cacheKey) && JSON.stringify(localStore.get(cacheKey)) === text) return;
+  localStore.set(cacheKey, stats);
+  try {
+    await fetch(`${API_PROXY}/library/stats`, {
+      method: 'PUT',
+      headers: await proxyHeaders({ accept: 'application/json', 'content-type': 'application/json' }),
+      body: JSON.stringify({ stats }),
+    });
+  } catch (err) { /* derived data: the next save, or the next device, recomputes */ }
+}
+
+const diceSheet = wireSheet('diceSheet', 'diceBackdrop');
+const diceResultsEl = document.getElementById('diceResults');
+
+function renderDiceResults(picks) {
+  diceResultsEl.innerHTML = picks.map(m => `
+    <button class="dice-pick" type="button" data-id="${esc(m.id)}">
+      ${posterHtml(m, 'dice-poster')}
+      <span class="dice-pick-title">${esc(m.canonical_title_uk)}</span>
+      <span class="dice-pick-meta">${[m.year, m.genre].filter(Boolean).map(v => esc(String(v))).join(' · ')}</span>
+    </button>`).join('');
+}
+
+/**
+ * The roll: four films the person has NOT seen, drawn by their own taste
+ * (owner's spec) — from the whole catalogue, or from the open collection
+ * when they are standing in one. catalogSource() is exactly that boundary;
+ * the filters deliberately do not narrow the die any more.
+ */
+function rollTheDice() {
+  const picks = rollDice(catalogSource(), tasteStats(), { watchedIds: watched, count: 4 });
+  if (!picks.length) {
+    // Stale cards must go too, or the next tap would reopen yesterday's
+    // hand over an all-watched shelf.
+    diceResultsEl.innerHTML = '';
+    toast('error', 'Тут усе вже переглянуто — кубику нема чого радити.');
+    diceSheet.close();
+    return false;
+  }
+  renderDiceResults(picks);
+  return true;
+}
+
 if (diceBtn) diceBtn.addEventListener('click', () => {
-  const pick = pickRandomFilm(visibleMovies(), watched);
-  if (pick) openModal(pick);
+  if (rollTheDice()) diceSheet.open();
+});
+document.getElementById('diceAgainBtn').addEventListener('click', rollTheDice);
+document.getElementById('diceCloseBtn').addEventListener('click', () => diceSheet.close());
+diceResultsEl.addEventListener('click', e => {
+  const pick = e.target.closest('.dice-pick');
+  if (!pick) return;
+  const m = MOVIES.find(x => x.id === pick.dataset.id)
+    || catalogSource().find(x => x.id === pick.dataset.id);
+  if (!m) return;
+  diceSheet.close();
+  openModal(m);
 });
 
 const toTopBtn = document.getElementById('toTopBtn');
