@@ -6468,9 +6468,30 @@ function loadMe() {
 // account can be linked, and why that is also what makes an accidental
 // purchase impossible.
 //
-// Offered here rather than free-typed so the names match what TMDb returns
-// and the sort in providersHtml() can compare them directly.
-const KNOWN_SERVICES = ['Netflix', 'Megogo', 'HBO Max', 'Apple TV', 'Crunchyroll', 'MUBI', 'Amazon Prime Video'];
+// Offered here rather than free-typed so the spelling matches what the
+// provider rows carry and the sort in providersHtml() can compare them
+// directly. The old note said "matches what TMDb returns" — TMDb returns
+// NOTHING for Ukraine (checked 2026-08-27: two films show offers under
+// locale=PL and none at all under locale=UA), so the names have to match
+// what OUR pipeline writes instead.
+//
+// UKRAINIAN FIRST, and that is the whole point of the change. This list
+// decides what «Де подивитись» shows at the top, and it was a list of
+// global services with one local one in the middle. Megogo, Київстар ТБ and
+// sweet.tv hold about 78% of the Ukrainian OTT market between them; two of
+// the three were missing entirely, while HBO Max — which does not operate
+// in Ukraine at all — was offered as something to tick.
+//
+// Takflix is small and kept on purpose: it is the only place Ukrainian
+// cinema lives, and it is the one entry here no global tracker has.
+//
+// Removing «HBO Max» leaves a stale key in Firebase for anyone who ticked
+// it. Harmless: the value is only read to sort provider rows, and there are
+// no HBO Max rows for this region to sort.
+const KNOWN_SERVICES = [
+  'Megogo', 'Київстар ТБ', 'sweet.tv', 'Takflix',
+  'Netflix', 'Apple TV', 'Amazon Prime Video', 'Crunchyroll', 'MUBI',
+];
 let _services = [];
 function myServices() { return _services; }
 function loadServices(uid) {
