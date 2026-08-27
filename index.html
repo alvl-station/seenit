@@ -4132,19 +4132,25 @@ function matches(m, q) {
 /**
  * Providers that must never reach a card, whatever the data says.
  *
- * «Rakuten TV» (owner's call) does not operate in Ukraine — a row for it
- * sends someone to a storefront that will not serve them. Rows like these
- * live in records written by earlier passes; the next provider pass will
- * not produce them, but until it has rewritten every film the stale data
- * is still what the app is holding. Filtering at DISPLAY time rather than
- * scrubbing the database keeps the record honest about what the source
- * said while the card stays honest about what the viewer can do.
+ * Each of these is an owner's ruling, made one at a time: «Rakuten TV» and
+ * «HBO Max» do not operate in Ukraine, Google Play's film store outside
+ * the US is Google TV and its links land nowhere useful, «MUBI» cannot say
+ * whether a film has Ukrainian audio, «Crunchyroll» with it. The provider
+ * pass no longer writes rows for any of them (providerRuledOut in
+ * scripts/lib/providers.js is the same list at the source), but records
+ * written by earlier passes still carry them — filtering at DISPLAY time
+ * keeps the record honest about what the source said while the card stays
+ * honest about what the viewer can do.
+ *
+ * Keyed by serviceKey, not by spelling: TMDb writes «Max» one month and
+ * «HBO Max» the next, and an exclusion that depends on this month's
+ * spelling is an exclusion that quietly stops working.
  */
-const EXCLUDED_PROVIDERS = new Set(['Rakuten TV']);
+const EXCLUDED_PROVIDER_KEYS = new Set(['rakuten tv', 'hbo max', 'google play', 'crunchyroll', 'mubi']);
 
 /** The provider rows a film may actually show. */
 function visibleProviders(providers) {
-  return (providers || []).filter(p => p && !EXCLUDED_PROVIDERS.has(p.name));
+  return (providers || []).filter(p => p && !EXCLUDED_PROVIDER_KEYS.has(serviceKey(p.name)));
 }
 
 /**
@@ -5037,6 +5043,8 @@ function serviceKey(name) {
   if (s.startsWith('netflix')) return 'netflix';
   if (s.startsWith('apple tv') || s === 'itunes') return 'apple tv';
   if (s === 'max' || s.startsWith('hbo')) return 'hbo max';
+  if (s.startsWith('google play') || s === 'google tv') return 'google play';
+  if (s.startsWith('rakuten')) return 'rakuten tv';
   if (s.startsWith('megogo')) return 'megogo';
   if (s.startsWith('crunchyroll')) return 'crunchyroll';
   if (s.startsWith('mubi')) return 'mubi';
@@ -5186,7 +5194,7 @@ if (typeof module !== 'undefined' && module.exports) {
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, defaultDisplayName, pickRandomFilm,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
-    EXCLUDED_PROVIDERS, visibleProviders,
+    EXCLUDED_PROVIDER_KEYS, visibleProviders,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
