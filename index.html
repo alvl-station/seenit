@@ -8386,7 +8386,12 @@ let _tasteStats = null;
 let _statsSaveTimer = null;
 function tasteStats() {
   if (!_tasteStats) {
-    _tasteStats = userTasteStats(MOVIES, { watchedIds: watched, likedIds: liked, mustIds: must });
+    const stats = userTasteStats(MOVIES, { watchedIds: watched, likedIds: liked, mustIds: must });
+    // Computed against a catalogue that has not arrived yet? Answer with it
+    // but do not KEEP it — the real one is minutes of loading away, and a
+    // cached empty profile would make the die uniform for the whole session.
+    if (!MOVIES.length) return stats;
+    _tasteStats = stats;
   }
   return _tasteStats;
 }
@@ -8400,6 +8405,10 @@ async function saveTasteStats() {
   const cacheKey = localStatsKey(uid);
   if (!cacheKey) return;
   const stats = tasteStats();
+  // Marks exist but not one of them found its film: the catalogue is still
+  // arriving, and saving THIS would overwrite a real profile with an empty
+  // one. The catalogue-loaded hook schedules another save.
+  if (watched.size && !stats.films) return;
   const text = JSON.stringify(stats);
   // Unchanged since the last save — nothing to send. This is what makes the
   // debounced write idle-cheap: reopening the app with no new marks costs
@@ -8967,6 +8976,10 @@ async function loadCatalog() {
   if (liveVersion && cachedVersion === liveVersion && paintedFromCache) {
     moviesLoaded = true;
     window.__catalogueLoaded = true;
+  // The taste profile may have been computed against a half-arrived
+  // catalogue (marks land on their own schedule) — recompute and re-save
+  // now that every film it should count is actually here.
+  if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
     renderChips();
     updateRecommenderFilter();
     render();
@@ -9021,6 +9034,10 @@ async function loadCatalog() {
           localStore.set(localCatalogueSyncedAtKey(), body.cursor || since);
           moviesLoaded = true;
           window.__catalogueLoaded = true;
+  // The taste profile may have been computed against a half-arrived
+  // catalogue (marks land on their own schedule) — recompute and re-save
+  // now that every film it should count is actually here.
+  if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
           renderChips();
           updateRecommenderFilter();
           render({ keepDrawn: true });
@@ -9081,6 +9098,10 @@ async function loadCatalog() {
     // which the merge handles by overwriting them with themselves.
     localStore.set(localCatalogueSyncedAtKey(), loadStartedAt);
     window.__catalogueLoaded = true;
+  // The taste profile may have been computed against a half-arrived
+  // catalogue (marks land on their own schedule) — recompute and re-save
+  // now that every film it should count is actually here.
+  if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
   } catch (err) {
     // Offline, or the token expired: whatever the cache held is still on
     // screen, and an empty grid says so honestly.
@@ -9089,6 +9110,10 @@ async function loadCatalog() {
     // just as surely as a finished one, and a waiter that only ever sees
     // success hangs on the case it most needs to survive.
     window.__catalogueLoaded = true;
+  // The taste profile may have been computed against a half-arrived
+  // catalogue (marks land on their own schedule) — recompute and re-save
+  // now that every film it should count is actually here.
+  if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
     render({ keepDrawn: true });
     if (!MOVIES.length) { catalogueLoadFailed = true; render({ keepDrawn: true }); }
   }
