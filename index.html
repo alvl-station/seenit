@@ -1151,21 +1151,16 @@
   /* The picker unfolds under the actions, in the same rectangular options
      the drawers use — a collection that already has the film is shown, not
      hidden, so the answer to «is it in there?» is on the same screen. */
-  /* The dice's four answers: a two-by-two hand of small cards inside the
-     sheet. Buttons, because each one IS the action of opening that film. */
-  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .dice-pick {
-    display: flex; flex-direction: column; gap: 6px; text-align: left;
-    background: none; border: 1px solid var(--border); padding: 8px; cursor: pointer;
-    color: inherit; font: inherit;
-  }
-  .dice-pick:active { border-color: var(--blood); }
-  .dice-poster { aspect-ratio: 2 / 3; overflow: hidden; background: var(--border); position: relative; }
-  .dice-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .dice-poster.fallback { display: flex; align-items: center; justify-content: center; }
-  .dice-poster .poster-initial { font-size: 32px; color: var(--ash); }
-  .dice-pick-title { font-weight: 600; font-size: 13px; line-height: 1.25; color: var(--ink); }
-  .dice-pick-meta { font-size: 11px; color: var(--ash); }
+  /* The dice's four answers: a two-by-two hand of REAL catalogue cards
+     (cardHtml — owner's call: every label a card carries, exactly as on
+     the shelf). Only the geometry lives here; the cards style themselves. */
+  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .dice-results .card { cursor: pointer; }
+  /* Somewhat smaller posters HERE only (owner's ask): four full-width
+     posters made the hand a wall of covers; narrowed and centred, the
+     labels keep the card's full width and the sheet reads as advice, not
+     as another shelf. */
+  .dice-results .poster { width: 74%; margin: 0 auto; }
   #diceSheet .acc-actions { margin-top: 12px; }
 
   .pick-collection { margin-top: 12px; }
@@ -7797,7 +7792,7 @@ function sheetIsMenuScreen(id) { return MENU_SHEET_IDS.includes(id); }
  * catalogue behind itself while every other tab had stopped (owner-
  * reported). The band is about geometry; «back» is about where you came
  * from, and those are different questions. */
-const BAND_SHEET_IDS = [...MENU_SHEET_IDS, 'filterSheet', 'diceSheet'];
+const BAND_SHEET_IDS = [...MENU_SHEET_IDS, 'filterSheet'];
 const BAND_OVERLAY_IDS = ['recsOverlay', 'friendsOverlay', 'accountOverlay'];
 function sheetIsBand(id) { return id === 'menuSheet' || BAND_SHEET_IDS.includes(id); }
 
@@ -8420,16 +8415,22 @@ async function saveTasteStats() {
   } catch (err) { /* derived data: the next save, or the next device, recomputes */ }
 }
 
+// Deliberately NOT one of the band sheets: the band's height grip painted
+// itself across the dealt cards (owner-reported), and a hand of four is a
+// thing to read, not a panel to resize.
 const diceSheet = wireSheet('diceSheet', 'diceBackdrop');
 const diceResultsEl = document.getElementById('diceResults');
 
+// The current hand, kept so a mark toggled ON a dealt card can repaint the
+// same four films rather than rerolling under the person's thumb.
+let _dicePicks = [];
+
+/** REAL catalogue cards, not summaries (owner's call): every label a card
+ *  carries — title, year·type, the rating, the critic strip, the awards,
+ *  the eye/heart/star — looks and works exactly as it does on the shelf. */
 function renderDiceResults(picks) {
-  diceResultsEl.innerHTML = picks.map(m => `
-    <button class="dice-pick" type="button" data-id="${esc(m.id)}">
-      ${posterHtml(m, 'dice-poster')}
-      <span class="dice-pick-title">${esc(m.canonical_title_uk)}</span>
-      <span class="dice-pick-meta">${[m.year, m.genre].filter(Boolean).map(v => esc(String(v))).join(' · ')}</span>
-    </button>`).join('');
+  _dicePicks = picks;
+  diceResultsEl.innerHTML = picks.map(cardHtml).join('');
 }
 
 /**
@@ -8443,6 +8444,7 @@ function rollTheDice() {
   if (!picks.length) {
     // Stale cards must go too, or the next tap would reopen yesterday's
     // hand over an all-watched shelf.
+    _dicePicks = [];
     diceResultsEl.innerHTML = '';
     toast('error', 'Тут усе вже переглянуто — кубику нема чого радити.');
     diceSheet.close();
@@ -8458,10 +8460,20 @@ if (diceBtn) diceBtn.addEventListener('click', () => {
 document.getElementById('diceAgainBtn').addEventListener('click', rollTheDice);
 document.getElementById('diceCloseBtn').addEventListener('click', () => diceSheet.close());
 diceResultsEl.addEventListener('click', e => {
-  const pick = e.target.closest('.dice-pick');
-  if (!pick) return;
-  const m = MOVIES.find(x => x.id === pick.dataset.id)
-    || catalogSource().find(x => x.id === pick.dataset.id);
+  // The same gestures the shelf's cards answer, minus the modes that make
+  // no sense inside a hand of four. A toggle marks and repaints the SAME
+  // hand — the person is judging these four, not asking for four others.
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const card = act.closest('.card');
+    toggle(act.dataset.act, card && card.dataset.id);
+    renderDiceResults(_dicePicks);
+    return;
+  }
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const m = MOVIES.find(x => x.id === card.dataset.id)
+    || catalogSource().find(x => x.id === card.dataset.id);
   if (!m) return;
   diceSheet.close();
   openModal(m);
