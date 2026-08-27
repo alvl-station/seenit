@@ -1153,15 +1153,35 @@
      hidden, so the answer to «is it in there?» is on the same screen. */
   /* The dice's four answers: a two-by-two hand of REAL catalogue cards
      (cardHtml — owner's call: every label a card carries, exactly as on
-     the shelf). Only the geometry lives here; the cards style themselves. */
-  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .dice-results .card { cursor: pointer; }
-  /* Somewhat smaller posters HERE only (owner's ask): four full-width
-     posters made the hand a wall of covers; narrowed and centred, the
-     labels keep the card's full width and the sheet reads as advice, not
-     as another shelf. */
-  .dice-results .poster { width: 74%; margin: 0 auto; }
-  #diceSheet .acc-actions { margin-top: 12px; }
+     the shelf). Only the geometry lives here; the cards style themselves.
+
+     The WHOLE card is narrowed, not just its poster (owner's second note:
+     a 74%-wide poster over full-width labels read as two columns that
+     missed each other) — shrinking the card keeps title, meta and toggles
+     aligned under their own cover, and small enough that the hand and the
+     way to redeal share one screen. */
+  .dice-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; }
+  .dice-results .card { cursor: pointer; width: 68%; margin: 0 auto; }
+  .dice-cell { display: flex; flex-direction: column; }
+  /* The receipt sits over its card at the card's own width, in the meta
+     row's mono voice: it is data about the roll, not a caption. */
+  .dice-why {
+    width: 68%; margin: 0 auto 4px; min-height: 24px;
+    display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start;
+  }
+  .dice-why-tag {
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--dust);
+    border: 1px solid var(--border); padding: 2px 5px; border-radius: 2px;
+  }
+  .dice-why-tag--luck { color: var(--ash); border-style: dashed; }
+  /* «Ще раз» must never scroll out of reach under four covers: it stays
+     pinned to the sheet's bottom edge, on the sheet's own ground so the
+     cards slide beneath it rather than through it. */
+  #diceSheet .acc-actions {
+    position: sticky; bottom: -30px; margin: 12px -18px 0;
+    padding: 10px 18px 12px; background: var(--coal2);
+  }
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
@@ -5062,6 +5082,41 @@ function diceScore(m, stats) {
 }
 
 /**
+ * WHY this card is in the hand — the die's own receipts, for the card to
+ * show (owner's ask: «не розумію, які у цих фільмів переваги по моїй
+ * статистиці»). The same signals diceScore adds up, named in the order
+ * they weigh, at most `max` of them; an empty answer means the card rode
+ * luck and its rating, and the caller should say THAT rather than nothing.
+ */
+function diceReasons(m, stats, { max = 2 } = {}) {
+  const reasons = [];
+  if (stats && stats.weight > 0) {
+    const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
+    if (dirW >= 2) {
+      const name = splitPeople(m.director).find(d => (stats.directors[d] || 0) === dirW);
+      reasons.push({ kind: 'director', label: `реж. ${name} — у тебе ${dirW}` });
+    }
+    const share = (stats.genres[m.genre_group] || 0) / stats.weight;
+    if (share >= 0.1 && m.genre_group) {
+      reasons.push({ kind: 'genre', label: `${m.genre_group} — ${Math.round(share * 100)}% твого` });
+    }
+    const known = (m.cast || []).slice(0, 5)
+      .map(a => ({ a: String(a), w: stats.actors[String(a)] || 0 }))
+      .filter(x => x.w >= 2)
+      .sort((x, y) => y.w - x.w);
+    if (known.length) {
+      reasons.push({ kind: 'actor', label: `${known[0].a} — у тебе ${known[0].w}` });
+    }
+  }
+  // Weight order, not discovery order: the director cap (3) sits above the
+  // actors' (2), and a strong genre share can outrank both — sort by what
+  // actually moved the score.
+  const rank = { director: 1, genre: 2, actor: 3 };
+  reasons.sort((a, b) => rank[a.kind] - rank[b.kind]);
+  return reasons.slice(0, max);
+}
+
+/**
  * The roll: `count` films drawn without replacement, probability
  * proportional to diceScore — never anything already watched (owner's
  * call: the old fallback-to-rewatch is gone; fewer than `count` unseen
@@ -5393,7 +5448,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
-    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey,
+    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
@@ -8465,10 +8520,20 @@ let _dicePicks = [];
 
 /** REAL catalogue cards, not summaries (owner's call): every label a card
  *  carries — title, year·type, the rating, the critic strip, the awards,
- *  the eye/heart/star — looks and works exactly as it does on the shelf. */
+ *  the eye/heart/star — looks and works exactly as it does on the shelf.
+ *  Above each one, the die's own receipt (owner's ask: «не розумію, які у
+ *  цих фільмів переваги по моїй статистиці») — which of the person's
+ *  signals put this card in the hand, or the honest «випадкова карта». */
 function renderDiceResults(picks) {
   _dicePicks = picks;
-  diceResultsEl.innerHTML = picks.map(cardHtml).join('');
+  const stats = tasteStats();
+  diceResultsEl.innerHTML = picks.map(m => {
+    const reasons = diceReasons(m, stats);
+    const why = reasons.length
+      ? reasons.map(r => `<span class="dice-why-tag">${esc(r.label)}</span>`).join('')
+      : '<span class="dice-why-tag dice-why-tag--luck">випадкова карта</span>';
+    return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m)}</div>`;
+  }).join('');
 }
 
 /**
