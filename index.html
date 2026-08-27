@@ -4998,6 +4998,23 @@ function splitPeople(joined) {
  * the owner asked the die to know about. `weight` is the total, kept so a
  * share can be computed without re-walking the counts.
  */
+/**
+ * The profile keeps its heaviest hitters, not its long tail. ~800 watched
+ * films name thousands of actors — ~90KB of JSON that the Worker's 16KB
+ * door rightly refuses — and weight-1 tail entries cannot move the dice
+ * anyway: the scoring caps absorb the fractions they would add. The same
+ * numbers live in the Worker's computeTasteStats; the two must not drift.
+ */
+const PROFILE_KEEP = { directors: 100, actors: 200 };
+function pruneTop(map, keep) {
+  const entries = Object.entries(map);
+  if (entries.length <= keep) return map;
+  entries.sort((a, b) => b[1] - a[1]);
+  const out = {};
+  for (const [k, v] of entries.slice(0, keep)) out[k] = v;
+  return out;
+}
+
 function userTasteStats(movies, marks) {
   const stats = { films: 0, weight: 0, genres: {}, directors: {}, actors: {} };
   const bump = (map, name, w) => { map[name] = (map[name] || 0) + w; };
@@ -5010,6 +5027,8 @@ function userTasteStats(movies, marks) {
     for (const d of splitPeople(m.director)) bump(stats.directors, d, w);
     for (const a of (m.cast || []).slice(0, 5)) bump(stats.actors, String(a), w);
   }
+  stats.directors = pruneTop(stats.directors, PROFILE_KEEP.directors);
+  stats.actors = pruneTop(stats.actors, PROFILE_KEEP.actors);
   return stats;
 }
 
