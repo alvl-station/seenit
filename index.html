@@ -2050,9 +2050,20 @@
       align-items: stretch; justify-content: stretch;
       background: var(--bg); backdrop-filter: none;
     }
+    /* The window IS the scrollport, and that is not a detail: with
+       `align-items: stretch` above, the flex item is clamped to the
+       overlay's height, so the overlay's own `overflow-y: auto` never sees
+       anything taller than itself and scrolls nothing. `.modal` carries
+       `overflow: hidden` from the base rule, so the content was simply cut
+       off at the bottom edge — a film card lost everything below the fold
+       (owner-reported).
+       Scrolling the window rather than the overlay is also what the pinned
+       heads expect: they stick to their nearest scrollport. */
     .modal-overlay > .modal {
       max-width: none; width: 100%;
-      min-height: 100%;
+      height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       border: 0; border-radius: 0;
     }
     /* A window opened from the menu sits above it: the menu is still open
@@ -5656,7 +5667,16 @@ function diceReasons(m, stats, opts = {}) {
  * rnd is injected so a test can pin the physics; the app passes
  * Math.random.
  */
+/** The last six years, counted from now — the same window diceReasons
+ *  calls «свіжий», so the hand and the receipts can never disagree. */
+function isFreshFilm(m, now) {
+  const y = Number(m && m.year);
+  const nowYear = Number(now) || new Date().getFullYear();
+  return Number.isFinite(y) && y >= nowYear - 5;
+}
+
 function rollDice(items, stats, { watchedIds, count = 4, rnd = Math.random, markCounts, accounts, now } = {}) {
+  const reasonOpts = { now, markCounts };
   const scored = (items || [])
     .filter(m => m && markKey(m) && !isMarked(watchedIds, m))
     .map(m => ({ m, s: diceScore(m, stats, { now, markCounts, accounts }) }));
@@ -5670,6 +5690,41 @@ function rollDice(items, stats, { watchedIds, count = 4, rnd = Math.random, mark
       if (roll <= 0) break;
     }
     picked.push(scored.splice(i, 1)[0].m);
+  }
+
+  /* Two rules the owner put on the hand, applied after the draw rather
+   * than inside it: the weighting is what makes the hand personal, and
+   * bending it mid-draw would quietly change every score's meaning.
+   *
+   * The swap takes the BEST remaining candidate that qualifies, not
+   * another random one — a card that arrives to satisfy a rule should
+   * still be the best answer available to it.
+   */
+  const reasoned = m => diceReasons(m, stats, reasonOpts).length > 0;
+  const takeBest = (test) => {
+    let best = -1;
+    for (let i = 0; i < scored.length; i++) {
+      if (!test(scored[i].m)) continue;
+      if (best < 0 || scored[i].s > scored[best].s) best = i;
+    }
+    return best < 0 ? null : scored.splice(best, 1)[0].m;
+  };
+
+  // At least one film from the last six years. A fresh film always carries
+  // the «свіжий» receipt, so this can only ever REDUCE the luck count below.
+  if (picked.length && !picked.some(m => isFreshFilm(m, now))) {
+    const swap = takeBest(m => isFreshFilm(m, now));
+    if (swap) picked[picked.length - 1] = swap;
+  }
+
+  // At most one card of pure luck. Four cards that all read «випадкова
+  // карта» are not a recommendation, they are a shuffle.
+  for (let i = picked.length - 1; i >= 0; i--) {
+    if (picked.filter(m => !reasoned(m)).length <= 1) break;
+    if (reasoned(picked[i])) continue;
+    const swap = takeBest(reasoned);
+    if (!swap) break;
+    picked[i] = swap;
   }
   return picked;
 }
@@ -5984,7 +6039,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
-    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
+    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, isFreshFilm, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
     communityScore, DICE_COMMUNITY_CAP,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
