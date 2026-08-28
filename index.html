@@ -892,7 +892,9 @@
   }
   .tgl::after { content: ''; position: absolute; inset: -9px; }
   .tgl svg { width: 15px; height: 15px; }
-  .tgl.on-watched { color: var(--paper); }
+  /* The eye lights the same accent as the heart and the star (owner's
+     call) — stroke only: a filled eye reads as a blob, not a state. */
+  .tgl.on-watched { color: var(--flash); }
   /* Filled = state, outline = control (§08). The heart used to be the only
      icon that ever fills; the star of «обовʼязково до перегляду» is its
      superlative and follows the same rule in the same accent. */
@@ -1185,6 +1187,15 @@
     position: sticky; bottom: -30px; margin: 12px -18px 0;
     padding: 10px 18px 12px; background: var(--coal2);
   }
+
+  /* People filters: a foldable header, and the favourite star in the
+     accent that already means "yours". */
+  .sheet-label--fold { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .sheet-label--fold .fold-mark { display: inline-block; transition: transform .15s; color: var(--ash); }
+  .sheet-label--fold[aria-expanded="true"] .fold-mark { transform: rotate(90deg); }
+  .opt--fav { border-color: var(--dust); }
+  .opt--fav .fav-star { margin-right: 4px; color: var(--dust); }
+  .opt--fav .fav-star svg { width: 10px; height: 10px; vertical-align: -1px; }
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
@@ -2471,6 +2482,15 @@
        provider pass has run, and appears on its own when it has. -->
   <div class="sheet-label" id="providerLabel" style="display:none">Де подивитись</div>
   <div class="opts" id="providerFilter" style="display:none"></div>
+  <!-- People filters (owner's ask): the headers are always there, the
+       lists stay folded until tapped — twenty actors and ten directors is
+       a paragraph of buttons, and the sheet must not open on a wall of
+       names nobody asked for. Favourites (from the taste statistics the
+       dice keeps) lead each list; several may be chosen at once. -->
+  <div class="sheet-label sheet-label--fold" id="actorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none">Актори <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
+  <div class="opts" id="actorFilter" hidden></div>
+  <div class="sheet-label sheet-label--fold" id="directorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none">Режисери <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
+  <div class="opts" id="directorFilter" hidden></div>
 </div>
 <!-- The full stacked mark in paper, for the empty and error screens —
      injected once at build time, cloned by render() as needed. Stashed at
@@ -4256,6 +4276,74 @@ function providersInCatalogue(movies) {
     .map(([name, n]) => ({ name, count: n }));
 }
 
+/* ---------- the people filters (owner's ask) ----------
+ *
+ * Actors and directors as filter options, the person's own favourites
+ * first: the taste statistics the dice already keeps double as the
+ * ordering, so the list opens with the names this account demonstrably
+ * returns to. Several may be chosen at once; a film matches when it
+ * carries ANY of them — two favourite actors rarely share a film, and an
+ * AND would mostly filter to nothing.
+ */
+function actorsInCatalogue(movies) {
+  const counts = new Map();
+  for (const m of movies || []) {
+    for (const a of (m && m.cast) || []) {
+      const name = String(a).trim();
+      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+    }
+  }
+  return [...counts.entries()].map(([name, count]) => ({ name, count }));
+}
+
+function directorsInCatalogue(movies) {
+  const counts = new Map();
+  for (const m of movies || []) {
+    for (const d of splitPeople(m && m.director)) {
+      counts.set(d, (counts.get(d) || 0) + 1);
+    }
+  }
+  return [...counts.entries()].map(([name, count]) => ({ name, count }));
+}
+
+/**
+ * Orders a counted people list by the person's taste: favourites first
+ * (heaviest taste weight, then catalogue count), everyone else by count.
+ * `keep` caps the answer — the owner asked for 20 actors and 10 directors,
+ * a list, not a directory.
+ */
+function rankPeopleByTaste(people, tasteMap, keep) {
+  const weight = name => (tasteMap && tasteMap[name]) || 0;
+  const ranked = (people || []).slice().sort((a, b) =>
+    (weight(b.name) - weight(a.name))
+    || (b.count - a.count)
+    || a.name.localeCompare(b.name, 'uk'));
+  return ranked.slice(0, keep).map(p => ({ ...p, favourite: weight(p.name) > 0 }));
+}
+
+/** Empty selection filters nothing; otherwise ANY selected name matches. */
+function hasActor(movie, names) {
+  if (!names || !names.length) return true;
+  const cast = ((movie && movie.cast) || []).map(a => String(a).trim());
+  return names.some(n => cast.includes(n));
+}
+function hasDirector(movie, names) {
+  if (!names || !names.length) return true;
+  const dirs = splitPeople(movie && movie.director);
+  return names.some(n => dirs.includes(n));
+}
+
+/**
+ * The genre ribbon in the order this PERSON reads it: their heaviest
+ * genres first (the dice's own statistics), the rest in the house order.
+ * Stable for an account with no history — the fallback IS the old order.
+ */
+function orderGenresByTaste(order, tasteGenres) {
+  const weight = g => (tasteGenres && tasteGenres[g]) || 0;
+  return (order || []).slice().sort((a, b) =>
+    (weight(b) - weight(a)) || order.indexOf(a) - order.indexOf(b));
+}
+
 /** Is this film offered by that provider? */
 function hasProvider(movie, name) {
   if (!name || name === 'all') return true;
@@ -4329,7 +4417,7 @@ function isExcludedProduction(movie) {
   return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
-function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, provider, likedIds, watchedIds }) {
+function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, provider, actors, directors, likedIds, watchedIds }) {
   // Marks are keyed by the film's TMDb id, not by its slug — see markKey().
   const has = isMarked;
   const q = (query || '').toLowerCase();
@@ -4354,6 +4442,8 @@ function filterCatalog(movies, { query, tab, showWatched, genre, recommender, ty
     if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
     if (!matchesYearBucket(m, years)) return false;
     if (!hasProvider(m, provider)) return false;
+    if (!hasActor(m, actors)) return false;
+    if (!hasDirector(m, directors)) return false;
     return true;
   });
 }
@@ -5525,6 +5615,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
+    actorsInCatalogue, directorsInCatalogue, rankPeopleByTaste, hasActor, hasDirector, orderGenresByTaste,
     buildWikidataAwardsQuery, combineWikidataAwardLabel, parseWikidataAwards, isWikidataEntityId, mergeAwardLists, mergeAwardSources, topUpAwardCounts,
     awardCeremonyKey, ceremonyMatchForm, groupAwardsByCeremony, flattenCeremonyAwards, readAwards,
     localizeCeremonyAwards,
@@ -6072,7 +6163,7 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
-let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', searchScope: 'here',
+let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', actors: [], directors: [], searchScope: 'here',
   // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
   // whatever you last left it on stays that way for every film after it,
   // until you change it again. Default on — a trailer nobody can hear is a
@@ -6109,6 +6200,7 @@ function saveSettings() {
       tab: state.tab, genre: state.genre, sort: state.sort,
       recommender: state.recommender, showWatched: state.showWatched,
       hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type, years: state.years, provider: state.provider,
+      actors: state.actors, directors: state.directors,
       trailerSound: state.trailerSound,
       view: document.body.dataset.view, genres: document.body.dataset.genres,
     }));
@@ -6126,6 +6218,8 @@ if (savedSettings.hideScores) state.hideScores = true;
 if (savedSettings.type) state.type = savedSettings.type;
 if (savedSettings.years) state.years = savedSettings.years;
 if (savedSettings.provider) state.provider = savedSettings.provider;
+if (Array.isArray(savedSettings.actors)) state.actors = savedSettings.actors;
+if (Array.isArray(savedSettings.directors)) state.directors = savedSettings.directors;
 if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
@@ -6170,6 +6264,7 @@ function visibleMovies() {
   return filterCatalog(searchSource(), {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
     genre: state.genre, recommender: state.recommender, type: state.type, years: state.years, provider: state.provider,
+    actors: state.actors, directors: state.directors,
     likedIds: liked, watchedIds: watched,
   });
 }
@@ -6593,7 +6688,12 @@ function render(opts = {}) {
   // below it showed three. See countExistingMarks() in logic.js.
   const nLiked = countExistingMarks(liked, MOVIES);
   const nWatched = countExistingMarks(watched, MOVIES);
-  document.getElementById('nLiked').textContent = nLiked ? `(${nLiked})` : '';
+  // «(рекомендую / обовʼязково)» — the owner's own reading of the number.
+  // The star implies the heart, so the second figure can never exceed the
+  // first; zero stars still prints, because «(5 / 0)» answers a question
+  // «(5)» would leave open.
+  const nMust = countExistingMarks(must, MOVIES);
+  document.getElementById('nLiked').textContent = nLiked ? `(${nLiked} / ${nMust})` : '';
   document.getElementById('nWatched').textContent = nWatched ? `(${nWatched})` : '';
 
   if (!items.length) {
@@ -6727,6 +6827,9 @@ function resetFilters() {
   state.type = 'all';
   state.years = 'all';
   state.provider = 'all';
+  state.actors = [];
+  state.directors = [];
+  updatePeopleFilters();
   syncTabs();
   renderChips();
   syncTypeOpts();
@@ -7229,6 +7332,61 @@ function pickCollectionHtml(m) {
         data-col-id="${esc(c.collection_id)}" data-col-name="${esc(c.name)}"
         ${has ? 'disabled aria-disabled="true"' : ''}>${esc(c.name)}${has ? ICON.check : ''}</button>`;
     }).join('')}${create}</div>`;
+}
+
+/* ---------- «У добірку» at ADD time (owner's ask) ----------
+ * Every add flow — manual search, screenshot, list — offers the same
+ * choice at the same moment: which collection the film lands in, «Мої
+ * фільми» by default, any own collection, or a NEW one named right here.
+ * One reader serves them all so the flows cannot drift apart. */
+function collectionChoiceHtml() {
+  const own = shelf.filter(c => c.source === 'own' && c.collection_id !== MY_FILMS_ID);
+  return `<div class="collection-choice">
+    <label class="cf-label">У добірку</label>
+    <div class="opts">
+      <button class="opt active" data-cc-id="${esc(MY_FILMS_ID)}" data-cc-name="${esc(MY_FILMS_NAME)}" type="button">${esc(MY_FILMS_NAME)}</button>
+      ${own.map(c => `<button class="opt" data-cc-id="${esc(c.collection_id)}" data-cc-name="${esc(c.name)}" type="button">${esc(c.name)}</button>`).join('')}
+      <button class="opt opt--new" data-cc-new="1" type="button">${ICON.plus} Нова добірка</button>
+    </div>
+    <div class="pick-col-create" data-cc-create hidden>
+      <div class="field-clear-wrap">
+        <input id="cfNewColName" data-cc-name-input type="text" placeholder="Назва нової добірки">
+      </div>
+    </div>
+  </div>`;
+}
+function wireCollectionChoice(container) {
+  const box = container.querySelector('.collection-choice');
+  if (!box) return;
+  box.addEventListener('click', e => {
+    const createBox = box.querySelector('[data-cc-create]');
+    const nw = e.target.closest('[data-cc-new]');
+    if (nw) {
+      box.querySelectorAll('.opt').forEach(o => o.classList.toggle('active', o === nw));
+      createBox.hidden = false;
+      createBox.querySelector('[data-cc-name-input]').focus();
+      return;
+    }
+    const opt = e.target.closest('.opt[data-cc-id]');
+    if (!opt) return;
+    box.querySelectorAll('.opt').forEach(o => o.classList.toggle('active', o === opt));
+    createBox.hidden = true;
+  });
+}
+/** The chosen destination, or null when «Нова добірка» stands unnamed. */
+function readCollectionChoice(container) {
+  const box = container.querySelector('.collection-choice');
+  if (!box) return { collectionId: MY_FILMS_ID, collectionName: MY_FILMS_NAME };
+  const active = box.querySelector('.opt.active');
+  if (active && active.dataset.ccNew) {
+    const name = (box.querySelector('[data-cc-name-input]').value || '').trim();
+    if (!name) return null;
+    const taken = shelf.filter(c => c.source === 'own').map(c => c.collection_id);
+    return { collectionId: collectionIdFrom(name, { taken, at: Date.now() }), collectionName: name };
+  }
+  return active
+    ? { collectionId: active.dataset.ccId, collectionName: active.dataset.ccName }
+    : { collectionId: MY_FILMS_ID, collectionName: MY_FILMS_NAME };
 }
 
 function openModal(m) {
@@ -8604,6 +8762,10 @@ function tasteStats() {
 }
 function tasteStatsChanged() {
   _tasteStats = null;
+  // The people filters ride the same statistics (favourites first), and
+  // the catalogue-loaded hooks land here too — so this is the one place
+  // that keeps their lists fresh without a second wiring.
+  if (typeof updatePeopleFilters === 'function') updatePeopleFilters();
   clearTimeout(_statsSaveTimer);
   _statsSaveTimer = setTimeout(saveTasteStats, 8000);
 }
@@ -8840,6 +9002,7 @@ function renderChips() {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
     genre: 'all', recommender: state.recommender, type: state.type,
     years: state.years, provider: state.provider,
+    actors: state.actors, directors: state.directors,
     likedIds: liked, watchedIds: watched,
   })) {
     counts[m.genre_group] = (counts[m.genre_group] || 0) + 1;
@@ -8848,7 +9011,10 @@ function renderChips() {
   // No "all genres" chip — it's the neutral state, reached only by
   // deselecting whichever chip is active (see the click handler below).
   let html = '';
-  for (const g of GENRE_ORDER) {
+  // The ribbon reads in THIS person's order: their heaviest genres first
+  // (the dice's own statistics), the house order for the rest and for an
+  // account with no history yet (owner's ask).
+  for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
     if (counts[g]) html += `<button class="chip${activeG === g ? ' active' : ''}" data-g="${g}">${g} (${counts[g]})</button>`;
   }
   genreChipsEl.innerHTML = html;
@@ -9054,6 +9220,80 @@ if (providerFilterEl) providerFilterEl.addEventListener('click', e => {
   saveSettings();
 });
 updateProviderFilter();
+
+/* ---------- the people filters (owner's ask) ----------
+ * Twenty actors, ten directors, favourites first — the dice's own taste
+ * statistics do the ordering. The lists stay FOLDED until their header is
+ * tapped: the sheet must not open on a wall of names. Selection is
+ * multi: any chosen name matches (see hasActor/hasDirector, logic.js). */
+const ACTOR_FILTER_KEEP = 20;
+const DIRECTOR_FILTER_KEEP = 10;
+const peopleFilterEls = {
+  actors: { label: document.getElementById('actorLabel'), box: document.getElementById('actorFilter') },
+  directors: { label: document.getElementById('directorLabel'), box: document.getElementById('directorFilter') },
+};
+
+function updatePeopleFilters() {
+  const stats = tasteStats();
+  const defs = [
+    ['actors', actorsInCatalogue(MOVIES), stats.actors, ACTOR_FILTER_KEEP],
+    ['directors', directorsInCatalogue(MOVIES), stats.directors, DIRECTOR_FILTER_KEEP],
+  ];
+  for (const [key, counted, taste, keep] of defs) {
+    const { label, box } = peopleFilterEls[key];
+    if (!label || !box) continue;
+    const ranked = rankPeopleByTaste(counted, taste, keep);
+    if (!ranked.length) {
+      label.style.display = 'none';
+      box.hidden = true;
+      state[key] = [];
+      continue;
+    }
+    // A chosen name that left the visible list must stay a live option, or
+    // it would go on filtering with nothing on screen to switch off.
+    const names = new Set(ranked.map(p => p.name));
+    for (const chosen of state[key]) {
+      if (!names.has(chosen)) ranked.push({ name: chosen, count: 0, favourite: false });
+    }
+    label.style.display = '';
+    box.innerHTML = ranked.map(p =>
+      `<button class="opt${state[key].includes(p.name) ? ' active' : ''}${p.favourite ? ' opt--fav' : ''}"
+        data-name="${esc(p.name)}" type="button">${p.favourite ? `<span class="fav-star">${ICON.star}</span>` : ''}${esc(p.name)}</button>`).join('');
+    // A live selection keeps its list open — a filter that is ON must not
+    // hide behind a fold.
+    if (state[key].length) {
+      box.hidden = false;
+      label.setAttribute('aria-expanded', 'true');
+    }
+  }
+}
+
+for (const key of ['actors', 'directors']) {
+  const { label, box } = peopleFilterEls[key];
+  if (!label || !box) continue;
+  const toggleFold = () => {
+    box.hidden = !box.hidden;
+    label.setAttribute('aria-expanded', String(!box.hidden));
+  };
+  label.addEventListener('click', toggleFold);
+  label.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFold(); }
+  });
+  box.addEventListener('click', e => {
+    const b = e.target.closest('.opt'); if (!b) return;
+    const name = b.dataset.name;
+    state[key] = state[key].includes(name)
+      ? state[key].filter(n => n !== name)
+      : [...state[key], name];
+    updatePeopleFilters();
+    updateFilterGlow();
+    // The chips count what the filters left, so they move with them.
+    renderChips();
+    render();
+    saveSettings();
+  });
+}
+updatePeopleFilters();
 
 /* ---------- apply restored settings (tab / view / sort) to the DOM once, at startup ---------- */
 (function applySavedSettingsToDom() {
@@ -9840,6 +10080,10 @@ function addModalHome() {
     closeAddModal();
     if (where === 'seenit') { recsSource = 'seenit'; openRecs(); }
     else openFriends();
+    // AFTER the open: both openers clear the flag first, precisely so an
+    // entry from the MENU can never inherit a stale «return to add» from an
+    // earlier departure that left through the backdrop.
+    _returnToAddCollections = true;
   }));
   addBox.querySelector('#colCreateBack').addEventListener('click', showColRoutes);
   addBox.querySelectorAll('.add-tab').forEach(t => t.addEventListener('click', () => {
@@ -10095,6 +10339,7 @@ function renderConfirmCard(movie) {
         <label class="cf-label">Рекомендовано від</label>
         ${recBySelectHtml()}
         ${movie.trailer_url ? `<a class="btn cf-trailer" href="${esc(movie.trailer_url)}" target="_blank" rel="noopener">${ICON.play} Подивитись трейлер</a>` : ''}
+        ${collectionChoiceHtml()}
         <div class="src-divider"><span>З джерела · не редагується</span></div>
         <div class="confirm-row">
           <div>
@@ -10134,6 +10379,7 @@ function renderConfirmCard(movie) {
       </div>
     </div>`;
   wireRecBySelect(resultsEl);
+  wireCollectionChoice(resultsEl);
   resultsEl.querySelector('#cfBack').addEventListener('click', () => showResultsAgain());
   // Re-adding a film that is already in the catalog used to be a dead end:
   // a warning and a disabled button. Both outcomes people actually want are
@@ -10189,11 +10435,16 @@ function renderConfirmCard(movie) {
         ? { ...finalMovie, id: uniqueMovieId(finalMovie.id, MOVIES) }
         : finalMovie;
 
+    const choice = readCollectionChoice(resultsEl);
+    if (!choice) { toast('error', 'Дай новій добірці назву.'); return; }
     const saveBtn = resultsEl.querySelector(mode === 'copy' ? '#cfSaveCopy' : '#cfSave');
     const savedLabel = saveBtn.textContent;
     saveBtn.disabled = true;
     saveBtn.textContent = 'Зберігаю…';
-    addFilmToMine(record).then(() => {
+    addFilmToMine(record, choice).then(() => {
+      if (choice.collectionId !== MY_FILMS_ID) loadShelf().catch(() => { /* reported inside */ });
+      return null;
+    }).then(() => {
       const castNote = castDropped > 0
         ? ` (${castDropped} ${castDropped === 1 ? 'ім\'я актора прибрано' : 'імені акторів прибрано'} — лише латиницею, без ієрогліфів)`
         : '';
@@ -10247,7 +10498,9 @@ function renderBatchRows(rows, recommendedBy) {
   const resultsEl = addBox.querySelector('#addResults');
   resultsEl.innerHTML = `
     <div class="batch-list"></div>
+    ${collectionChoiceHtml()}
     <div class="modal-actions"><button class="btn on-watched" id="batchSaveBtn">Зберегти позначені</button></div>`;
+  wireCollectionChoice(resultsEl);
   const listEl = resultsEl.querySelector('.batch-list');
   rows.forEach((row, i) => {
     const r = row.results[row.chosen];
@@ -10288,6 +10541,10 @@ function renderBatchRows(rows, recommendedBy) {
   });
   resultsEl.querySelector('#batchSaveBtn').addEventListener('click', async () => {
     const btn = resultsEl.querySelector('#batchSaveBtn');
+    // The whole batch lands in ONE chosen place — same offer as the single
+    // add, because the person is doing the same thing at a different size.
+    const choice = readCollectionChoice(resultsEl);
+    if (!choice) { toast('error', 'Дай новій добірці назву.'); return; }
     btn.disabled = true;
     btn.textContent = 'Зберігаю…';
     const checks = listEl.querySelectorAll('.batch-check');
@@ -10306,7 +10563,7 @@ function renderBatchRows(rows, recommendedBy) {
         delete movie._titleTranslated;
         if (recommendedBy) movie.recommended_by = recommendedBy;
         Object.keys(movie).forEach(k => movie[k] === undefined && delete movie[k]);
-        await addFilmToMine(movie);
+        await addFilmToMine(movie, choice);
         saved++;
       } catch (err) { otherSkipped++; }
     }
@@ -10320,6 +10577,17 @@ function renderBatchRows(rows, recommendedBy) {
 }
 
 function openAddModal() { addModalHome(); addOverlay.classList.add('open'); lockScroll(addOverlay); }
+/* Coming back from a screen the ADD pane sent you to must land back on
+ * that pane, not in the menu (owner-reported: додати → «Добірки SeenIt» →
+ * назад opened the menu). The flag is read by the screen's own exit
+ * control and consumed there; any other way out of that screen simply
+ * leaves it unread until the next add-pane departure sets it afresh. */
+let _returnToAddCollections = false;
+function returnToAddCollections() {
+  openAddModal();
+  const tab = addBox.querySelector('.add-mode-tab[data-m="collection"]');
+  if (tab) tab.click();
+}
 function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(addOverlay); }
 /* ---------- delete mode ----------
  * Entering the mode does not select anything and does not touch data; the
@@ -11452,6 +11720,9 @@ function renderPlateActions() {
 let likedPublic = false;
 
 function openRecs() {
+  // Where «back» goes is decided by who OPENED this screen: the add pane
+  // raises the flag right after calling here, the menu never does.
+  _returnToAddCollections = false;
   renderRecs();
   recsOverlay.classList.add('open');
   if (!menuIsNav()) lockScroll(recsOverlay);
@@ -11521,7 +11792,15 @@ function renderFriendsSearch() {
   });
   const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
   paintExitControl(friendsExit);
-  friendsExit.addEventListener('click', () => exitScreen(closeFriends));
+  friendsExit.addEventListener('click', () => {
+    if (_returnToAddCollections) {
+      _returnToAddCollections = false;
+      closeFriends();
+      returnToAddCollections();
+      return;
+    }
+    exitScreen(closeFriends);
+  });
   wireFriendFind();
   // The screen exists to be typed into, so it opens ready for that.
   const input = friendsBox.querySelector('#friendFind');
@@ -11551,6 +11830,7 @@ function syncFriendsRow() {
 }
 
 function openFriends(username = null) {
+  _returnToAddCollections = false;   // see openRecs()
   openFriend = null;
   // Always on the list, never on the search you left open last time: «Друзі»
   // is opened to see who you have, and reopening onto an empty search field
@@ -11632,7 +11912,15 @@ function renderFriends() {
     el.addEventListener('click', () => { friendsTab = el.dataset.friendsTab; openFriend = null; renderFriends(); }));
   const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
   paintExitControl(friendsExit);
-  friendsExit.addEventListener('click', () => exitScreen(closeFriends));
+  friendsExit.addEventListener('click', () => {
+    if (_returnToAddCollections) {
+      _returnToAddCollections = false;
+      closeFriends();
+      returnToAddCollections();
+      return;
+    }
+    exitScreen(closeFriends);
+  });
   // No wireFriendFind() here any more: the field lives on the search screen
   // now, and wiring an element this view does not draw would be reaching for
   // nothing on every render.
@@ -12015,7 +12303,15 @@ function renderRecs() {
     el.addEventListener('click', () => { recsSource = el.dataset.recsSrc; _recsFriend = null; renderRecs(); }));
   const recsExit = recsBox.querySelector('#recsCloseBtn');
   paintExitControl(recsExit);
-  recsExit.addEventListener('click', () => exitScreen(closeRecs));
+  recsExit.addEventListener('click', () => {
+    if (_returnToAddCollections) {
+      _returnToAddCollections = false;
+      closeRecs();
+      returnToAddCollections();
+      return;
+    }
+    exitScreen(closeRecs);
+  });
 
   const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
   if (recsSource === 'friends') {
