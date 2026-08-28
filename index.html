@@ -1128,13 +1128,25 @@
   /* The receipt leads the text column — indented past the cover so it
      reads as the first line of the card's own block, in the meta row's
      mono voice: data about the roll, not a caption. */
-  .dice-why { margin: 0 0 4px 76px; display: flex; flex-wrap: wrap; gap: 3px; }
-  .dice-why-tag {
-    font-family: var(--font-mono); font-size: 9px; letter-spacing: .05em;
-    text-transform: uppercase; color: var(--dust);
-    border: 1px solid var(--border); padding: 2px 5px; border-radius: 2px;
+  /* The receipt runs the FULL width above its card (owner's ask) — it was
+     indented to clear the poster and boxed into chips, which made a line of
+     reasons read as a row of tags rather than as one sentence about why
+     this film came up. A rule under it ties it to the card below. */
+  .dice-why {
+    margin: 0 0 6px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 2px 14px;
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--ash);
   }
-  .dice-why-tag--luck { color: var(--ash); border-style: dashed; }
+  .dice-why-tag { white-space: nowrap; }
+  /* The share is what the line is FOR, so the number takes the accent and
+     the name stays quiet beside it. */
+  .dice-why-tag b { font-weight: 500; color: var(--flash); }
+  /* The separator is punctuation, not a word — it steps back so the two
+     things it joins stay the ones being read. */
+  .dice-why-tag i { font-style: normal; color: var(--steel); }
+  .dice-why-tag--luck { color: var(--steel); font-style: italic; text-transform: none; }
   /* «Ще раз» must never scroll out of reach under four covers: it stays
      pinned to the sheet's bottom edge, on the sheet's own ground so the
      cards slide beneath it rather than through it. */
@@ -2621,7 +2633,7 @@
 <div class="sheet-backdrop" id="diceBackdrop" hidden></div>
 <div class="sheet" id="diceSheet" aria-hidden="true">
   <div class="sheet-head">
-    <div class="sheet-title">Кубик радить</div>
+    <div class="sheet-title">Дзиґа радить</div>
     <button class="hicon" id="diceCloseBtn" type="button" title="Закрити" aria-label="Закрити">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
     </button>
@@ -5583,7 +5595,16 @@ function diceDecadeMult(year, nowYear) {
  * people a film everyone starred should weigh what it would among three
  * hundred. Capped, because a beloved film is a hint, not an order.
  */
-const DICE_COMMUNITY_CAP = 1.5;
+/* 0.5, down from 1.5 (owner-reported: films other people had watched and
+ * recommended came up again and again).
+ *
+ * The arithmetic explains why it had to move. An unremarkable film scores
+ * about 1 (the base) plus at most 1 for its rating; at a cap of 1.5 a film
+ * the community liked was almost DOUBLED, which put it ahead of a film
+ * carrying a director this person actually returns to. At 0.5 the signal
+ * sits below the rating's own cap: it can break a tie between two films
+ * nothing else separates, and it can no longer outvote a taste. */
+const DICE_COMMUNITY_CAP = 0.5;
 function communityScore(counts, accounts) {
   const [w = 0, l = 0, mu = 0] = counts || [];
   const people = Number(accounts) || 0;
@@ -5593,20 +5614,78 @@ function communityScore(counts, accounts) {
   return Math.min(DICE_COMMUNITY_CAP, (weighted / (people * TASTE_WEIGHTS.must)) * DICE_COMMUNITY_CAP);
 }
 
-function diceScore(m, stats, { now, markCounts, accounts } = {}) {
-  let score = 1;
-  if (markCounts) score += communityScore(markCounts[markKey(m)], accounts);
+/**
+ * The score, broken into the things that made it.
+ *
+ * The receipts print each signal's SHARE of the score now (owner's ask:
+ * «Том Холланд • 14%»), and a share is only honest if it comes from the
+ * very sum the die rolled against. So the parts are computed once, here,
+ * and both the score and the receipts read them — rather than the label
+ * recomputing something that looks like the score and drifts from it.
+ *
+ * `base` is the floor every film gets: it is why nothing is ever at zero
+ * odds, and it belongs in the sum even though no receipt names it.
+ */
+function diceScoreParts(m, stats, { now, markCounts, accounts } = {}) {
+  const parts = { base: 1, community: 0, director: 0, actors: 0, genre: 0, rating: 0 };
+  if (markCounts) parts.community = communityScore(markCounts[markKey(m)], accounts);
   if (stats && stats.weight > 0) {
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
-    score += Math.min(5, dirW * 1.25);
+    parts.director = Math.min(5, dirW * 1.25);
     let actorW = 0;
     for (const a of (m.cast || []).slice(0, 5)) actorW += stats.actors[String(a)] || 0;
-    score += Math.min(3, actorW * 0.5);
-    score += 2 * ((stats.genres[m.genre_group] || 0) / stats.weight);
+    parts.actors = Math.min(3, actorW * 0.5);
+    parts.genre = 2 * ((stats.genres[m.genre_group] || 0) / stats.weight);
   }
   const r = ratingNum(m);
-  if (r) score += Math.min(1, Math.max(0, (r - 6) / 3));
-  return score * diceDecadeMult(m && m.year, now);
+  if (r) parts.rating = Math.min(1, Math.max(0, (r - 6) / 3));
+  const sum = parts.base + parts.community + parts.director + parts.actors + parts.genre + parts.rating;
+  const mult = diceDecadeMult(m && m.year, now);
+  return { ...parts, sum, mult, total: sum * mult };
+}
+
+function diceScore(m, stats, opts = {}) {
+  return diceScoreParts(m, stats, opts).total;
+}
+
+/**
+ * What each signal is worth, as a percentage of the film's own odds.
+ *
+ * The year is not an addend — it MULTIPLIES the sum — so it cannot be
+ * divided out the way the others can. Its share is what the multiplier
+ * added: a film the last five years doubled sits at 1 - 1/2, i.e. half of
+ * why it came up at all. Everything then sums to the whole, which is the
+ * only way a set of percentages can be read without a footnote.
+ *
+ * A signal worth something but under half a percent is shown as 1 rather
+ * than as 0: a receipt that names a reason and scores it zero reads as a
+ * bug, and the rounding is the lie there, not the reason.
+ */
+function diceShares(parts) {
+  const sum = parts && parts.sum;
+  const mult = (parts && parts.mult) || 0;
+  if (!sum || sum <= 0 || !mult) return { community: 0, director: 0, actors: 0, genre: 0, rating: 0, fresh: 0 };
+  // Which whole the parts are shares OF depends on which way the year
+  // pulled. A multiplier ABOVE one is a contribution and takes a slice of
+  // the final score, so everything is measured against that. At or below
+  // one it is a penalty, not a signal — nothing claims a share for it, and
+  // the parts are measured against the sum they actually make. Dividing by
+  // the damped total in that case is what produced a «103%» receipt.
+  const whole = mult > 1 ? sum * mult : sum;
+  const pct = (v) => {
+    if (!v || v <= 0) return 0;
+    return Math.max(1, Math.round((v / whole) * 100));
+  };
+  return {
+    community: pct(parts.community),
+    director: pct(parts.director),
+    actors: pct(parts.actors),
+    genre: pct(parts.genre),
+    rating: pct(parts.rating),
+    // Only ever the part the multiplier ADDED; a decade that damps the
+    // score (anything before 2010) has no share to claim.
+    fresh: parts.mult > 1 ? Math.max(1, Math.round((1 - 1 / parts.mult) * 100)) : 0,
+  };
 }
 
 /**
@@ -5617,36 +5696,36 @@ function diceScore(m, stats, { now, markCounts, accounts } = {}) {
  * luck and its rating, and the caller should say THAT rather than nothing.
  */
 function diceReasons(m, stats, opts = {}) {
-  const { max = 2, now } = opts;
+  const { max = 3, now } = opts;
   const reasons = [];
+  // Every receipt is «<what> • <N>%» now (owner's ask), and the N is this
+  // signal's share of the film's own odds — read from diceScoreParts, the
+  // same sum the die rolled against. «у тебе 15» said how much history a
+  // name had; it never said what that was worth against everything else,
+  // which is the question the card is actually answering.
+  const parts = diceScoreParts(m, stats, opts);
+  const share = diceShares(parts);
+  const say = (kind, text, pct) => { if (pct > 0) reasons.push({ kind, text, pct, label: `${text} • ${pct}%` }); };
   if (stats && stats.weight > 0) {
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
     if (dirW >= 2) {
       const name = splitPeople(m.director).find(d => (stats.directors[d] || 0) === dirW);
-      reasons.push({ kind: 'director', label: `реж. ${name} — у тебе ${dirW}` });
+      say('director', `Реж. ${name}`, share.director);
     }
     const known = (m.cast || []).slice(0, 5)
       .map(a => ({ a: String(a), w: stats.actors[String(a)] || 0 }))
       .filter(x => x.w >= 2)
       .sort((x, y) => y.w - x.w);
-    if (known.length) {
-      reasons.push({ kind: 'actor', label: `${known[0].a} — у тебе ${known[0].w}` });
-    }
-    const share = (stats.genres[m.genre_group] || 0) / stats.weight;
-    if (share >= 0.1 && m.genre_group) {
-      reasons.push({ kind: 'genre', label: `${m.genre_group} — ${Math.round(share * 100)}% твого` });
-    }
+    if (known.length) say('actor', known[0].a, share.actors);
+    const genreShare = (stats.genres[m.genre_group] || 0) / stats.weight;
+    if (genreShare >= 0.1 && m.genre_group) say('genre', m.genre_group, share.genre);
   }
   const y = Number(m && m.year);
   const nowYear = Number(now) || new Date().getFullYear();
-  if (Number.isFinite(y) && y >= nowYear - 5) {
-    reasons.push({ kind: 'fresh', label: `свіжий — ${y}` });
-  }
+  if (Number.isFinite(y) && y >= nowYear - 5) say('fresh', `Свіжий ${y}`, share.fresh);
   const crowd = (opts.markCounts && opts.markCounts[markKey(m)]) || null;
   if (crowd && (crowd[2] || crowd[1])) {
-    reasons.push(crowd[2]
-      ? { kind: 'crowd', label: `${crowd[2]} обовʼязково в інших` }
-      : { kind: 'crowd', label: `${crowd[1]} рекомендують` });
+    say('crowd', crowd[2] ? `${crowd[2]} обовʼязково в інших` : `${crowd[1]} рекомендують`, share.community);
   }
   // The caps' own order (owner's ruling): режисер > актор > жанр > рік —
   // the receipt names what the score actually weighed heaviest.
@@ -6039,7 +6118,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hasCJKScript, pickLatinPersonName,
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
-    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, isFreshFilm, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
+    TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, diceScoreParts, diceShares, rollDice, isFreshFilm, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
     communityScore, DICE_COMMUNITY_CAP,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
@@ -9361,9 +9440,11 @@ function renderDiceResults(picks) {
   _dicePicks = picks;
   const stats = tasteStats();
   diceResultsEl.innerHTML = picks.map(m => {
-    const reasons = diceReasons(m, stats, { markCounts });
+    const reasons = diceReasons(m, stats, { markCounts, accounts: markingAccounts });
+    // The share is the point of the line, so it is the part that carries
+    // the colour — the name tells you WHAT weighed, the number how much.
     const why = reasons.length
-      ? reasons.map(r => `<span class="dice-why-tag">${esc(r.label)}</span>`).join('')
+      ? reasons.map(r => `<span class="dice-why-tag">${esc(r.text)} <i>•</i> <b>${r.pct}%</b></span>`).join('')
       : '<span class="dice-why-tag dice-why-tag--luck">випадкова карта</span>';
     return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m, { rich: true })}</div>`;
   }).join('');
@@ -9384,7 +9465,7 @@ function rollTheDice() {
     // hand over an all-watched shelf.
     _dicePicks = [];
     diceResultsEl.innerHTML = '';
-    toast('error', 'Тут усе вже переглянуто — кубику нема чого радити.');
+    toast('error', 'Тут усе вже переглянуто — дзизі нема чого радити.');
     diceSheet.close();
     return false;
   }
