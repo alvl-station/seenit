@@ -350,14 +350,17 @@
     /* Wide enough to be a target rather than a decoration — the same 44px
        rule every icon here follows. */
     min-width: 44px;
-    background: none; border: 1px solid var(--blood); border-radius: 2px;
-    /* Red, like the button on the person's own screen — the same act, and
-       the row beside it is a tap away, so it should never read as neutral. */
-    color: var(--blood); cursor: pointer;
+    background: none; border: 1px solid var(--border); border-radius: 2px;
+    /* GREY, not blood (owner's call). This screen is about the people you
+       follow; unfollowing is the rare errand at the edge of the row, and
+       painting it in the accent put the emphasis on leaving. The colour
+       arrives on the press, where a destructive act should announce itself
+       — and the act is asked about anyway before anything happens. */
+    color: var(--slate); cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .friend-unfollow:active { color: var(--flash); border-color: var(--flash); }
-  @media (hover: hover) { .friend-unfollow:hover { color: var(--flash); border-color: var(--flash); } }
+  @media (hover: hover) { .friend-unfollow:hover { color: var(--ash); border-color: var(--steel); } }
   .recs-list-pair { display: inline-flex; align-items: stretch; }
   .recs-list-del {
     display: flex; align-items: center; justify-content: center;
@@ -580,7 +583,6 @@
   /* ---------- bottom sheets: the menu and the ФІЛЬТР drawer (§07/§09) ---------- */
   /* Light on purpose (owner's call): the drawer is a quick pick, not a
      modal moment — the catalogue should stay readable behind it. */
-  .band-grip { display: none; }
   .sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.3); }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 81;
@@ -593,118 +595,30 @@
 
   /* ---------- the menu and its screens, on a phone ----------
    *
-   * Owner's call, second pass. A screen picked from the menu opens the way
-   * a sheet opens — from the BOTTOM, in the menu's own place — rather than
-   * hanging from the top with the menu still under it. One thing at the
-   * bottom edge at a time, always in the same spot, so the thumb never has
-   * to go looking.
+   * Owner's call, third pass. Every window opens WHOLE: the film card, the
+   * add screen, and every screen the menu leads to. A screen that covered
+   * the bottom half was a compromise between two things — reading the
+   * screen you opened and watching the catalogue behind it — and it served
+   * neither: half a list is a list you scroll twice as long, and the
+   * catalogue above was a strip too short to recognise anything in.
    *
-   * The way out of a screen is BACK, not closed: it returns to the menu it
-   * came from, so picking the wrong row costs one tap instead of reopening
-   * the hamburger.
+   * The drag-to-resize that went with it is gone too (owner's call). It
+   * existed to let a person rebalance those two halves; with nothing to
+   * rebalance it was a control that could only make the screen worse.
    *
-   * And the catalogue behind stays live. Locking it made sense when a
-   * screen covered everything; a sheet covers the bottom half, and the top
-   * half is a perfectly good catalogue that used to refuse to move.
+   * Two exceptions, and both earn it:
+   *   - the MENU is a short list of destinations, so it stays a sheet at
+   *     the bottom edge where the thumb already is;
+   *   - «Налаштування» changes how the CARDS look — bare or with awards,
+   *     grid or ribbon — so covering the cards would hide the only thing
+   *     that tells you what the switch did. It stays a low sheet over a
+   *     live catalogue, and every toggle is answered on the grid above it.
    *
-   * Phone only: past 640px the sheets already sit where there is room for
+   * The way out of a screen is still BACK, not closed: it returns to the
+   * menu it came from.
+   *
+   * Phone only: past 640px the windows already sit where there is room for
    * them and nothing here applies. */
-  @media (max-width: 640px) {
-    /* «Добірки», «Друзі» and «Акаунт» are modals; the rest are already
-       sheets. This is what makes the two arrive the same way. */
-    body.sheet-nav .modal-overlay {
-      z-index: 82;
-      align-items: flex-end;
-      padding: 0;
-      overflow: hidden;
-      /* Touches pass through to the catalogue above the sheet — see the
-         backdrop rule below for why that is the point. */
-      background: none; backdrop-filter: none; pointer-events: none;
-    }
-    body.sheet-nav .modal-overlay > .modal {
-      pointer-events: auto;
-      max-width: none; border-left: 0; border-right: 0; border-bottom: 0;
-      border-radius: 16px 16px 0 0;
-      /* Exactly the menu's height — no more and no less (owner's call). A
-         sheet sized to its own contents moved the bottom edge between
-         «Налаштування» and «Добірки», so the catalogue above jumped on
-         every tab change and the back arrow was never twice in the same
-         place. --menu-h is measured; 80vh is only what stands in before the
-         first measurement lands. */
-      height: var(--band-h, var(--menu-h, 80vh));
-      overflow-y: auto;
-      /* No scroll UNDER them (owner's call). Without this, a drag on a tab
-         that has nothing left to scroll hands the gesture to the catalogue
-         behind — which is exactly the surface this tab is covering. */
-      overscroll-behavior: contain;
-      animation: sheet-up .22s ease-out;
-    }
-
-    /* The sheets the menu opens are cut to the same height, for the same
-       reason: they are the same thing wearing different contents. */
-    body.sheet-nav #settingsSheet,
-    body.sheet-nav #trashSheet,
-    body.sheet-nav #adminSheet,
-    body.sheet-nav #filterSheet {
-      height: var(--band-h, var(--menu-h, auto));
-      max-height: 80vh;
-      overscroll-behavior: contain;
-    }
-    /* NOT the menu itself. --menu-h is measured FROM it, so giving it that
-       height back would close a loop: the menu would be frozen at whatever
-       it measured first and could never grow when «Друзі» or «Адмін»
-       appears. It sizes to its rows, and everything else sizes to it. */
-    body.sheet-nav #menuSheet {
-      overscroll-behavior: contain;
-      /* The menu takes the user's height when there is one. Not --menu-h:
-         that is measured FROM the menu, and handing it back would freeze it
-         at whatever it measured first. --band-h is a number the person
-         chose, so there is no loop. */
-      height: var(--band-h, auto);
-      max-height: 80vh;
-    }
-
-    /* Nothing blocks the catalogue. The uncovered part of the screen is a
-       working catalogue — it scrolls, and what the thumb lands on is what
-       it looks like it will land on. The cost is that tapping outside no
-       longer dismisses; the back arrow and the hamburger are the ways out,
-       and both are visible. */
-    body.sheet-nav .sheet-backdrop { pointer-events: none; }
-
-    /* The grip sits ON the band's top edge, half above and half below, and
-       is fixed rather than living inside the band — inside, it scrolled
-       with the contents, covered the back arrow, and disappeared whenever a
-       panel re-rendered. Above the menu (84) so it can be grabbed while the
-       menu is what is open; below the dialogs (90), which must never be
-       reached past. */
-    body.sheet-nav #bandGrip {
-      display: block;
-      position: fixed; left: 0; right: 0; z-index: 86;
-      /* Half above the edge, half below — so the offset is always half the
-         height, and the two numbers move together. The half that sits over
-         the catalogue takes those pixels away from it: 28px of cards at the
-         very top of the strip stop being tappable, which is the price of a
-         grip this easy to find. */
-      bottom: calc(var(--band-h, var(--menu-h, 80vh)) - 28px);
-      height: 56px;
-      touch-action: none; cursor: ns-resize;
-      -webkit-tap-highlight-color: transparent;
-      /* 112x12 on a 56px target. It started at 34x4 and has been doubled
-         twice on the owner's call: small, it read as a seam between the tab
-         and the catalogue rather than as something to take hold of. */
-      background: linear-gradient(var(--steel), var(--steel)) center / 112px 12px no-repeat;
-    }
-    body.sheet-nav #bandGrip:active {
-      background: linear-gradient(var(--flash), var(--flash)) center / 112px 12px no-repeat;
-    }
-    .band-resizing { user-select: none; }
-
-    /* Clear of the grip, and above it. The arrow used to be painted over by
-       the strip that ran along the top edge (owner-reported: «стрілка чимось
-       перекрита»). */
-    body.sheet-nav .modal-overlay > .modal > .modal-close { top: 16px; z-index: 5; }
-
-  }
   @keyframes sheet-up {
     from { transform: translateY(100%); }
     to   { transform: none; }
@@ -717,7 +631,18 @@
      it covers. */
   .add-modal > .sheet-title,
   .add-form > .sheet-title { margin-bottom: 14px; }
-  .sheet-head { display: flex; align-items: center; justify-content: space-between; }
+  /* Pinned, in EVERY sheet (owner's ask): the title says which screen you
+     are on and the cross is the way out, and both used to scroll away
+     under a long list of options — leaving a wall of buttons with no name
+     and no exit. The negative margins pull it out to the sheet's own
+     edges so the ground behind it covers the full width as content slides
+     under; the padding puts the content back where it was. */
+  .sheet-head {
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: -18px; z-index: 3;
+    margin: -18px -18px 0; padding: 18px 18px 10px;
+    background: var(--coal2);
+  }
   .sheet-head .sheet-title { margin-bottom: 0; }
   .sheet-title {
     font-family: var(--font-mono); font-size: 11px; letter-spacing: .24em;
@@ -736,6 +661,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   .opt.active { background: var(--blood); color: var(--paper); border-color: transparent; }
+  /* Names are longer than «ФІЛЬМИ» and there are thirty of them: the same
+     button, one size down, so a list of people reads as a list rather
+     than as thirty shouted words (owner's call). */
+  .opts--people .opt { padding: 7px 10px; min-height: 32px; font-size: 10.5px; letter-spacing: .02em; }
   .sheet-row {
     display: block; width: 100%; text-align: left; cursor: pointer;
     background: none; border: none; border-top: 1px solid var(--border);
@@ -775,10 +704,19 @@
      away from the very edge of the screen (see CONVENTIONS.md). */
   main { max-width: 1280px; margin: 0 auto; padding: 0 24px 60px; padding-bottom: 38vh; }
   .genre-section { margin-top: 32px; }
+  /* The name of the genre you are INSIDE (owner's ask): it holds under the
+     header while its own films scroll past, and the next genre's name
+     pushes it out of the way when that section arrives. --header-h is
+     measured (see syncHeaderHeight in app.js) because the header's own
+     height moves with the search field and the ribbon; the fallback keeps
+     the rule sane before the first measurement lands.
+     z-index below the header's 46, so it slides under it rather than over. */
   .genre-section h2 {
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
     letter-spacing: -.01em; font-size: 19px; display: flex; align-items: baseline; gap: 10px;
     border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 0 0 16px;
+    position: sticky; top: calc(var(--header-h, 128px) - 1px); z-index: 5;
+    background: var(--bg);
   }
   .genre-section h2 .count { color: var(--text-muted); font-size: 13px; font-weight: 400; }
 
@@ -812,6 +750,15 @@
      dark ground was still close enough to read as another poster. */
   .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
   .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
+
+  /* My own marks opened as a collection («Рекомендую» / «Обовʼязково до
+     перегляду» from Добірки → Мої): everything there is watched by
+     definition, so the dimming would grey the whole screen and the
+     «Дивився» toggle would describe nothing — both stand down. The marks
+     on the cards stay live. */
+  body.marks-collection .card.is-watched .poster img,
+  body.marks-collection .card.is-watched .poster.fallback { filter: none; }
+  body.marks-collection #watchedToggle { display: none; }
 
   .card-body { display: flex; flex-direction: column; padding: 7px 0 0; flex: 1; }
 
@@ -1170,6 +1117,14 @@
   /* A row has its own height; reserving two title lines would just pad it. */
   .dice-results .card-title-row h3 { min-height: 0; }
   .dice-results .card-toggles { margin-top: 6px; padding-top: 0; }
+  /* The community count rides its own icon: mono, small, in dust — data
+     about other people, never as loud as the person's own state. */
+  .card-toggles--counted .tgl { display: inline-flex; align-items: center; gap: 3px; }
+  .tgl-n {
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .04em;
+    color: var(--ash); font-variant-numeric: tabular-nums;
+  }
+  .tgl.on-watched .tgl-n, .tgl.on-liked .tgl-n, .tgl.on-must .tgl-n { color: currentColor; }
   /* The receipt leads the text column — indented past the cover so it
      reads as the first line of the card's own block, in the meta row's
      mono voice: data about the roll, not a caption. */
@@ -1190,12 +1145,27 @@
 
   /* People filters: a foldable header, and the favourite star in the
      accent that already means "yours". */
-  .sheet-label--fold { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .sheet-label--fold .fold-mark { display: inline-block; transition: transform .15s; color: var(--ash); }
+  /* The header is a ROW, so the chevron sits on the middle of the words
+     rather than on their baseline (owner-reported: it hung low). */
+  .sheet-label--fold {
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    display: flex; align-items: center; gap: 7px;
+  }
+  /* Blood, like every other thing in this interface that opens something
+     (owner's call). It was ash, which read as a decoration on the label
+     rather than as the control that folds the list. */
+  .sheet-label--fold .fold-mark {
+    display: inline-flex; align-items: center; transition: transform .15s; color: var(--flash);
+  }
   .sheet-label--fold[aria-expanded="true"] .fold-mark { transform: rotate(90deg); }
-  .opt--fav { border-color: var(--dust); }
-  .opt--fav .fav-star { margin-right: 4px; color: var(--dust); }
-  .opt--fav .fav-star svg { width: 10px; height: 10px; vertical-align: -1px; }
+  /* The fold itself. `.opts` sets `display: flex`, which OUTRANKS the user
+     agent's `[hidden] { display: none }` — so the lists rendered permanently
+     open and the header did nothing (owner-reported). A folded list has to
+     say so at the same specificity as the rule that lays it out. */
+  .opts[hidden] { display: none; }
+  /* Favourites lead the list by ORDER, not by decoration (owner's call:
+     «ніяких зірочок») — the first names in it are the ones this account
+     returns to, and that is the whole statement. */
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
@@ -1251,6 +1221,30 @@
      laptop got the arrow still wearing the cross's dark disc. */
   .modal-close.is-back, .hicon.is-back { background: none; color: var(--flash); }
   .modal-close.is-back:active, .hicon.is-back:active { color: var(--blood); }
+  /* Beside the name rather than in a corner (owner's ask): as a corner
+     control it was sticky at the top of the box while the pinned head was
+     pulled up over it by negative margins, and the two landed on the same
+     pixels — the arrow sat on top of «ДРУЗІ». In the row there is nothing
+     to collide with.
+     A 15px drawing keeping its 44px target from ::after, so the row stays
+     the height of its own text (CONVENTIONS.md). */
+  .modal-close.is-back-inline {
+    /* relative, so the invisible target below anchors to the arrow itself.
+       inline-flex, because not every screen wears its name inside a flex
+       head — in «Добірки» the title is a plain block, and a block button
+       after it took the whole width and dropped onto its own line. */
+    position: relative; display: inline-flex; vertical-align: middle;
+    width: auto; height: auto; padding: 0;
+    margin: 0 auto 0 0; border-radius: 0; flex: none;
+  }
+  .modal-close.is-back-inline::after { content: ''; position: absolute; inset: -14px; }
+  /* The name is the other half of the same control. */
+  /* The name and its arrow are one row and one control. */
+  .sheet-title--back {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  @media (hover: hover) { .sheet-title--back:hover { color: var(--paper); } }
   .warn-note { font-size: 12px; color: var(--flash); margin-top: 10px; }
 
   .empty-msg { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 15px; }
@@ -1334,7 +1328,9 @@
      things you toggle; this you walk into. */
   .friend-list { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
   .friend-row {
-    display: flex; align-items: baseline; gap: 10px;
+    /* Centre, not baseline: the row carries a chevron at its far end now,
+       and a baseline hung it below the name it belongs to. */
+    display: flex; align-items: center; gap: 10px;
     width: 100%; min-height: var(--control-h);
     padding: 13px 14px; text-align: left;
     background: var(--coal2); border: 1px solid var(--border); border-radius: 2px;
@@ -1374,6 +1370,33 @@
     font-size: 14px; color: var(--paper);
   }
 
+  /* A person and what they share, as one block (owner's call): the name,
+     then their collections directly under it. The indent is what says the
+     collections belong to the name above rather than to the list. */
+  .friend-block { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .friend-block .friend-cols, .friend-block .friend-cols-more, .friend-block .friend-cols-wait { margin-left: 12px; }
+  /* The row is a fold now: the name and its count on the left, the chevron
+     at the far end where a list's own affordance belongs. Blood, like every
+     other thing here that opens something. */
+  .friend-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .friend-fold-mark {
+    display: inline-flex; align-items: center; flex: none; margin-left: auto;
+    color: var(--flash); transition: transform .15s;
+  }
+  .friend-row[aria-expanded="true"] .friend-fold-mark { transform: rotate(90deg); }
+  .friend-cols-wait { font-size: 11.5px; color: var(--text-muted); padding: 4px 0; }
+  /* The fold, for whoever has more than six. Blood and a chevron, the same
+     pair the filter's own folds use — one vocabulary for "there is more". */
+  .friend-cols-more {
+    display: flex; align-items: center; gap: 7px; align-self: flex-start;
+    background: none; border: 0; padding: 8px 2px; cursor: pointer;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--flash);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .friend-cols-more .fold-mark { display: inline-flex; align-items: center; transition: transform .15s; }
+  .friend-cols-more[aria-expanded="true"] .fold-mark { transform: rotate(90deg); }
+  @media (hover: hover) { .friend-cols-more:hover { color: var(--paper); } }
   .friend-cols { display: flex; flex-direction: column; gap: 1px; }
   .friend-col {
     display: flex; align-items: center; gap: 10px;
@@ -1554,6 +1577,35 @@
      flush against the border. */
   #accountBox, #onboardBox, #friendsBox, #recsBox { padding: 20px 22px; }
 
+  /* The big screens get the same pinned strip the sheets now have (owner's
+     ask: «всі вікна повинні зверху мати закріп де хрестик і назва таби»).
+     They scroll inside themselves, so their title used to leave with the
+     content and the cross — absolutely positioned — went with it: a long
+     list of collections ended with no name above it and no way out.
+     The negative margins pull the strip to the box's own edges (padding
+     20/22) so its ground covers the full width as content slides under. */
+  #recsBox > .sheet-title, #recsBox > .sheet-head,
+  #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
+  #accountBox > .sheet-title, #accountBox > .sheet-head,
+  #onboardBox > .sheet-title, #onboardBox > .sheet-head {
+    position: sticky; top: -20px; z-index: 3;
+    margin: -20px -22px 0; padding: 20px 22px 10px;
+    background: var(--surface);
+  }
+  /* The cross rides that strip instead of the content: floated so the
+     title keeps the row, sticky so it stays while the screen scrolls. */
+  #recsBox > .modal-close, #friendsBox > .modal-close,
+  #accountBox > .modal-close, #onboardBox > .modal-close {
+    position: sticky; float: right; top: 4px; right: auto;
+    margin: 0 -8px -44px 0; z-index: 4;
+  }
+  /* …unless it has moved into the name, where it is no longer a corner
+     control and must not float, stick or pull the row up by 44px. */
+  #recsBox .modal-close.is-back-inline, #friendsBox .modal-close.is-back-inline,
+  #accountBox .modal-close.is-back-inline, #onboardBox .modal-close.is-back-inline {
+    position: relative; float: none; top: auto; margin: 0; z-index: auto;
+  }
+
   /* The account screen speaks the same language as the rest: mono labels,
      fields with the label ABOVE them (as on the login screen), and services
      that show their state by the chip rather than by a system checkbox. */
@@ -1590,10 +1642,34 @@
   /* With the heading gone the first label would sit on the account name. */
   .acc-form { margin-top: 18px; }
   .acc-field { display: grid; gap: 6px; margin-bottom: 12px; }
+  /* display:grid defeats the hidden attribute, the same way .opts and
+     .acc-form-actions did — a field that opens on request has to be able to
+     be shut. */
+  .acc-field[hidden] { display: none; }
   .acc-field-lbl {
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em;
     text-transform: uppercase; color: var(--ash);
+    display: flex; align-items: center; gap: 10px;
   }
+  /* What the account SAYS, before it is anything to edit. The label above
+     it stays put whichever state the row is in — it carries the way out of
+     editing as well as the way in. */
+  .acc-read-val {
+    display: block; margin: 5px 0 12px;
+    font-family: var(--font-mono); font-size: 14px; letter-spacing: .04em;
+    color: var(--paper); word-break: break-word;
+  }
+  .acc-read-val[hidden] { display: none; }
+  /* The one control on the row, so it carries the blood — and it is a word
+     rather than a pencil: «Змінити» cannot be mistaken for anything else,
+     and there is no icon in this interface that means it. */
+  .acc-edit {
+    background: none; border: 0; padding: 4px 0; cursor: pointer;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--flash);
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (hover: hover) { .acc-edit:hover { color: var(--paper); } }
   .acc-form input {
     width: 100%; box-sizing: border-box; height: var(--control-h);
     background: rgba(0, 0, 0, .25); border: 1px solid var(--border);
@@ -1736,6 +1812,7 @@
     border-radius: 2px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
   }
   .recs-list-chip.active { background: var(--blood); color: var(--paper); border-color: transparent; font-weight: 700; }
+  .recs-list-chip[disabled] { opacity: .4; cursor: default; }
 
   .pool-card { display: flex; gap: 12px; }
   .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
@@ -1785,23 +1862,50 @@
      control rather than of a gesture. «Догори» is a big chevron because it
      is aimed at in a hurry mid-scroll; this one is looked at first and then
      pressed. Left corner, so the two never take turns in one spot. */
+  /* Beside the word, not floating over the grid (owner's call). It used to
+     be a fixed button at the bottom-left corner, which put it on top of the
+     catalogue it was offering to replace — and on a phone it sat exactly
+     where a thumb rests. In the header it is what it always was, an offer,
+     now sitting with the app's own name.
+     A full touch target around a 22px drawing, like every other icon in
+     this header — see CONVENTIONS.md. */
+  /* Beside the word, but not ON it (owner's call): a clear gap says the die
+     is its own control rather than part of the mark. A 30px drawing in a
+     32px cell, with the touch target added UNDER it — the second pattern in
+     CONVENTIONS.md — because the header also carries the wordmark and three
+     44px icons, and a full-size cell pushed the hamburger onto a second row. */
   .dice {
-    position: fixed; z-index: 40;
-    left: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    width: 56px; height: 56px;
+    width: 32px; height: 32px; flex: none; position: relative;
     display: flex; align-items: center; justify-content: center;
-    background: none; border: 0; padding: 0;
+    /* margin-right: auto, not a wrapper: the header is space-between, and
+       a third child would otherwise be spaced away from the word it
+       belongs to. The auto margin eats the free space instead, so the die
+       stays on the left and the icons stay at the far edge. */
+    background: none; border: 0; padding: 0; margin-left: 18px; margin-right: auto;
     color: var(--flash);
-    filter: drop-shadow(0 1px 3px rgba(0,0,0,.85));
     cursor: pointer; -webkit-tap-highlight-color: transparent;
     transition: color .15s, transform .15s ease;
   }
+  .dice::after { content: ''; position: absolute; inset: -6px; }
   .dice[hidden] { display: none; }
   /* A quarter turn on the press: the one control on the screen whose whole
      idea is that it tumbles. */
   .dice:active { transform: rotate(-18deg); }
+  /* And it tumbles on its own, every few seconds, landing on a new number
+     (rollDie in app.js). Not a spin: a die that completes a revolution
+     reads as a loading spinner. It falls a little, turns, and settles. */
+  .dice.is-rolling { animation: die-roll .62s cubic-bezier(.34, 1.3, .64, 1); }
+  @keyframes die-roll {
+    0%   { transform: rotate(0) scale(1); }
+    30%  { transform: rotate(-26deg) scale(1.14); }
+    62%  { transform: rotate(16deg) scale(1.04); }
+    100% { transform: rotate(0) scale(1); }
+  }
   @media (hover: hover) { .dice:hover { color: var(--paper); } }
-  @media (prefers-reduced-motion: reduce) { .dice { transition: color .15s; } .dice:active { transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .dice { transition: color .15s; }
+    .dice:active, .dice.is-rolling { transform: none; animation: none; }
+  }
   .to-top.in { opacity: 1; transform: none; }
   @media (hover: hover) { .to-top:hover { color: var(--paper); } }
 
@@ -1925,13 +2029,70 @@
 
     .tabs { gap: 14px; }
 
+    /* The header now carries the die as well, so the three icons give up
+       the space between them rather than the row giving up a line — the
+       hamburger was dropping to a second row at 375px. Every cell is still
+       44px; only the air between them goes. */
+    .topbar-icons { gap: 2px; }
+    /* Still a clear gap from the wordmark (owner's call), just a narrower
+       one than a wide screen affords. */
+    .dice { margin-left: 14px; }
+
     /* confirm-card / add-form fields stack instead of a 2-column grid
        fighting for space on a narrow screen */
     .confirm-row { grid-template-columns: 1fr; gap: 0; }
+
+
+    /* Every modal window — the film card, «Додати», «Добірки», «Друзі»,
+       «Акаунт», the guide — fills the screen. */
+    .modal-overlay {
+      padding: 0;
+      align-items: stretch; justify-content: stretch;
+      background: var(--bg); backdrop-filter: none;
+    }
+    .modal-overlay > .modal {
+      max-width: none; width: 100%;
+      min-height: 100%;
+      border: 0; border-radius: 0;
+    }
+    /* A window opened from the menu sits above it: the menu is still open
+       underneath, and «back» is what returns to it. */
+    body.sheet-nav .modal-overlay { z-index: 82; }
+    body.sheet-nav .modal-overlay > .modal { animation: sheet-up .22s ease-out; }
+
+    /* The sheets that are screens rather than menus fill it too. */
+    #filterSheet, #trashSheet, #adminSheet, #colEditSheet {
+      top: 0; height: 100%; max-height: none;
+      border-radius: 0; padding-bottom: 38vh;
+      overscroll-behavior: contain;
+    }
+
+    /* The menu keeps the bottom edge, sized to its own rows. */
+    #menuSheet { max-height: 80vh; overscroll-behavior: contain; }
+
+    /* «Налаштування»: low enough that the grid above it is a grid and not
+       a strip, and the catalogue behind stays live so a toggle can be seen
+       landing. Nothing here blocks it — the backdrop lets touches through
+       and the sheet takes only what it needs. */
+    #settingsSheet {
+      max-height: 58vh;
+      overscroll-behavior: contain;
+    }
+    #settingsBackdrop { background: none; pointer-events: none; }
+
+    /* Clear of the top edge on a full screen. */
+    .modal-overlay > .modal > .modal-close { top: 16px; z-index: 5; }
   }
 
   @media (max-width: 400px) {
     .add-form, .login-box { padding-left: 16px; padding-right: 16px; }
+    /* The word gives up a tenth of its size on the narrowest phones, and
+       only there. At 360-375px the wordmark, the die and three 44px icons
+       do not fit on one line at 42px, and of the three the only one that
+       can yield without breaking a rule is the type: the icons owe their
+       size to the touch-target minimum, and the die is where the owner
+       asked for it. Everything 401px and wider keeps the full 42px. */
+    :root { --wordmark-app: 34px; }
   }
 
   /* ---------- add-movie modal ---------- */
@@ -2182,6 +2343,21 @@
        stays on the login screen, the favicon and volume I. -->
   <div class="topbar">
     <h1><span class="wordmark">Seen<em>It</em></span></h1>
+<button class="dice" id="diceBtn" type="button" title="Подивись щось випадкове" aria-label="Подивись щось випадкове" hidden>
+  <!-- The pips are drawn by JS (rollDieFace in app.js) so the die can land
+       on a different number as it tumbles. Five is only what it shows
+       before the first script runs. -->
+  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="4.5"/>
+    <g id="dicePips" fill="currentColor" stroke="none">
+      <circle cx="8.2" cy="8.2" r="1.45"/>
+      <circle cx="15.8" cy="8.2" r="1.45"/>
+      <circle cx="12" cy="12" r="1.45"/>
+      <circle cx="8.2" cy="15.8" r="1.45"/>
+      <circle cx="15.8" cy="15.8" r="1.45"/>
+    </g>
+  </svg>
+</button>
     <div class="topbar-icons">
       <!-- Search is not a place you go: the icon grows leftwards into a
            field, and typing filters what is ALREADY on the screen — the
@@ -2321,7 +2497,6 @@
      worked on one tab and not the others), it painted over the back arrow,
      and it vanished every time a panel re-rendered its innerHTML. Out here
      it is one node that nothing redraws and nothing covers. -->
-<div class="band-grip" id="bandGrip" role="separator" aria-orientation="horizontal" aria-label="Висота панелі"></div>
 <div class="sheet-backdrop" id="menuBackdrop" hidden></div>
 <div class="sheet" id="menuSheet" aria-hidden="true">
   <!-- The menu's own way out (owner's call). It used to have none: tapping
@@ -2487,10 +2662,10 @@
        a paragraph of buttons, and the sheet must not open on a wall of
        names nobody asked for. Favourites (from the taste statistics the
        dice keeps) lead each list; several may be chosen at once. -->
-  <div class="sheet-label sheet-label--fold" id="actorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none">Актори <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
-  <div class="opts" id="actorFilter" hidden></div>
-  <div class="sheet-label sheet-label--fold" id="directorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none">Режисери <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
-  <div class="opts" id="directorFilter" hidden></div>
+  <div class="sheet-label sheet-label--fold" id="actorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none"><span data-people-label>Твій топ 20 акторів</span> <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
+  <div class="opts opts--people" id="actorFilter" hidden></div>
+  <div class="sheet-label sheet-label--fold" id="directorLabel" role="button" tabindex="0" aria-expanded="false" style="display:none"><span data-people-label>Твій топ 20 режисерів</span> <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span></div>
+  <div class="opts opts--people" id="directorFilter" hidden></div>
 </div>
 <!-- The full stacked mark in paper, for the empty and error screens —
      injected once at build time, cloned by render() as needed. Stashed at
@@ -2507,16 +2682,6 @@
      corner of the screen, and two controls taking turns in one spot is how
      a thumb learns to distrust a place. Unlike «Догори» it does not come and
      go with the scroll: it is an offer, not a shortcut back. -->
-<button class="dice" id="diceBtn" type="button" title="Подивись щось випадкове" aria-label="Подивись щось випадкове" hidden>
-  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="4.5"/>
-    <circle cx="8.2" cy="8.2" r="1.45" fill="currentColor" stroke="none"/>
-    <circle cx="15.8" cy="8.2" r="1.45" fill="currentColor" stroke="none"/>
-    <circle cx="12" cy="12" r="1.45" fill="currentColor" stroke="none"/>
-    <circle cx="8.2" cy="15.8" r="1.45" fill="currentColor" stroke="none"/>
-    <circle cx="15.8" cy="15.8" r="1.45" fill="currentColor" stroke="none"/>
-  </svg>
-</button>
 <button class="to-top" id="toTopBtn" type="button" title="Догори" aria-label="Догори" hidden>
   <svg viewBox="0 0 24 24" width="68" height="68" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="18 15 12 9 6 15"/>
@@ -3028,6 +3193,163 @@ function markUrl(base, list, tmdbId) {
   const n = Number(tmdbId);
   if (!Number.isInteger(n) || n <= 0) return null;
   return `${base}/library/marks/${list}/${n}`;
+}
+
+/* ---------- held marks, flushed in one batch ----------
+ *
+ * A marking spree used to cost one round trip per tap (and a tap can be
+ * three writes — the ladder). The app now HOLDS the ops and flushes them
+ * as one POST /library/marks/batch once the spree rests. These are the
+ * pure halves: what to hold, what to send, what to drop after a send.
+ */
+
+/** How long a marking spree may rest before its held marks are flushed. */
+const MARK_FLUSH_IDLE_MS = 5 * 60 * 1000;
+
+/** How soon a failed flush tries again. */
+const MARK_FLUSH_RETRY_MS = 60 * 1000;
+
+/** The most ops one flush request may carry — the Worker refuses more. */
+const MARK_BATCH_MAX = 500;
+
+/** localStorage key for marks not yet flushed — per account, like the
+ *  lists themselves, so two accounts on one browser never flush each
+ *  other's taps. */
+function localPendingMarksKey(uid) {
+  return uid ? `seenit_${uid}_pending_marks` : null;
+}
+
+/**
+ * Folds one tap's ops into the held batch. Keyed by (list, film) with the
+ * LAST state winning: on-then-off collapses to one clear, which is still
+ * correct on the server — set and clear are idempotent deltas.
+ */
+function queueMarkOps(pending, ops, tmdbId) {
+  const id = Number(tmdbId);
+  if (!Number.isInteger(id) || id <= 0) return pending;
+  for (const op of ops || []) {
+    if (!MARK_LISTS.includes(op && op.list)) continue;
+    pending[`${op.list}:${id}`] = { list: op.list, tmdb_id: id, on: !!op.on };
+  }
+  return pending;
+}
+
+/** The held batch as the ops array a flush request carries. */
+function pendingMarkOps(pending) {
+  return Object.values(pending || {}).filter(op =>
+    op && MARK_LISTS.includes(op.list) && Number.isInteger(op.tmdb_id) && op.tmdb_id > 0);
+}
+
+/** Splits a spree into request-sized pieces the Worker will accept. */
+function chunkMarkOps(ops, max = MARK_BATCH_MAX) {
+  const chunks = [];
+  for (let i = 0; i < (ops || []).length; i += max) chunks.push(ops.slice(i, i + max));
+  return chunks;
+}
+
+/**
+ * Drops from the held batch what a successful flush just sent — but only
+ * entries the spree has not changed while the request was in flight. A tap
+ * that landed mid-flight re-keys its entry to a different `on`, and that
+ * newer intention must survive to the next flush.
+ */
+function clearFlushedMarkOps(pending, sentOps) {
+  for (const op of sentOps || []) {
+    const key = `${op.list}:${op.tmdb_id}`;
+    if (pending[key] && pending[key].on === op.on) delete pending[key];
+  }
+  return pending;
+}
+
+/**
+ * Replays held ops over the lists the server answered with. The server
+ * copy predates an unflushed spree by definition, so on load the held ops
+ * are the newer truth — without this, closing the tab and reopening it
+ * would show the marks un-tapped until the flush finally lands.
+ */
+function applyPendingMarks(pending, sets) {
+  for (const op of pendingMarkOps(pending)) {
+    const set = sets && sets[op.list];
+    if (!set) continue;
+    if (op.on) set.add(String(op.tmdb_id)); else set.delete(String(op.tmdb_id));
+  }
+  return sets;
+}
+
+/* ---------- the die's faces ----------
+ *
+ * The button tumbles on its own and lands on a different number, so the
+ * pips have to be drawn rather than written down once. The coordinates are
+ * the 24x24 box the icon is drawn in; a face is the list of pips it shows,
+ * in the arrangement a real die uses.
+ */
+const DIE_PIP_SPOTS = {
+  tl: [8.2, 8.2],   tr: [15.8, 8.2],
+  ml: [8.2, 12],    mr: [15.8, 12],
+  c:  [12, 12],
+  bl: [8.2, 15.8],  br: [15.8, 15.8],
+};
+const DIE_FACES = {
+  1: ['c'],
+  2: ['tl', 'br'],
+  3: ['tl', 'c', 'br'],
+  4: ['tl', 'tr', 'bl', 'br'],
+  5: ['tl', 'tr', 'c', 'bl', 'br'],
+  6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br'],
+};
+
+/** The pip coordinates for one face, or an empty list for a bad number. */
+function diePips(face) {
+  return (DIE_FACES[face] || []).map(k => DIE_PIP_SPOTS[k]);
+}
+
+/**
+ * The next face to land on — never the one already showing.
+ *
+ * A die that can roll the same number twice looks broken rather than
+ * random: nothing moves, and the tumble reads as a rendering glitch.
+ */
+function nextDieFace(current, rnd = Math.random) {
+  const others = [1, 2, 3, 4, 5, 6].filter(n => n !== current);
+  return others[Math.min(others.length - 1, Math.floor(rnd() * others.length))];
+}
+
+/**
+ * How much of a person's collection list to show before the arrow.
+ *
+ * Six is the owner's number: enough that most people are shown whole, few
+ * enough that a person with forty collections cannot push everybody else
+ * off the screen.
+ */
+const FRIEND_COLS_KEEP = 6;
+
+/**
+ * A person's collections, newest first.
+ *
+ * The owner asked for «топ за датою створення». `user_collections` has no
+ * created_at — only `updated_at` — so this orders by the freshest activity
+ * instead, which for a collection nobody has edited IS its creation. Making
+ * it literal needs a column on the Worker's table, and the name breaks ties
+ * so the order never wobbles between two collections touched in the same
+ * second.
+ */
+function collectionsByRecency(cols) {
+  return (cols || []).slice().sort((a, b) =>
+    (Number(b && b.updated_at) || 0) - (Number(a && a.updated_at) || 0)
+    || String((a && a.name) || '').localeCompare(String((b && b.name) || ''), 'uk'));
+}
+
+/**
+ * The rows to draw for one person, and how many the fold is holding back.
+ *
+ * `hidden` is what the arrow is FOR, so it is returned rather than derived
+ * at the call site: a fold that says «ще 3» when it holds four is worse
+ * than no number at all.
+ */
+function foldRows(rows, expanded, keep = FRIEND_COLS_KEEP) {
+  const all = rows || [];
+  if (expanded || all.length <= keep) return { rows: all, hidden: 0 };
+  return { rows: all.slice(0, keep), hidden: all.length - keep };
 }
 
 /**
@@ -4250,9 +4572,15 @@ function matches(m, q) {
  */
 const EXCLUDED_PROVIDER_KEYS = new Set(['rakuten tv', 'hbo max', 'google play', 'crunchyroll', 'mubi']);
 
-/** The provider rows a film may actually show. */
+/** The provider rows a film may actually show.
+ *
+ * Besides the ruled-out storefronts: a row must carry ITS OWN link
+ * (owner's call). The old fallback sent people to TMDb's watch page —
+ * a site about the film, not the film — and a row with no way to reach
+ * the film is a claim the person cannot act on, so it is not shown and
+ * not offered as a filter option either. */
 function visibleProviders(providers) {
-  return (providers || []).filter(p => p && !EXCLUDED_PROVIDER_KEYS.has(serviceKey(p.name)));
+  return (providers || []).filter(p => p && p.url && !EXCLUDED_PROVIDER_KEYS.has(serviceKey(p.name)));
 }
 
 /**
@@ -4344,10 +4672,11 @@ function orderGenresByTaste(order, tasteGenres) {
     (weight(b) - weight(a)) || order.indexOf(a) - order.indexOf(b));
 }
 
-/** Is this film offered by that provider? */
+/** Is this film offered by that provider? Judged over the VISIBLE rows,
+ *  so the filter can never match a film whose row the card hides. */
 function hasProvider(movie, name) {
   if (!name || name === 'all') return true;
-  return ((movie && movie.providers) || []).some(p => p && p.name === name);
+  return visibleProviders(movie && movie.providers).some(p => p.name === name);
 }
 
 /* ---------- decades ----------
@@ -4417,7 +4746,7 @@ function isExcludedProduction(movie) {
   return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
-function filterCatalog(movies, { query, tab, showWatched, genre, recommender, type, years, provider, actors, directors, likedIds, watchedIds }) {
+function filterCatalog(movies, { query, tab, showWatched, keepWatched, genre, recommender, type, years, provider, actors, directors, likedIds, watchedIds }) {
   // Marks are keyed by the film's TMDb id, not by its slug — see markKey().
   const has = isMarked;
   const q = (query || '').toLowerCase();
@@ -4430,10 +4759,18 @@ function filterCatalog(movies, { query, tab, showWatched, genre, recommender, ty
     } else if (showWatched) {
       // "Дивився" pressed -> isolate to ONLY watched titles.
       if (!has(watchedIds, m)) return false;
+    } else if (!keepWatched && has(watchedIds, m)) {
+      // Watched films have LEFT the general shelf (owner's call, reversing
+      // the older rule that kept them listed and merely sank them to the
+      // end of their section). What is done now lives in one place — the
+      // «Дивився» filter — and the shelf is what is still ahead of you.
+      //
+      // `keepWatched` is how a narrowed screen opts out: inside a
+      // collection, and above all inside one's own «Рекомендую» /
+      // «Обовʼязково до перегляду», every film is watched by definition and
+      // this rule would empty the screen it was asked to show.
+      return false;
     }
-    // Default: EVERYTHING. Watched titles stay listed and sink to the end
-    // of their genre section instead (compareMovies) — the shelf shows what
-    // is done as done, it does not hide it (vol. II §06 / REQ new).
     if (genre && genre !== 'all' && m.genre_group !== genre) return false;
     // Films vs series (§07's «УСЕ ФІЛЬМИ СЕРІАЛИ» options). Animation is a
     // GENRE here — a cartoon is still a фільм or a серіал — so the ribbon
@@ -5226,8 +5563,28 @@ function diceDecadeMult(year, nowYear) {
   return (DICE_DECADE_MULT.find(d => y >= d.from) || { mult: 0.12 }).mult;
 }
 
-function diceScore(m, stats, { now } = {}) {
+/**
+ * What the rest of the app's people think of a film, as one number.
+ *
+ * The same ladder personal taste uses — watched 1, liked 2, must 4 — read
+ * over the community counts and divided by the accounts that mark
+ * anything, so it is a SHARE and not a headcount: on a shelf of three
+ * people a film everyone starred should weigh what it would among three
+ * hundred. Capped, because a beloved film is a hint, not an order.
+ */
+const DICE_COMMUNITY_CAP = 1.5;
+function communityScore(counts, accounts) {
+  const [w = 0, l = 0, mu = 0] = counts || [];
+  const people = Number(accounts) || 0;
+  if (!people) return 0;
+  const weighted = (w * TASTE_WEIGHTS.watched) + (l * TASTE_WEIGHTS.liked) + (mu * TASTE_WEIGHTS.must);
+  // TASTE_WEIGHTS.must is the ceiling one account can contribute.
+  return Math.min(DICE_COMMUNITY_CAP, (weighted / (people * TASTE_WEIGHTS.must)) * DICE_COMMUNITY_CAP);
+}
+
+function diceScore(m, stats, { now, markCounts, accounts } = {}) {
   let score = 1;
+  if (markCounts) score += communityScore(markCounts[markKey(m)], accounts);
   if (stats && stats.weight > 0) {
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
     score += Math.min(5, dirW * 1.25);
@@ -5248,7 +5605,8 @@ function diceScore(m, stats, { now } = {}) {
  * they weigh, at most `max` of them; an empty answer means the card rode
  * luck and its rating, and the caller should say THAT rather than nothing.
  */
-function diceReasons(m, stats, { max = 2, now } = {}) {
+function diceReasons(m, stats, opts = {}) {
+  const { max = 2, now } = opts;
   const reasons = [];
   if (stats && stats.weight > 0) {
     const dirW = Math.max(0, ...splitPeople(m.director).map(d => stats.directors[d] || 0));
@@ -5273,9 +5631,17 @@ function diceReasons(m, stats, { max = 2, now } = {}) {
   if (Number.isFinite(y) && y >= nowYear - 5) {
     reasons.push({ kind: 'fresh', label: `свіжий — ${y}` });
   }
+  const crowd = (opts.markCounts && opts.markCounts[markKey(m)]) || null;
+  if (crowd && (crowd[2] || crowd[1])) {
+    reasons.push(crowd[2]
+      ? { kind: 'crowd', label: `${crowd[2]} обовʼязково в інших` }
+      : { kind: 'crowd', label: `${crowd[1]} рекомендують` });
+  }
   // The caps' own order (owner's ruling): режисер > актор > жанр > рік —
   // the receipt names what the score actually weighed heaviest.
-  const rank = { director: 1, actor: 2, genre: 3, fresh: 4 };
+  // The community is named LAST among equals: it says what other people
+  // think, and the person's own history outranks that by construction.
+  const rank = { director: 1, actor: 2, genre: 3, fresh: 4, crowd: 5 };
   reasons.sort((a, b) => rank[a.kind] - rank[b.kind]);
   return reasons.slice(0, max);
 }
@@ -5290,10 +5656,10 @@ function diceReasons(m, stats, { max = 2, now } = {}) {
  * rnd is injected so a test can pin the physics; the app passes
  * Math.random.
  */
-function rollDice(items, stats, { watchedIds, count = 4, rnd = Math.random } = {}) {
+function rollDice(items, stats, { watchedIds, count = 4, rnd = Math.random, markCounts, accounts, now } = {}) {
   const scored = (items || [])
     .filter(m => m && markKey(m) && !isMarked(watchedIds, m))
-    .map(m => ({ m, s: diceScore(m, stats) }));
+    .map(m => ({ m, s: diceScore(m, stats, { now, markCounts, accounts }) }));
   const picked = [];
   while (scored.length && picked.length < count) {
     const total = scored.reduce((n, x) => n + x.s, 0);
@@ -5434,8 +5800,11 @@ function providerKindLabel(kind) {
  * link. Returning null rather than inventing a search URL is the point: a
  * wrong link here lands a person on the wrong film's buy page.
  */
-function providerLinkUrl(provider, regionLink) {
-  return (provider && provider.url) || regionLink || null;
+function providerLinkUrl(provider) {
+  // The row's own link or nothing: the TMDb watch-page fallback is retired
+  // (owner's call) — visibleProviders() refuses url-less rows anyway, so
+  // by the time a row renders this is always a real destination.
+  return (provider && provider.url) || null;
 }
 
 /**
@@ -5592,6 +5961,9 @@ function parseBatchLine(line) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     MARK_LISTS, userMarksPath, localMarksKey, userCatalogPath, userServicesPath,
+    FRIEND_COLS_KEEP, foldRows, collectionsByRecency, DIE_FACES, diePips, nextDieFace,
+    MARK_FLUSH_IDLE_MS, MARK_FLUSH_RETRY_MS, MARK_BATCH_MAX, localPendingMarksKey,
+    queueMarkOps, pendingMarkOps, chunkMarkOps, clearFlushedMarkOps, applyPendingMarks,
     usernameToEmail, ratingNum, criticBarTone, matches, levenshtein, compareMovies,
     filterCatalog, normTitleForDup, findDuplicateMovie, uniqueMovieId, mergeRefreshedMovie,
     fuzzyCatalogSuggestions, catalogIdsLost, mergeCatalogAdditively, missingFields,
@@ -5613,6 +5985,7 @@ if (typeof module !== 'undefined' && module.exports) {
     serviceKey, providerOwned, providerIsMine,
     AWARD_INFO, matchAward, groupAwards, awardsTally, awardCountSuffix, splitAwardLabel, shortAwardLabel, awardCategoryBreakdown, parseOmdbAwardsSummary, extractCriticScore, parseOmdbYear, omdbYearAcceptable, isOmdbAnswer, omdbTitleMatches, isOmdbQuotaExhausted, orphanedMarkIds, countExistingMarks, markTransition, deleteConsequences, pluralFilms, TRASH_TTL_MS, sweepTrash, pluralFilmsAndShows, trashTimeLeftLabel, RECOMMENDS_COLLECTION_ID, recommendsCollectionName, MUST_COLLECTION_ID, mustCollectionName, defaultDisplayName, pickRandomFilm,
     TASTE_WEIGHTS, filmTasteWeight, userTasteStats, diceScore, rollDice, splitPeople, localStatsKey, diceReasons, DICE_DECADE_MULT, diceDecadeMult,
+    communityScore, DICE_COMMUNITY_CAP,
     YEAR_BUCKETS, matchesYearBucket, isExcludedProduction, providersInCatalogue, hasProvider,
     EXCLUDED_PROVIDER_KEYS, visibleProviders,
     actorsInCatalogue, directorsInCatalogue, rankPeopleByTaste, hasActor, hasDirector, orderGenresByTaste,
@@ -5667,6 +6040,12 @@ const auth = firebase.auth();
 let watched = new Set();
 let liked = new Set();
 let must = new Set();
+// What everybody else marked: {tmdb_id: [watched, liked, must]} plus the
+// number of accounts that mark anything, so a share can be honest. Read
+// once per session like the marks; absent until it arrives, and every
+// reader of it treats absence as «no community answer yet», never as zero.
+let markCounts = {};
+let markingAccounts = 0;
 
 /**
  * The TMDb ids on MY shelf.
@@ -5755,16 +6134,38 @@ const localStore = {
  * which is what the reader actually feels — the round trip used to be visible
  * on a slow connection.
  */
+/** The community counts — one request, and a failure is silent by design:
+ *  the counters simply do not render, and the dice falls back to personal
+ *  taste alone. Nothing here is worth an error screen. */
+async function loadMarkCounts() {
+  try {
+    const res = await fetch(`${API_PROXY}/library/mark-counts`, { headers: await proxyHeaders({ accept: 'application/json' }) });
+    if (!res.ok) return;
+    const data = await res.json();
+    markCounts = data.counts || {};
+    markingAccounts = data.accounts || 0;
+    render({ keepDrawn: true });
+  } catch (err) { /* the cards read fine without it */ }
+}
+
 async function loadMarks(uid) {
   const localKeys = {
     watched: localMarksKey(uid, 'watched'),
     liked: localMarksKey(uid, 'liked'),
     must: localMarksKey(uid, 'must'),
   };
+  // Marks held for a batch flush that never happened — a closed tab, a lost
+  // network. They are NEWER than whatever the server answers below, so they
+  // replay over it, and the flush is retried once the lists are in.
+  // localStore's miss value is [], which JSON.stringify would strip the
+  // entries back out of — only a real object is trusted.
+  const storedPending = localPendingMarksKey(uid) ? localStore.get(localPendingMarksKey(uid)) : null;
+  pendingMarks = (storedPending && !Array.isArray(storedPending)) ? storedPending : {};
   const apply = (source) => {
     watched = new Set((source.watched || []).map(String));
     liked = new Set((source.liked || []).map(String));
     must = new Set((source.must || []).map(String));
+    applyPendingMarks(pendingMarks, { watched, liked, must });
     window.watched = watched;
     window.liked = liked;
     window.must = must;
@@ -5787,6 +6188,10 @@ async function loadMarks(uid) {
     if (localKeys.watched) localStore.set(localKeys.watched, [...watched]);
     if (localKeys.liked) localStore.set(localKeys.liked, [...liked]);
     if (localKeys.must) localStore.set(localKeys.must, [...must]);
+    loadMarkCounts();
+    // Leftovers wait for no idle timer: their spree ended in some previous
+    // session, so they are already as settled as they will ever be.
+    if (pendingMarkOps(pendingMarks).length) flushMarks();
   } catch (err) {
     // Offline, or the token expired mid-session: fall back to whatever was
     // last saved locally rather than showing an account with no history.
@@ -5867,6 +6272,9 @@ function finishBoot() {
   // display:none element. bootLifted is the same flag raiseBoot() clears, so
   // a stale timer simply finds the world moved on and does nothing.
   setTimeout(() => { if (bootLifted) bootSplash.hidden = true; }, 220);
+  // The header has a height from this moment on, and several sticky rules
+  // are measured from it — see syncHeaderHeight.
+  window.dispatchEvent(new CustomEvent('seenit:booted'));
 }
 /**
  * Signed in, so the next thing worth showing is FILMS — not an empty grid
@@ -6261,8 +6669,21 @@ function searchSource() {
 function visibleMovies() {
   // An open collection narrows the SOURCE; every filter below applies the
   // same as always — that is the whole contract of «відкрити як каталог».
+  // Inside my own marks-as-a-collection everything is watched, so the
+  // «Дивився» isolation would either change nothing or read as broken; its
+  // toggle is hidden there (style.css) and its saved state waits untouched
+  // for the ordinary catalogue.
+  const showWatched = (openCatalogCollection && openCatalogCollection.source === 'marks')
+    ? false : state.showWatched;
+  // Watched films left the general shelf (owner's call) — but a narrowed
+  // screen is not the general shelf. A collection is a list somebody made
+  // on purpose, and one's own «Рекомендую» is watched from end to end;
+  // applying the rule there would hand back an empty screen. Adding to a
+  // collection is choosing FROM the catalogue, so it keeps them too — you
+  // cannot add what you cannot see.
+  const keepWatched = !!openCatalogCollection || addMode;
   return filterCatalog(searchSource(), {
-    query: state.query, tab: state.tab, showWatched: state.showWatched,
+    query: state.query, tab: state.tab, showWatched, keepWatched,
     genre: state.genre, recommender: state.recommender, type: state.type, years: state.years, provider: state.provider,
     actors: state.actors, directors: state.directors,
     likedIds: liked, watchedIds: watched,
@@ -6538,7 +6959,17 @@ function cardAwardsRow(m) {
     </div>`;
 }
 
-function cardHtml(m) {
+/** How many accounts marked this film, as the card prints it: a bare
+ *  count, because a percentage of three people is a lie dressed as
+ *  precision. Absent counts render nothing at all — «0» would claim the
+ *  community has judged the film and passed. */
+function crowdCount(m, idx) {
+  const row = markCounts[markKey(m)];
+  const n = row && row[idx];
+  return n ? `<span class="tgl-n">${n}</span>` : '';
+}
+
+function cardHtml(m, { rich = false } = {}) {
   const isW = isMarked(watched, m), isL = isMarked(liked, m), isM = isMarked(must, m);
   const critic = criticBadgeHtml(m);
   // Two modes put a checkbox on a card, and they behave differently on
@@ -6559,15 +6990,18 @@ function cardHtml(m) {
     <div class="card-body">
       <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>
       <div class="card-meta-row">
-        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}</span>
+        <!-- rich: the dice's own hand names the genre too (owner's ask) —
+             four films chosen FOR you are worth a word about what they are,
+             where the shelf already stands under a genre heading. -->
+        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>
         ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}
       </div>
       ${critic}
       ${cardAwardsRow(m)}
-      <div class="card-toggles">
-        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}</button>
-        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}</button>
-        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}</button>
+      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">
+        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>
+        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>
+        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>
       </div>
     </div>
   </div>`;
@@ -6919,11 +7353,21 @@ function unlockScroll(owner = null) {
 function resetAccountState() {
   watched.clear();
   liked.clear();
+  // `must` was missing here: between signing out and the next account's
+  // marks arriving, the previous person's stars stayed on screen — the
+  // exact window this function exists to close.
+  must.clear();
+  // The held batch belongs to whoever is leaving. What it holds is already
+  // safe in THEIR localStorage slot; the next load as them replays and
+  // flushes it. Left in memory, it would flush under the next account's
+  // token — their marks, somebody else's spree.
+  pendingMarks = {};
+  clearTimeout(_markFlushTimer);
+  _cachedIdToken = null;
   shelf.length = 0;
   _me = { role: '', username: null, displayName: null, mayEdit: false };
   syncAdminRow();
   _services = [];
-  likedPublic = false;
   moviesLoaded = false;
   render();
 }
@@ -7126,7 +7570,7 @@ function providersHtml(m) {
   const list = sortProviders(visibleProviders(m.providers), myServices());
   if (!list.length) return '';
   const rows = list.map(p => {
-    const href = providerLinkUrl(p, m.providers_link);
+    const href = providerLinkUrl(p);
     const logo = providerLogoUrl(p);
     const owned = providerOwned(p, myServices());
     const inner = `
@@ -7882,42 +8326,108 @@ async function toggle(act, id) {
   // isolation) and where they sit (watched sinks to the section's end), so
   // this still re-renders — but it keeps the reader where they were
   // instead of jumping back to the top of the catalogue.
-  const before = { watched: watched.has(key), liked: liked.has(key), must: must.has(key) };
   for (const op of ops) (op.on ? setOf(op.list).add(key) : setOf(op.list).delete(key));
   tasteStatsChanged();
   render({ keepDrawn: true });
   const uid = auth.currentUser && auth.currentUser.uid;
-  const saveLocal = () => {
-    for (const list of ['watched', 'liked', 'must']) {
-      const localKey = localMarksKey(uid, list);
-      if (localKey) localStore.set(localKey, [...setOf(list)]);
-    }
-  };
-  saveLocal();
+  for (const list of ['watched', 'liked', 'must']) {
+    const localKey = localMarksKey(uid, list);
+    if (localKey) localStore.set(localKey, [...setOf(list)]);
+  }
 
-  // D1 pushes nothing back, so this tab's own state is the state. A failed
-  // write therefore has to be UNDONE rather than left for a listener to
-  // correct — otherwise the mark sits there looking saved until a reload
-  // quietly loses it. The ops are one intention: if any write fails, the
-  // whole tap rolls back, or the two lists would drift apart.
+  // The write itself is HELD rather than sent: the ops join the pending
+  // batch and travel later, in one POST /library/marks/batch, once the
+  // spree rests (see flushMarks below). Both the lists and the batch are
+  // already in localStorage by here, so a closed tab loses nothing.
+  queueMarks(ops, key);
+}
+
+/* ---------- held marks, flushed in one batch ----------
+ *
+ * A marking spree used to cost one round trip per tap — three, when the
+ * ladder fired. The taps now pile into `pendingMarks` and travel together
+ * once the spree has rested for MARK_FLUSH_IDLE_MS, as ONE request the
+ * Worker applies in one D1 batch. The tab closing early is the obvious
+ * hole, covered twice over: pagehide/hidden fires a keepalive flush, and
+ * the batch itself lives in localStorage, replayed and re-flushed on the
+ * next load (see loadMarks).
+ */
+let pendingMarks = {};
+let _markFlushTimer = null;
+// One complaint per failure streak: the flush retries on its own, and a
+// toast per silent background attempt would nag about a problem the person
+// cannot act on twice.
+let _markFlushWarned = false;
+
+function savePendingMarks() {
+  const key = localPendingMarksKey(auth.currentUser && auth.currentUser.uid);
+  if (key) localStore.set(key, pendingMarks);
+}
+
+function scheduleMarkFlush(delay = MARK_FLUSH_IDLE_MS) {
+  clearTimeout(_markFlushTimer);
+  _markFlushTimer = setTimeout(() => { flushMarks(); }, delay);
+}
+
+/** One tap's ops join the batch; the idle timer starts over. */
+function queueMarks(ops, tmdbId) {
+  queueMarkOps(pendingMarks, ops, tmdbId);
+  savePendingMarks();
+  scheduleMarkFlush();
+}
+
+/**
+ * Sends the held batch. `keepalive` is the leaving-the-page variant: the
+ * request has to be handed to the browser before the page dies, so the
+ * headers come from the cached token (proxyHeaders awaits, and an await in
+ * pagehide is a request that may never be made).
+ */
+async function flushMarks({ keepalive = false } = {}) {
+  clearTimeout(_markFlushTimer);
+  const ops = pendingMarkOps(pendingMarks);
+  if (!ops.length) return true;
   try {
-    for (const op of ops) {
-      const res = await fetch(markUrl(API_PROXY, op.list, key), {
-        method: op.on ? 'PUT' : 'DELETE',
-        headers: await proxyHeaders({ accept: 'application/json' }),
+    for (const chunk of chunkMarkOps(ops)) {
+      const headers = keepalive
+        ? (_cachedIdToken ? { 'content-type': 'application/json', Authorization: `Bearer ${_cachedIdToken}` } : null)
+        : await proxyHeaders({ accept: 'application/json', 'content-type': 'application/json' });
+      // No token on the way out means no authorized request to make — the
+      // batch stays in localStorage and the next load flushes it.
+      if (!headers) return false;
+      const res = await fetch(`${API_PROXY}/library/marks/batch`, {
+        method: 'POST', headers, body: JSON.stringify({ ops: chunk }), keepalive,
       });
-      if (!res.ok) throw new Error(`mark ${res.status}`);
+      if (!res.ok) throw new Error(`marks/batch ${res.status}`);
+      // Only what this chunk carried, and only if a mid-flight tap has not
+      // re-keyed it — a newer intention survives to the next flush.
+      clearFlushedMarkOps(pendingMarks, chunk);
+      savePendingMarks();
     }
+    _markFlushWarned = false;
+    // A spree that continued during the flight left fresh ops behind —
+    // they wait out their own idle window rather than flushing hot.
+    if (pendingMarkOps(pendingMarks).length) scheduleMarkFlush();
+    return true;
   } catch (err) {
-    before.watched ? watched.add(key) : watched.delete(key);
-    before.liked ? liked.add(key) : liked.delete(key);
-    before.must ? must.add(key) : must.delete(key);
-    tasteStatsChanged();
-    saveLocal();
-    render({ keepDrawn: true });
-    toast('error', 'Не вдалося зберегти позначку — спробуй ще раз');
+    // Nothing to roll back: the lists on screen are the intention, and the
+    // batch holding it is durable. The flush just tries again.
+    if (!_markFlushWarned && !keepalive) {
+      toast('error', 'Позначки поки не зберігаються на сервері — тримаю локально і пробую далі');
+      _markFlushWarned = true;
+    }
+    scheduleMarkFlush(MARK_FLUSH_RETRY_MS);
+    return false;
   }
 }
+
+// Leaving is the one moment the idle timer cannot cover. pagehide is the
+// reliable signal on iOS Safari, visibilitychange-hidden the reliable one
+// everywhere else; flushing twice is harmless because a flush empties the
+// batch it sends.
+window.addEventListener('pagehide', () => { flushMarks({ keepalive: true }); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushMarks({ keepalive: true });
+});
 
 /* ---------- events ---------- */
 document.getElementById('main').addEventListener('click', e => {
@@ -8113,6 +8623,11 @@ function menuIsNav() {
   return (window.innerWidth || 0) <= PHONE_MAX_PX;
 }
 
+/* The two screens that still sit at the bottom edge with a working
+ * catalogue above them. Everything else opens whole — see the phone block
+ * in style.css. */
+function sheetKeepsCatalogueLive(id) { return id === 'menuSheet' || id === 'settingsSheet'; }
+
 function wireSheet(sheetId, backdropId) {
   const sheet = document.getElementById(sheetId);
   const backdrop = document.getElementById(backdropId);
@@ -8121,11 +8636,13 @@ function wireSheet(sheetId, backdropId) {
     backdrop.hidden = false;
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
-    // On a phone the catalogue behind stays live (owner's call). Locking it
-    // was right when a screen covered everything; a sheet covers the bottom
-    // half, and the top half is a working catalogue that used to refuse to
-    // move. Everywhere else the lock stands.
-    if (!menuIsNav()) lockScroll(sheet);
+    // Only what leaves the catalogue on screen leaves it scrollable. The
+    // menu and «Налаштування» keep the bottom edge and the grid above them
+    // is meant to work — the settings sheet exists precisely so a toggle
+    // can be watched landing on those cards. Everything else fills the
+    // screen now, and a screen you cannot see through must not scroll
+    // underneath your finger.
+    if (!menuIsNav() || !sheetKeepsCatalogueLive(sheetId)) lockScroll(sheet);
     if (sheetIsBand(sheetId)) syncSheetNav();
     // The menu's own cross is NOT repainted: from the menu there is nowhere
     // to go back to, so a cross is what it means. Only the screens the menu
@@ -8188,75 +8705,11 @@ function closeMenuScreens() {
 
 const menuSheet = wireSheet('menuSheet', 'menuBackdrop');
 
-/* ---------- one height for everything at that edge ----------
- *
- * Owner's call: the screen divides into the menu's share and the rest, and
- * every tab takes the menu's share exactly — no more and no less. A sheet
- * that sized itself to its own contents made the bottom edge move between
- * «Налаштування» and «Добірки», so the catalogue above jumped every time
- * you changed tabs and the back arrow was never twice in the same place.
- *
- * Measured, not assumed: the row count changes with the account — «Друзі»
- * appears with the first subscription, «Адмін» with the role. And measured
- * whether or not the menu is open: it is laid out either way (hidden by a
- * transform and `visibility`, both of which leave the box alone), and a tab
- * can be the first thing on screen after a reload.
- */
+/* Whatever screen is open at the bottom edge right now, or null. Only the
+ * menu and «Налаштування» live there since every other window opens whole
+ * (see the phone block in style.css); this is what the scroll guard below
+ * asks about. */
 const _menuEl = document.getElementById('menuSheet');
-/**
- * The menu's own content height — the band's ceiling.
- *
- * scrollHeight and not the box: once the person has chosen a height, the
- * box is whatever they chose, and a ceiling read from it would sink a
- * little further every time until it could never be dragged back up. The
- * content does not move, so it is the honest number.
- */
-function menuNaturalHeight() {
-  const cap = Math.round((window.innerHeight || 0) * 0.8);
-  const natural = _menuEl.scrollHeight;
-  return cap > 0 ? Math.min(natural, cap) : natural;
-}
-function syncMenuHeight() {
-  const h = menuNaturalHeight();
-  if (h > 0) document.documentElement.style.setProperty('--menu-h', `${h}px`);
-}
-if (typeof ResizeObserver === 'function') new ResizeObserver(syncMenuHeight).observe(_menuEl);
-window.addEventListener('resize', syncMenuHeight);
-syncMenuHeight();
-
-/* ---------- the band's height, as the person set it ----------
- *
- * Owner's call. The default stands as it is; drag the top edge of the menu
- * or of any tab downwards and it stays where it is put, for every tab and
- * across sessions. Nothing changes it on its own — a band that resized
- * itself would be worse than one that never resized at all.
- *
- * The floor is the bottom of that screen's own title, which is the last
- * line still worth showing: a band shrunk past its name is a strip of
- * colour nobody can identify. It is measured per screen rather than
- * guessed, because «ФІЛЬТР» and «Добірки» do not wear their titles at the
- * same height.
- *
- * The ceiling is the menu's natural height — the band is the menu's share
- * of the screen, so it cannot be dragged past what the menu itself needs.
- */
-const BAND_HEIGHT_KEY = 'seenit_band_height';
-const BAND_GRIP_PX = 30;      // the strip at the top edge that drags
-const BAND_SNAP_PX = 4;       // within this of the ceiling means "default"
-let bandHeight = (() => {
-  try {
-    const v = Number(localStorage.getItem(BAND_HEIGHT_KEY));
-    return Number.isFinite(v) && v > 0 ? v : null;
-  } catch (err) { return null; }   // private mode, or storage disabled
-})();
-function applyBandHeight() {
-  const root = document.documentElement;
-  if (bandHeight) root.style.setProperty('--band-h', `${Math.round(bandHeight)}px`);
-  else root.style.removeProperty('--band-h');
-}
-applyBandHeight();
-
-/** Whatever is occupying the band right now, or null. */
 function openBandElement() {
   if (_menuEl.classList.contains('open')) return _menuEl;
   for (const id of BAND_SHEET_IDS) {
@@ -8270,69 +8723,11 @@ function openBandElement() {
   return null;
 }
 
-/** True if the event landed inside whatever is occupying the band. */
+/** True if the event landed inside whatever is occupying that edge. */
 function inBandElement(target) {
   const el = openBandElement();
   return !!(el && target && target.nodeType === 1 && el.contains(target));
 }
-
-/** The floor for this screen: just under its own title. */
-function bandFloor(el) {
-  const title = el.querySelector('.sheet-head, .sheet-title');
-  if (!title) return 72;
-  // offsetTop, not a rect: the title scrolls out of view inside a tab, and
-  // where it has scrolled to says nothing about how tall the screen's head
-  // actually is.
-  let top = 0;
-  for (let n = title; n && n !== el; n = n.offsetParent) top += n.offsetTop;
-  return Math.round(top + title.offsetHeight + 12);
-}
-
-const _bandGrip = document.getElementById('bandGrip');
-let _bandDrag = null;
-function onBandPointerDown(e) {
-  if (!menuIsNav() || _bandDrag) return;
-  if (e.button != null && e.button !== 0) return;
-  const el = openBandElement();
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  const max = menuNaturalHeight();
-  const min = Math.min(bandFloor(el), max);
-  if (max - min < 8) return;                          // nothing to adjust
-  _bandDrag = { startY: e.clientY, startH: rect.height || max, min, max };
-  document.body.classList.add('band-resizing');
-  // Non-passive on purpose: without this the page takes the gesture and the
-  // band never moves.
-  e.preventDefault();
-  try { _bandGrip.setPointerCapture(e.pointerId); } catch (err) { /* mouse, or jsdom */ }
-}
-function onBandPointerMove(e) {
-  if (!_bandDrag) return;
-  const { startY, startH, min, max } = _bandDrag;
-  const wanted = startH - (e.clientY - startY);   // dragging DOWN shrinks
-  bandHeight = Math.max(min, Math.min(max, wanted));
-  applyBandHeight();
-  e.preventDefault();
-}
-function onBandPointerUp() {
-  if (!_bandDrag) return;
-  const { max } = _bandDrag;
-  document.body.classList.remove('band-resizing');
-  _bandDrag = null;
-  // Dragged back to the top is not a setting, it is the absence of one —
-  // storing it would pin the band to today's row count and stop it growing
-  // when «Друзі» or «Адмін» appears.
-  if (bandHeight != null && bandHeight >= max - BAND_SNAP_PX) bandHeight = null;
-  applyBandHeight();
-  try {
-    if (bandHeight) localStorage.setItem(BAND_HEIGHT_KEY, String(Math.round(bandHeight)));
-    else localStorage.removeItem(BAND_HEIGHT_KEY);
-  } catch (err) { /* the height still holds for this session */ }
-}
-_bandGrip.addEventListener('pointerdown', onBandPointerDown, { passive: false });
-document.addEventListener('pointermove', onBandPointerMove, { passive: false });
-document.addEventListener('pointerup', onBandPointerUp);
-document.addEventListener('pointercancel', onBandPointerUp);
 
 /* ---------- no scrolling the catalogue THROUGH a tab ----------
  *
@@ -8391,6 +8786,38 @@ function paintExitControl(btn) {
   btn.classList.add('is-back');
   btn.title = 'Назад до меню';
   btn.setAttribute('aria-label', btn.title);
+
+  /* And it stands IMMEDIATELY AFTER the screen's name (owner's ask, with a
+   * screenshot of the arrow sitting on top of «ДРУЗІ»).
+   *
+   * It used to be a corner control: sticky, at the top of the box, while
+   * the pinned head that follows is pulled up over it by negative margins.
+   * The two then occupied the same pixels, and which one you saw depended
+   * on the screen. Moved into the head, beside the word it belongs to, the
+   * collision cannot happen — there is one row and both things are in it.
+   *
+   * The NAME goes back too. It is the larger target of the two and it reads
+   * as the thing you are leaving, so a thumb aiming at either lands on the
+   * same intention.
+   */
+  const box = btn.closest('.modal, .sheet');
+  const title = box && box.querySelector('.sheet-head .sheet-title, .sheet-title, .acc-label');
+  if (!title) return;
+  // INSIDE the name, not merely after it. These screens pin their title to
+  // the top edge as the content scrolls under it; a sibling would be left
+  // behind by that strip on the first scroll, and the arrow would slide
+  // away from the word it belongs to.
+  if (btn.parentElement !== title) title.appendChild(btn);
+  btn.classList.add('is-back-inline');
+  // The sheets carry static markup and are repainted on every open, so the
+  // same title node would collect a listener per visit without this.
+  if (!title.dataset.backWired) {
+    title.dataset.backWired = '1';
+    title.classList.add('sheet-title--back');
+    // Anything but the arrow itself, or the button's own click would come
+    // back round through here and fire it again.
+    title.addEventListener('click', (e) => { if (!btn.contains(e.target)) btn.click(); });
+  }
 }
 /** What an exit control does: step back to the menu it came from. */
 function exitScreen(closeFn) {
@@ -8431,9 +8858,6 @@ adminBtn.addEventListener('click', () => adminSheet.open());
 document.getElementById('adminCloseBtn').addEventListener('click', () => exitScreen(adminSheet.close));
 function syncAdminRow() {
   adminBtn.style.display = mayEditCatalogue() ? '' : 'none';
-  // One row more or fewer is a different menu height, and every tab is cut
-  // to that height.
-  syncMenuHeight();
 }
 
 /**
@@ -8680,15 +9104,32 @@ document.getElementById('hideScoresToggle').addEventListener('click', () => {
  * ribbon wrapping onto more rows in «Усі одразу». A ResizeObserver catches
  * every one of those, including the ones no resize event fires for.
  */
-const appHeader = document.querySelector('header');
-if (appHeader) {
-  const syncHeaderHeight = () => {
-    document.documentElement.style.setProperty('--header-h', `${Math.round(appHeader.getBoundingClientRect().height)}px`);
-  };
-  syncHeaderHeight();
-  if (typeof ResizeObserver === 'function') new ResizeObserver(syncHeaderHeight).observe(appHeader);
-  else window.addEventListener('resize', syncHeaderHeight);
+/*
+ * Measured live, and a ZERO is never written down. This ran once at parse
+ * time — when the app root is still hidden behind the boot splash and the
+ * header measures nothing — and left `--header-h: 0px` standing for the
+ * whole session (found while pinning the genre name under it; every rule
+ * that reads this variable had been quietly falling back). The observer
+ * that was supposed to correct it never delivered a non-zero height, so
+ * the value is now also re-taken at the moments the height is known to
+ * change, and a measurement of 0 is discarded rather than published.
+ */
+function syncHeaderHeight() {
+  const el = document.querySelector('header');
+  if (!el) return;
+  const h = Math.round(el.getBoundingClientRect().height);
+  if (h > 0) document.documentElement.style.setProperty('--header-h', `${h}px`);
 }
+syncHeaderHeight();
+if (typeof ResizeObserver === 'function') {
+  const el = document.querySelector('header');
+  if (el) new ResizeObserver(syncHeaderHeight).observe(el);
+}
+window.addEventListener('resize', syncHeaderHeight);
+window.addEventListener('load', syncHeaderHeight);
+// The splash comes down after auth answers, and the header only has a
+// height from that moment on.
+window.addEventListener('seenit:booted', syncHeaderHeight);
 
 /* The plate's height, for the same reason and by the same means: the actions
  * row pins directly beneath it, and a collection with a long name wraps the
@@ -8736,7 +9177,59 @@ const diceBtn = document.getElementById('diceBtn');
 function syncDice() {
   if (!diceBtn) return;
   diceBtn.hidden = visibleMovies().length === 0;
+  scheduleDieRoll();
 }
+
+/* ---------- the die rolls itself ----------
+ *
+ * Owner's ask: it moves on its own and lands on a different number. The
+ * point is that the one control offering CHANCE should look like chance —
+ * a still die beside the wordmark reads as a logo, and nobody presses a
+ * logo.
+ *
+ * Rolled on a random interval rather than a fixed one, because a tumble
+ * every five seconds on the dot is a metronome: the eye learns it in two
+ * beats and stops seeing it. The face never repeats itself, or a roll that
+ * changed nothing would read as a rendering glitch.
+ *
+ * It stops when there is nothing to offer (the button is hidden), when the
+ * tab is in the background — an animation nobody is looking at is battery
+ * spent for nothing — and for anyone who asked for less motion.
+ */
+const DIE_ROLL_MIN_MS = 4000;
+const DIE_ROLL_MAX_MS = 9000;
+let _dieFace = 5;
+let _dieTimer = null;
+const _dieQuiet = typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function paintDieFace(face) {
+  const pips = document.getElementById('dicePips');
+  if (!pips) return;
+  _dieFace = face;
+  pips.innerHTML = diePips(face)
+    .map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="1.45"/>`).join('');
+}
+
+function rollDie() {
+  if (!diceBtn || diceBtn.hidden) return;
+  paintDieFace(nextDieFace(_dieFace));
+  if (_dieQuiet) return;
+  // Restarted rather than left to run: the class has to come off and go
+  // back on, or a second roll during the same animation does nothing.
+  diceBtn.classList.remove('is-rolling');
+  void diceBtn.offsetWidth;
+  diceBtn.classList.add('is-rolling');
+}
+
+function scheduleDieRoll() {
+  clearTimeout(_dieTimer);
+  if (_dieQuiet || !diceBtn || diceBtn.hidden || document.hidden) return;
+  const wait = DIE_ROLL_MIN_MS + Math.random() * (DIE_ROLL_MAX_MS - DIE_ROLL_MIN_MS);
+  _dieTimer = setTimeout(() => { rollDie(); scheduleDieRoll(); }, wait);
+}
+document.addEventListener('visibilitychange', scheduleDieRoll);
+if (diceBtn) diceBtn.addEventListener('animationend', () => diceBtn.classList.remove('is-rolling'));
 
 /* ---------- the personalised dice ----------
  *
@@ -8813,11 +9306,11 @@ function renderDiceResults(picks) {
   _dicePicks = picks;
   const stats = tasteStats();
   diceResultsEl.innerHTML = picks.map(m => {
-    const reasons = diceReasons(m, stats);
+    const reasons = diceReasons(m, stats, { markCounts });
     const why = reasons.length
       ? reasons.map(r => `<span class="dice-why-tag">${esc(r.label)}</span>`).join('')
       : '<span class="dice-why-tag dice-why-tag--luck">випадкова карта</span>';
-    return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m)}</div>`;
+    return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m, { rich: true })}</div>`;
   }).join('');
 }
 
@@ -8828,7 +9321,9 @@ function renderDiceResults(picks) {
  * the filters deliberately do not narrow the die any more.
  */
 function rollTheDice() {
-  const picks = rollDice(catalogSource(), tasteStats(), { watchedIds: watched, count: 4 });
+  const picks = rollDice(catalogSource(), tasteStats(), {
+    watchedIds: watched, count: 4, markCounts, accounts: markingAccounts,
+  });
   if (!picks.length) {
     // Stale cards must go too, or the next tap would reopen yesterday's
     // hand over an all-watched shelf.
@@ -8998,8 +9493,13 @@ function renderChips() {
   // The GENRE itself is the one thing left out, and deliberately: a chip
   // has to keep the number that says what picking it would give you. Count
   // it in and every chip but the active one reads (0).
+  //
+  // Watched films are counted exactly where they are LISTED — the same
+  // keepWatched the grid uses. A ribbon that still counted them would
+  // promise films the section no longer holds.
   for (const m of filterCatalog(searchSource(), {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
+    keepWatched: !!openCatalogCollection || addMode,
     genre: 'all', recommender: state.recommender, type: state.type,
     years: state.years, provider: state.provider,
     actors: state.actors, directors: state.directors,
@@ -9227,7 +9727,7 @@ updateProviderFilter();
  * tapped: the sheet must not open on a wall of names. Selection is
  * multi: any chosen name matches (see hasActor/hasDirector, logic.js). */
 const ACTOR_FILTER_KEEP = 20;
-const DIRECTOR_FILTER_KEEP = 10;
+const DIRECTOR_FILTER_KEEP = 20;
 const peopleFilterEls = {
   actors: { label: document.getElementById('actorLabel'), box: document.getElementById('actorFilter') },
   directors: { label: document.getElementById('directorLabel'), box: document.getElementById('directorFilter') },
@@ -9236,10 +9736,10 @@ const peopleFilterEls = {
 function updatePeopleFilters() {
   const stats = tasteStats();
   const defs = [
-    ['actors', actorsInCatalogue(MOVIES), stats.actors, ACTOR_FILTER_KEEP],
-    ['directors', directorsInCatalogue(MOVIES), stats.directors, DIRECTOR_FILTER_KEEP],
+    ['actors', actorsInCatalogue(MOVIES), stats.actors, ACTOR_FILTER_KEEP, 'акторів'],
+    ['directors', directorsInCatalogue(MOVIES), stats.directors, DIRECTOR_FILTER_KEEP, 'режисерів'],
   ];
-  for (const [key, counted, taste, keep] of defs) {
+  for (const [key, counted, taste, keep, noun] of defs) {
     const { label, box } = peopleFilterEls[key];
     if (!label || !box) continue;
     const ranked = rankPeopleByTaste(counted, taste, keep);
@@ -9256,9 +9756,14 @@ function updatePeopleFilters() {
       if (!names.has(chosen)) ranked.push({ name: chosen, count: 0, favourite: false });
     }
     label.style.display = '';
+    // The header names what the list actually IS (owner's ask): «твій топ
+    // 20», written from the cap itself so the words can never claim a
+    // number the code stopped keeping.
+    const labelText = label.querySelector('[data-people-label]');
+    if (labelText) labelText.textContent = `Твій топ ${keep} ${noun}`;
     box.innerHTML = ranked.map(p =>
-      `<button class="opt${state[key].includes(p.name) ? ' active' : ''}${p.favourite ? ' opt--fav' : ''}"
-        data-name="${esc(p.name)}" type="button">${p.favourite ? `<span class="fav-star">${ICON.star}</span>` : ''}${esc(p.name)}</button>`).join('');
+      `<button class="opt${state[key].includes(p.name) ? ' active' : ''}"
+        data-name="${esc(p.name)}" type="button">${esc(p.name)}</button>`).join('');
     // A live selection keeps its list open — a filter that is ON must not
     // hide behind a fold.
     if (state[key].length) {
@@ -9340,11 +9845,18 @@ const API_PROXY = 'https://seenit-proxy.seenit.workers.dev';
 // the credential — it is minted per session, expires hourly and is refreshed
 // automatically, so unlike a key baked into the HTML there is nothing here
 // worth lifting out of DevTools.
+// The last token a request went out with. Only the leaving-the-page mark
+// flush reads it (flushMarks with keepalive): getIdToken() is an await, and
+// an await inside pagehide is a request the browser may never get to make.
+// Slightly stale is fine there — tokens live an hour and every ordinary
+// request refreshes this copy.
+let _cachedIdToken = null;
 async function proxyHeaders(extra = {}) {
   const user = auth.currentUser;
   if (!user) return extra;                       // caller handles the 401
   try {
-    return { ...extra, Authorization: `Bearer ${await user.getIdToken()}` };
+    _cachedIdToken = await user.getIdToken();
+    return { ...extra, Authorization: `Bearer ${_cachedIdToken}` };
   } catch (err) {
     return extra;
   }
@@ -10871,15 +11383,24 @@ function openAccount() {
          turned «Vlad Aloshyn» into «vlad.aloshyn» on his own account).
          No «Перевірити» either: a name cannot be taken, so there is nothing
          to ask about — it just saves. -->
+    <!-- Read first, edit on request (owner's call). Both of these are facts
+         about you far more often than they are errands: a screen that opened
+         on two editable fields asked to be filled in every time it was
+         opened to be READ. The value stands as text; «Змінити» on its own
+         label is what turns it into a field. -->
     <form class="acc-form" id="accDisplayForm">
-      <label class="acc-field">
-        <span class="acc-field-lbl">Імʼя</span>
+      <!-- The label row never leaves: it carries the way OUT of editing as
+           well as the way in, so the same word in the same place opens the
+           field and abandons it. -->
+      <span class="acc-field-lbl">Імʼя<button class="acc-edit" type="button" data-acc-edit="display">Змінити</button></span>
+      <span class="acc-read-val" id="accDisplayRead">${esc(_me.displayName || '—')}</span>
+      <label class="acc-field" id="accDisplayField" hidden>
         <span class="acc-field-inline">
           <input id="accDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || '')}" placeholder="Як вас звати">
           <button class="acc-field-btn" type="submit" id="accDisplayBtn" hidden>Зберегти</button>
         </span>
       </label>
-      <div class="acc-hint" id="accDisplayNote">Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.</div>
+      <div class="acc-hint" id="accDisplayNote" hidden>Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.</div>
     </form>
     <!-- Username stands open, unlike the password form below it (owner's
          call). A password is a rare errand and folds away; this is the one
@@ -10887,8 +11408,9 @@ function openAccount() {
          disclosure meant nobody would find it. It is NOT the name above —
          that one comes from Google and is only ever shown to you. -->
     <form class="acc-form" id="accNameForm">
-      <label class="acc-field">
-        <span class="acc-field-lbl">Username</span>
+      <span class="acc-field-lbl">Username<button class="acc-edit" type="button" data-acc-edit="name">Змінити</button></span>
+      <span class="acc-read-val" id="accNameRead">${esc(_me.username || defaultSearchName(user))}</span>
+      <label class="acc-field" id="accNameField" hidden>
         <!-- The check and the save are ONE button, in the field, changing
              its label (owner's call). A username is not saved, it is
              claimed: you find out whether you may have it, and only then
@@ -10901,7 +11423,7 @@ function openAccount() {
           <button class="acc-field-btn" type="submit" id="accNameBtn" hidden>Перевірити</button>
         </span>
       </label>
-      <div class="acc-hint" id="accNameNote">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>
+      <div class="acc-hint" id="accNameNote" hidden>Латинські літери, цифри, крапка, дефіс і підкреслення. Від ${USERNAME_MIN} до 32 символів.</div>
     </form>
     ${viaGoogle ? `
     <div class="acc-label">Вхід через Google${user && user.email ? ` · ${esc(user.email)}` : ''}</div>` : `
@@ -10965,6 +11487,47 @@ function openAccount() {
     passToggle.addEventListener('click', () => setPassOpen(accountBox.querySelector('#accPassForm').hidden));
     accountBox.querySelector('#accPassCancel').addEventListener('click', () => setPassOpen(false));
   }
+  /* «Змінити» turns a fact into a field, and turns back into «Скасувати»
+   * while it is one — the same word in the same place is both doors
+   * (owner's ask). A save closes it too: the value it just wrote IS the
+   * new fact, so staying in a field to look at it is a state with nothing
+   * left to do in it.
+   *
+   * Abandoning restores what was there. A half-typed name left in the box
+   * would come back the next time the field was opened and read as
+   * something the account had been holding.
+   */
+  function setAccEdit(which, open) {
+    const read = accountBox.querySelector(`#acc${which}Read`);
+    const field = accountBox.querySelector(`#acc${which}Field`);
+    const note = accountBox.querySelector(`#acc${which}Note`);
+    const btn = accountBox.querySelector(`[data-acc-edit="${which === 'Name' ? 'name' : 'display'}"]`);
+    if (read) read.hidden = open;
+    if (field) field.hidden = !open;
+    if (note) note.hidden = !open;
+    if (btn) btn.textContent = open ? 'Скасувати' : 'Змінити';
+    const input = field && field.querySelector('input');
+    if (input) {
+      if (open) input.focus();
+      // Closing puts the field back to what the account actually holds.
+      else input.value = which === 'Name'
+        ? (_me.username || defaultSearchName(auth.currentUser))
+        : (_me.displayName || '');
+    }
+    if (!open && input) input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  /** Puts the new value on the read row, so the save is visibly the truth. */
+  function setAccValue(which, value) {
+    const read = accountBox.querySelector(`#acc${which}Read`);
+    if (read) read.textContent = value || '—';
+  }
+  accountBox.querySelectorAll('[data-acc-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const which = btn.dataset.accEdit === 'name' ? 'Name' : 'Display';
+      const field = accountBox.querySelector(`#acc${which}Field`);
+      setAccEdit(which, !!(field && field.hidden));
+    });
+  });
   // The name: no check, because a name cannot be taken. It saves, and the
   // button is there only when there is something to save.
   const dispForm = accountBox.querySelector('#accDisplayForm');
@@ -11009,8 +11572,13 @@ function openAccount() {
         // would make the save look like it had not happened.
         const who = accountBox.querySelector('#accWho');
         if (who) who.textContent = savedName || (_me.username || '');
-        dispNote.textContent = savedName ? 'Збережено' : 'Імʼя прибрано — вас видно за username';
-        dispNote.classList.add('is-good');
+        // Back to the fact it just became (owner's ask). The old inline
+        // «Імʼя прибрано — вас видно за username» explained a consequence
+        // nobody had asked about; what a person wants to know here is that
+        // the change landed.
+        setAccValue('Display', savedName);
+        setAccEdit('Display', false);
+        toast('success', 'Імʼя оновлено');
         syncDispBtn();
       } catch (err) {
         toast('error', 'Не вдалося зберегти імʼя');
@@ -11155,10 +11723,14 @@ function openAccount() {
         if (!res.ok) { toast('error', body.error || 'Не вдалося зберегти'); return; }
         nameInput.value = body.username || wanted;
         saved = body.username || wanted;
+        _me.username = saved;
         mode = 'check';
         setMark(null);
-        setNote('Збережено', 'good');
-        toast('ok', `Вас знайдуть як ${body.username || wanted}`);
+        // Same as the name above: the claim is done, so the row goes back
+        // to stating what it now holds instead of holding a field open.
+        setAccValue('Name', saved);
+        setAccEdit('Name', false);
+        toast('ok', `Вас знайдуть як ${saved}`);
       } catch (err) {
         toast('error', 'Не вдалося зберегти');
       } finally {
@@ -11208,7 +11780,7 @@ function openAccount() {
       .finally(() => { btn.disabled = false; });
   });
   accountOverlay.classList.add('open');
-  if (!menuIsNav()) lockScroll(accountOverlay);
+  lockScroll(accountOverlay);
   syncSheetNav();
 }
 function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); syncSheetNav(); }
@@ -11606,6 +12178,11 @@ function openCollectionAsCatalog(col) {
   };
   document.getElementById('collectionPlateName').textContent = `Добірка · ${col.name}`;
   document.getElementById('collectionPlate').hidden = false;
+  // My own marks opened as a collection: every film here is watched by
+  // definition, so the watched dimming and the «Дивився» toggle would
+  // describe nothing. The class stands both down (style.css) while the
+  // marks themselves stay live on the cards.
+  document.body.classList.toggle('marks-collection', col.source === 'marks');
   renderPlateActions();
   syncDeleteAvailability();
   closeRecs();
@@ -11624,6 +12201,7 @@ function closeCollectionCatalog() {
   openCatalogCollection = null;
   document.getElementById('collectionPlate').hidden = true;
   document.getElementById('collectionPlateActions').hidden = true;
+  document.body.classList.remove('marks-collection');
   syncDeleteAvailability();
   state.searchScope = 'here';
   syncSearchScope();
@@ -11660,7 +12238,10 @@ function renderPlateActions() {
   // subscription shows. The way to be rid of it is to unfollow the person,
   // and «Прибрати з полиці» would offer to delete a reference that does not
   // exist.
-  if (!col || col.source === 'default' || col.source === 'recommends') {
+  // 'marks' joins the actionless: my «Рекомендую» is not a row in
+  // user_collections — nothing to share, publish or edit; the way to change
+  // it is the marks themselves, live on its own cards.
+  if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks') {
     el.hidden = true; el.innerHTML = ''; return;
   }
   el.hidden = false;
@@ -11715,17 +12296,13 @@ function renderPlateActions() {
   });
 }
 
-// Whether my «рекомендую» list is visible to people who look me up.
-// Optimistically local: flipped by the toggle, not re-read per open.
-let likedPublic = false;
-
 function openRecs() {
   // Where «back» goes is decided by who OPENED this screen: the add pane
   // raises the flag right after calling here, the menu never does.
   _returnToAddCollections = false;
   renderRecs();
   recsOverlay.classList.add('open');
-  if (!menuIsNav()) lockScroll(recsOverlay);
+  lockScroll(recsOverlay);
   syncSheetNav();
 }
 function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); syncSheetNav(); }
@@ -11826,7 +12403,6 @@ let openFriend = null;   // { username, collections, recommended, following }
  */
 function syncFriendsRow() {
   friendsBtn.style.display = '';
-  syncMenuHeight();
 }
 
 function openFriends(username = null) {
@@ -11841,7 +12417,7 @@ function openFriends(username = null) {
   // is open (a tab, a person, a «+» that reloads the shelf), and an unnamed
   // hold would be added again on each one and released only once — the
   // freeze that closeModal() paid for.
-  if (!menuIsNav()) lockScroll(friendsOverlay);
+  lockScroll(friendsOverlay);
   syncSheetNav();
   renderFriends();
   if (username) showFriend(username);
@@ -11864,9 +12440,17 @@ function personRowHtml(p, opts = {}) {
   // as duplicated).
   const known = opts.marked && subs.subscriptions.some(x => x.username === p.username);
   const note = known ? ' · у підписках' : (p.mutual ? ' · взаємно' : '');
-  return `<button class="friend-row${known ? ' is-known' : ''}" type="button" data-person="${esc(p.username)}">
-      <span class="friend-name">${esc(p.username)}</span>
-      <span class="friend-meta">${count}${note}</span>
+  // The chevron sits at the END of the row and only where the row FOLDS
+  // (owner's ask). On the search screen the same row opens a person rather
+  // than unfolding one, and an arrow there would promise the wrong thing.
+  const fold = opts.fold === undefined ? '' :
+    `<span class="friend-fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>`;
+  return `<button class="friend-row${known ? ' is-known' : ''}" type="button" data-person="${esc(p.username)}"${
+    opts.fold === undefined ? '' : ` aria-expanded="${!!opts.fold}"`}>
+      <span class="friend-row-text">
+        <span class="friend-name">${esc(p.username)}</span>
+        <span class="friend-meta">${count}${note}</span>
+      </span>${fold}
     </button>`;
 }
 
@@ -12051,45 +12635,65 @@ async function showFriend(username) {
  * offering to add it would be offering something that is already decided.
  */
 function friendColsHtml(cols, person) {
+  const rows = friendColRows(person, cols);
+  if (!rows.length) {
+    return '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+  }
+  return `<div class="friend-cols">${rows.join('')}</div>`;
+}
+
+/**
+ * One person's collections as rows: what they recommend, what they insist
+ * on, then the collections they keep.
+ *
+ * Returns an ARRAY rather than markup, because the caller decides how many
+ * of them to draw — the person's own screen shows all of them, the list in
+ * «Від друзів» shows six and folds the rest.
+ */
+function friendColRows(person, cols) {
+  // Freshest first (owner's ask), so the six a folded row shows are the six
+  // worth showing — see collectionsByRecency in logic.js for what «fresh»
+  // can honestly mean with the columns the Worker keeps.
+  const list = collectionsByRecency(cols || (person && person.collections) || []);
   // Already on the shelf is not an error and not a second «+» — the row says
   // so and stops offering. linkedKeys is the shelf's own truth, so a
   // collection added from anywhere else reads as added here too.
   const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
-  const rec = person && (person.recommended || []).length
-    ? `<div class="friend-col is-recommends" data-open-recommends="1" role="button" tabindex="0">
+  const who = person && person.username;
+  const out = [];
+  // Both of these carry the person's name in the data attribute so the row
+  // works wherever it is drawn: on the person's own screen there is one
+  // person to mean, in the «Від друзів» list there are many.
+  if (person && (person.recommended || []).length) {
+    out.push(`<div class="friend-col is-recommends" data-open-recommends="1" data-open-recommends-of="${esc(who)}" role="button" tabindex="0">
          <span class="friend-col-name">${esc(recommendsCollectionName(person.username))}</span>
          <span class="friend-col-count">${person.recommended.length}</span>
-       </div>`
-    : '';
+       </div>`);
+  }
   // The star half, split server-side: a starred film lives HERE and not in
   // «Рекомендовано» — together they would say the same thing twice.
-  const mustRow = person && (person.must_see || []).length
-    ? `<div class="friend-col is-recommends" data-open-must="1" role="button" tabindex="0">
+  if (person && (person.must_see || []).length) {
+    out.push(`<div class="friend-col is-recommends" data-open-must="1" data-open-must-of="${esc(who)}" role="button" tabindex="0">
          <span class="friend-col-name">${esc(mustCollectionName(person.username))}</span>
          <span class="friend-col-count">${person.must_see.length}</span>
-       </div>`
-    : '';
-  const rows = (cols || []).length
-    ? `${cols.map(c => {
-        const have = linkedKeys.has(c.key);
-        return `<div class="friend-col${have ? ' is-have' : ''}">
-            <!-- The count says WHAT it counts, in blood (owner's call). A
-                 bare «· 6» beside a name reads as part of the name — a date,
-                 a version, anything — and this list is the one place you
-                 judge somebody else's collection before opening it. -->
-            <span class="friend-col-name">${esc(c.name)}</span>${c.count
-              ? `<span class="friend-col-count">${c.count}</span>`
-              : ''}
-            ${have
-              ? '<span class="friend-col-have">вже в тебе</span>'
-              : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
-          </div>`;
-      }).join('')}`
-    : '';
-  if (!rec && !rows) {
-    return '<div class="add-hint">Відкритих добірок немає. Приватні не показуються нікому — навіть тим, хто підписаний.</div>';
+       </div>`);
   }
-  return `<div class="friend-cols">${rec}${mustRow}${rows}</div>`;
+  for (const c of list) {
+    const have = linkedKeys.has(c.key);
+    out.push(`<div class="friend-col${have ? ' is-have' : ''}">
+        <!-- The count says WHAT it counts, in blood (owner's call). A
+             bare «· 6» beside a name reads as part of the name — a date,
+             a version, anything — and this list is the one place you
+             judge somebody else's collection before opening it. -->
+        <span class="friend-col-name">${esc(c.name)}</span>${c.count
+          ? `<span class="friend-col-count">${c.count}</span>`
+          : ''}
+        ${have
+          ? '<span class="friend-col-have">вже в тебе</span>'
+          : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}
+      </div>`);
+  }
+  return out;
 }
 
 function renderFriendDetail(body) {
@@ -12162,6 +12766,31 @@ function openMustOf(person) {
     source: 'recommends',
     public: true,
     film_ids: films.map(f => f.tmdb_id).filter(Boolean),
+  });
+}
+
+/**
+ * Opens MY «Рекомендую» / «Обовʼязково до перегляду» as the catalogue.
+ *
+ * Same posture as a friend's recommends list, with one difference carried
+ * by `source: 'marks'`: these films are all watched by definition, so the
+ * watched dimming and the «Дивився» isolation would describe nothing —
+ * both stand down while this is open (see openCollectionAsCatalog), and
+ * the marks themselves stay live so a heart can be taken off right here.
+ */
+function openOwnMarks(list) {
+  const set = list === 'must' ? must : liked;
+  const films = MOVIES.filter(m => isMarked(set, m));
+  if (!films.length) return;
+  const uid = auth.currentUser && auth.currentUser.uid;
+  openCollectionAsCatalog({
+    key: `${uid}/${list === 'must' ? MUST_COLLECTION_ID : RECOMMENDS_COLLECTION_ID}`,
+    name: list === 'must' ? 'Обовʼязково до перегляду' : 'Рекомендую',
+    owner: uid,
+    collection_id: list === 'must' ? MUST_COLLECTION_ID : RECOMMENDS_COLLECTION_ID,
+    source: 'marks',
+    public: false,
+    film_ids: films.map(m => m.tmdb_id).filter(Boolean),
   });
 }
 
@@ -12261,6 +12890,114 @@ async function openRecsFriend(username) {
   renderRecs();
 }
 
+/* ---------- a person, and what opens under them ----------
+ *
+ * The tab is a list of names, and a name opens where it stands (owner's
+ * call): tap the row and their collections unfold beneath it, tap it again
+ * and the whole thing shuts. It used to cost a trip to their own screen and
+ * a trip back to see what one person shared.
+ *
+ * Two folds, and they nest. The row is the outer one — open or shut. Inside
+ * it the six freshest collections are drawn and «Ще N» opens the rest; that
+ * inner fold is forgotten when the row shuts, so reopening a person always
+ * starts at six rather than at wherever the reader left it a week ago.
+ *
+ * A person's collections are fetched the first time their row is opened,
+ * not when the tab is drawn. There is no endpoint that returns everybody's
+ * at once — that would be a Worker change, and the Worker is not ours to
+ * deploy today — so asking for four people who were never opened would be
+ * four requests spent on nothing.
+ */
+const _friendCols = {};            // username -> the person, collections and all
+const _friendOpen = new Set();     // whose row is unfolded
+const _friendColsOpen = new Set(); // and who is showing more than the first six
+const _friendColsLoading = new Set();
+
+async function loadFriendCollections(username) {
+  if (!username || _friendCols[username] || _friendColsLoading.has(username)) return;
+  _friendColsLoading.add(username);
+  try {
+    const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(username)}`, {
+      headers: await proxyHeaders({ accept: 'application/json' }),
+    });
+    if (res.ok) _friendCols[username] = await res.json();
+  } catch (err) {
+    /* Left unset: the row says it could not load and a second tap retries. */
+  } finally {
+    _friendColsLoading.delete(username);
+  }
+  // Only if the reader is still on that tab with that row open — an answer
+  // arriving after they moved on must not redraw the screen under them.
+  if (recsOverlay.classList.contains('open') && recsSource === 'friends'
+    && !_recsFriend && _friendOpen.has(username)) renderRecs();
+}
+
+function friendBlockHtml(p) {
+  const open = _friendOpen.has(p.username);
+  let inner = '';
+  if (open) {
+    const person = _friendCols[p.username];
+    if (!person) {
+      inner = `<div class="friend-cols-wait">${_friendColsLoading.has(p.username)
+        ? 'Завантажую добірки…'
+        : 'Не вдалося завантажити — тапни ще раз.'}</div>`;
+    } else {
+      const all = friendColRows(person);
+      if (!all.length) {
+        inner = '<div class="friend-cols-wait">Відкритих добірок немає.</div>';
+      } else {
+        const expanded = _friendColsOpen.has(p.username);
+        const { rows, hidden } = foldRows(all, expanded);
+        inner = `<div class="friend-cols">${rows.join('')}</div>${hidden || expanded
+          ? `<button class="friend-cols-more" type="button" data-fold="${esc(p.username)}" aria-expanded="${expanded}">
+               <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>
+               <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>
+             </button>`
+          : ''}`;
+      }
+    }
+  }
+  return `<div class="friend-block">${personRowHtml(p, { fold: open })}${inner}</div>`;
+}
+
+function wireFriendBlocks(body) {
+  body.querySelectorAll('[data-person]').forEach(el =>
+    el.addEventListener('click', () => {
+      const name = el.dataset.person;
+      if (_friendOpen.has(name)) {
+        // Everything shuts together (owner's call): the row and the «Ще N»
+        // inside it are one thing to close, not two.
+        _friendOpen.delete(name);
+        _friendColsOpen.delete(name);
+      } else {
+        _friendOpen.add(name);
+        loadFriendCollections(name);
+      }
+      renderRecs();
+    }));
+  body.querySelectorAll('[data-fold]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = el.dataset.fold;
+      if (_friendColsOpen.has(name)) _friendColsOpen.delete(name); else _friendColsOpen.add(name);
+      renderRecs();
+    }));
+  body.querySelectorAll('[data-add-col]').forEach(el =>
+    el.addEventListener('click', (e) => { e.stopPropagation(); addPersonCollection(el.dataset.addCol, el); }));
+  body.querySelectorAll('[data-open-recommends-of]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const person = _friendCols[el.dataset.openRecommendsOf];
+      if (person) openRecommendsOf(person);
+    }));
+  body.querySelectorAll('[data-open-must-of]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const person = _friendCols[el.dataset.openMustOf];
+      if (person) openMustOf(person);
+    }));
+}
+
 function renderRecsFriend(body) {
   const p = _recsFriend;
   body.innerHTML = `
@@ -12321,13 +13058,13 @@ function renderRecs() {
     // sending you to a screen about people to see them read as being thrown
     // somewhere else.
     if (_recsFriend) { renderRecsFriend(body); return; }
+    // A list of people, each opening where they stand (owner's call). No
+    // heading over it: the tab is «Від друзів» and the rows are names, so
+    // «Ти підписаний на» was the screen's own title said twice.
     body.innerHTML = subs.subscriptions.length
-      ? `<div class="recs-group"><div class="cf-label">Ти підписаний на</div>
-           <div class="friend-list">${subs.subscriptions.map(personRowHtml).join('')}</div></div>
-         <div class="add-hint" style="margin-top:12px">Тапни людину, щоб побачити її відкриті добірки й покласти будь-яку собі.</div>`
+      ? `<div class="friend-list">${subs.subscriptions.map(friendBlockHtml).join('')}</div>`
       : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину в «Друзях» — там пошук за імʼям, і звідти ж можна підписатися.</div>';
-    body.querySelectorAll('[data-person]').forEach(el =>
-      el.addEventListener('click', () => openRecsFriend(el.dataset.person)));
+    wireFriendBlocks(body);
     return;
   }
   if (recsSource === 'mine') {
@@ -12348,42 +13085,33 @@ function renderRecs() {
                </button>
              </span>`).join('')}</div></div>`
       : '';
-    // Named for what it is rather than shadowing `mine`, the shelf set.
+    // The two lists a subscriber sees under my name, offered to ME the same
+    // way — as collections that open as the catalogue (owner's call). They
+    // used to be an inline poster grid here plus a visibility toggle; the
+    // grid could not be filtered or searched, and the toggle is gone with
+    // it — what subscribers see is governed where it always was, by
+    // subscription and by private collections.
     const recommended = MOVIES.filter(m => isMarked(liked, m));
-    const likedToggle = `<button class="opt${likedPublic ? ' active' : ''}" id="likedPublicBtn" type="button">Рекомендації видно всім</button>`;
-    const recHtml = recommended.length
-      ? `<div class="recs-group"><div class="cf-label">Рекомендую</div><div class="opts" style="margin-bottom:10px">${likedToggle}</div>
-         <!-- Said where the person controls it, not buried in a guide
-              (owner's call). Two things worth knowing before you recommend
-              something, and the second is the one nobody would guess: a film
-              you put in a private collection drops out of this list for
-              everyone else, while staying recommended for you. -->
-         <div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>
-         ${pickGridHtml(recommended.map(m => ({
-          title_uk: m.canonical_title_uk, title_en: m.canonical_title_en,
-          year: m.year, poster_url: m.poster_url,
-        })))}</div>`
-      : '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» — твій власний список порад.</div>';
-    body.innerHTML = ownHtml + recHtml;
-    const likedBtn = body.querySelector('#likedPublicBtn');
-    if (likedBtn) likedBtn.addEventListener('click', async () => {
-      likedBtn.disabled = true;
-      try {
-        const res = await fetch(`${API_PROXY}/library/lists/liked/public`, {
-          method: 'PUT',
-          headers: await proxyHeaders({ accept: 'application/json', 'content-type': 'application/json' }),
-          body: JSON.stringify({ public: !likedPublic }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        likedPublic = !likedPublic;
-        renderRecs();
-      } catch (err) {
-        toast('error', 'Не вдалося змінити видимість — спробуй ще раз');
-        likedBtn.disabled = false;
-      }
-    });
-    body.querySelectorAll('.trend-item').forEach(el =>
-      el.addEventListener('click', () => { closeRecs(); openModal(recommended[Number(el.dataset.idx)]); }));
+    const mustSee = MOVIES.filter(m => isMarked(must, m));
+    const chip = (list, label, count) =>
+      `<button class="recs-list-chip" data-own-marks="${list}" ${count ? '' : 'disabled'}>${label} · ${count}</button>`;
+    const markHtml = `<div class="recs-group"><div class="cf-label">Мої списки</div>
+       <div class="recs-lists">
+         ${chip('liked', 'Рекомендую', recommended.length)}
+         ${chip('must', 'Обовʼязково до перегляду', mustSee.length)}
+       </div>
+       ${(recommended.length || mustSee.length)
+        // Said where the person controls it, not buried in a guide
+        // (owner's call). Two things worth knowing before you recommend
+        // something, and the second is the one nobody would guess: a film
+        // you put in a private collection drops out of this list for
+        // everyone else, while staying recommended for you.
+        ? '<div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>'
+        : '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» і зіркою «обовʼязково до перегляду».</div>'}
+     </div>`;
+    body.innerHTML = ownHtml + markHtml;
+    body.querySelectorAll('[data-own-marks]').forEach(el =>
+      el.addEventListener('click', () => openOwnMarks(el.dataset.ownMarks)));
     body.querySelectorAll('[data-key]').forEach(el =>
       el.addEventListener('click', () => {
         const col = shelf.find(c => c.key === el.dataset.key);
