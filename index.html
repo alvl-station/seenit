@@ -6172,6 +6172,47 @@ function swipeStep(count, i, dir) {
   return next;
 }
 
+/* Downwards, on the film card, means close it.
+ *
+ * The threshold is a smaller share than the sideways one because a phone
+ * screen is far taller than it is wide: 28% of the height would be most of
+ * a thumb's reach.
+ */
+const SWIPE_DISMISS_RATIO = 0.18;
+function swipeDismisses({ dy, dt, height }) {
+  if (!(dy > 0)) return false;                 // only downwards closes
+  const far = dy >= Math.max(SWIPE_TRIGGER_MIN_PX, (height || 0) * SWIPE_DISMISS_RATIO);
+  const flick = dt >= SWIPE_FLICK_MIN_MS && dy / dt >= SWIPE_FLICK_SPEED && dy >= SWIPE_FLICK_MIN_PX;
+  return far || flick;
+}
+
+/* Where a swipe lands along the genre ribbon.
+ *
+ * «Усі» has no chip of its own — it is the neutral state you reach by
+ * unpicking whichever chip is active — but it is still a place on the line,
+ * and the line starts there. So it is prepended: swiping back from the
+ * first genre returns to the whole shelf rather than hitting a wall one
+ * step early.
+ */
+function genreStep(genres, current, dir) {
+  const list = ['all', ...(genres || [])];
+  const i = Math.max(0, list.indexOf(current || 'all'));
+  const next = swipeStep(list.length, i, dir);
+  return next === null ? null : list[next];
+}
+
+/* The shelf does not travel the way a card does. There is nothing behind it
+ * to reveal, and dragging several hundred cards across the screen would
+ * cost more than the gesture is worth on the oldest iPad we support. It
+ * GIVES instead: a short damped travel that says the drag was heard, and
+ * the switch itself does the rest. */
+const SWIPE_SHELF_DAMP = 0.35;
+const SWIPE_SHELF_CAP_PX = 72;
+function swipeDamp(dx, damp = SWIPE_SHELF_DAMP, cap = SWIPE_SHELF_CAP_PX) {
+  const moved = (dx || 0) * damp;
+  return Math.max(-cap, Math.min(cap, moved));
+}
+
 /* ---------- batch-add line parsing ---------- */
 function parseBatchLine(line) {
   const m = line.match(/^(.*?)[,(]\s*(\d{4})\)?\s*$/);
@@ -6226,6 +6267,7 @@ if (typeof module !== 'undefined' && module.exports) {
     NAV_SURFACES, topNavSurface,
     SWIPE_EDGE_PX, SWIPE_AXIS_PX, SWIPE_TRIGGER_MIN_PX,
     swipeStartAllowed, swipeAxis, swipeVerdict, swipeStep,
+    genreStep, swipeDamp, SWIPE_SHELF_CAP_PX, swipeDismisses,
   };
 }
 // The catalogue lives on D1 and is fetched at sign-in (loadCatalog in
@@ -13475,14 +13517,20 @@ const NAV_CLOSERS = {
   filmCard:   { open: () => overlay.classList.contains('open'), close: closeModal },
   colEdit:    { open: () => elIsOpen('colEditSheet'), close: () => colEditSheet.close() },
   addModal:   { open: () => addOverlay.classList.contains('open'), close: closeAddModal },
-  account:    { open: () => elIsOpen('accountOverlay'), close: closeAccount },
-  recs:       { open: () => elIsOpen('recsOverlay'), close: closeRecs },
-  friends:    { open: () => elIsOpen('friendsOverlay'), close: closeFriends },
+  // The six screens the menu opens go BACK to the menu, not out to the
+  // shelf — exitScreen() is what their own arrow has always called, and a
+  // swipe or the phone's button meaning something different from the arrow
+  // beside it was the whole complaint. ФІЛЬТР is not among them on purpose:
+  // it belongs to the catalogue, and returning from it to a menu nobody
+  // opened would answer a question nobody asked.
+  account:    { open: () => elIsOpen('accountOverlay'), close: () => exitScreen(closeAccount) },
+  recs:       { open: () => elIsOpen('recsOverlay'), close: () => exitScreen(closeRecs) },
+  friends:    { open: () => elIsOpen('friendsOverlay'), close: () => exitScreen(closeFriends) },
   dice:       { open: () => elIsOpen('diceSheet'), close: () => diceSheet.close() },
   filter:     { open: () => elIsOpen('filterSheet'), close: () => filterSheet.close() },
-  settings:   { open: () => elIsOpen('settingsSheet'), close: () => settingsSheet.close() },
-  trash:      { open: () => elIsOpen('trashSheet'), close: () => trashSheet.close() },
-  admin:      { open: () => elIsOpen('adminSheet'), close: () => adminSheet.close() },
+  settings:   { open: () => elIsOpen('settingsSheet'), close: () => exitScreen(settingsSheet.close) },
+  trash:      { open: () => elIsOpen('trashSheet'), close: () => exitScreen(trashSheet.close) },
+  admin:      { open: () => elIsOpen('adminSheet'), close: () => exitScreen(adminSheet.close) },
   menu:       { open: () => elIsOpen('menuSheet'), close: () => menuSheet.close() },
   collection: { open: () => !!openCatalogCollection, close: closeCollectionCatalog },
   addMode:    { open: () => addMode, close: () => setAddMode(false) },
@@ -13605,19 +13653,60 @@ function insideSideScroller(node) {
 
 let _swipe = null;
 
-function swipeSurfaceNow() {
+/* Open, undraggable, and not something to reach behind either: a drag must
+ * not change the shelf under a question waiting to be answered. */
+const SWIPE_BLOCKERS = new Set(['confirm']);
+
+function swipeSurfaceNow(target) {
   const key = topNavSurface(navOpenNow());
-  if (!key || !SWIPE_BOXES[key]) return null;
-  const box = SWIPE_BOXES[key]();
-  return box ? { key, box } : null;
+  if (key && SWIPE_BLOCKERS.has(key)) return null;
+  if (key && SWIPE_BOXES[key]) {
+    const box = SWIPE_BOXES[key]();
+    return box ? { key, box } : null;
+  }
+  // Nothing is laid over the catalogue — so the gesture belongs to the shelf
+  // itself, and there it changes genre. The modes fall through to here on
+  // purpose: inside an open collection, or while picking films to add, the
+  // ribbon still narrows what is listed, so the swipe still means what it
+  // means everywhere else.
+  const main = document.getElementById('main');
+  if (main && target && main.contains(target)) return { key: 'shelf', box: main };
+  return null;
+}
+
+/* The active chip, brought into view. Switching to a genre whose chip sits
+ * off the end of the ribbon would otherwise leave nothing on screen saying
+ * which genre you had arrived at. */
+function centreActiveChip() {
+  const chip = genreChipsEl.querySelector('.chip.active');
+  if (!chip) { glideRibbon(0); return; }
+  const max = Math.max(0, genreChipsEl.scrollWidth - genreChipsEl.clientWidth);
+  const to = chip.offsetLeft - (genreChipsEl.clientWidth - chip.offsetWidth) / 2;
+  glideRibbon(Math.max(0, Math.min(to, max)));
+}
+
+/* The shelf changes genre, in the order the ribbon reads — which is this
+ * person's own order, heaviest genres first, and only genres that have
+ * films under the filters standing. Read from the chips for that reason:
+ * the swipe must land where the eye would say it lands. */
+function swipeToGenre(dir) {
+  const genres = [...genreChipsEl.querySelectorAll('.chip')].map(el => el.dataset.g);
+  const next = genreStep(genres, state.genre || 'all', dir);
+  if (next === null) return;                 // an end of the line: the shelf springs back
+  state.genre = next;
+  renderChips();
+  render();
+  saveSettings();
+  centreActiveChip();
+  swipeSlideIn(document.getElementById('main'), dir, 22);
 }
 
 function swipeStill() {
   return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
-function swipeMoveBox(box, dx) {
+function swipeMoveBox(box, dx, dy = 0) {
   box.style.transition = 'none';
-  box.style.transform = `translateX(${dx}px)`;
+  box.style.transform = dy ? `translateY(${dy}px)` : `translateX(${dx}px)`;
 }
 /* Inline rather than a stylesheet rule: these screens already carry opening
  * animations of their own, and a transform transition living in the CSS
@@ -13637,13 +13726,18 @@ document.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
   const width = window.innerWidth || 0;
   if (!swipeStartAllowed(t.clientX, width)) return;
-  const surface = swipeSurfaceNow();
+  const surface = swipeSurfaceNow(e.target);
   if (!surface) return;
   if (insideSideScroller(e.target)) return;
   _swipe = {
-    ...surface, width,
+    ...surface, width, height: window.innerHeight || 0,
     x0: t.clientX, y0: t.clientY, t0: Date.now(),
-    axis: null, dx: 0,
+    axis: null, dx: 0, dy: 0,
+    // Asked ONCE, at the start. The card is its own scrollport, so a
+    // downward drag from anywhere below the top is somebody scrolling back
+    // up and must stay that way for the whole gesture — re-asking mid-drag
+    // would let the card close the instant the scroll reached the top.
+    atTop: surface.key === 'filmCard' && surface.box.scrollTop <= 0,
   };
 }, { passive: true });
 
@@ -13655,28 +13749,48 @@ document.addEventListener('touchmove', (e) => {
   if (!_swipe.axis) {
     _swipe.axis = swipeAxis(dx, dy);
     // A drag that turned out to be a scroll is not ours, and asking again
-    // mid-gesture would let a wandering finger steal it back.
-    if (_swipe.axis === 'y') { _swipe = null; return; }
+    // mid-gesture would let a wandering finger steal it back. The one
+    // exception is the card pulled DOWN from its very top, which is how a
+    // full-screen card is closed everywhere else on a phone.
+    if (_swipe.axis === 'y' && !(_swipe.key === 'filmCard' && _swipe.atTop && dy > 0)) {
+      _swipe = null;
+      return;
+    }
     if (!_swipe.axis) return;
   }
   _swipe.dx = dx;
+  _swipe.dy = dy;
   // Ours now: the page must not scroll under a gesture that is going to
   // move a screen instead.
   if (e.cancelable) e.preventDefault();
   // On a screen only «back» exists, so a drag the other way pulls against
   // a wall rather than promising something that will not happen.
-  const shown = _swipe.key === 'filmCard' ? dx : Math.max(0, dx);
+  if (_swipe.axis === 'y') {
+    swipeMoveBox(_swipe.box, 0, Math.max(0, dy));
+    return;
+  }
+  const shown = _swipe.key === 'filmCard' ? dx
+    : _swipe.key === 'shelf' ? swipeDamp(dx)
+    : Math.max(0, dx);
   swipeMoveBox(_swipe.box, shown);
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
   const s = _swipe;
   _swipe = null;
-  if (!s || s.axis !== 'x') { if (s) swipeReleaseBox(s.box); return; }
+  if (!s) return;
+  if (s.axis === 'y') {
+    const closes = swipeDismisses({ dy: s.dy, dt: Date.now() - s.t0, height: s.height });
+    swipeReleaseBox(s.box);
+    if (closes) history.back();          // the same door the cross knocks on
+    return;
+  }
+  if (s.axis !== 'x') { swipeReleaseBox(s.box); return; }
   const dir = swipeVerdict({ dx: s.dx, dt: Date.now() - s.t0, width: s.width });
   swipeReleaseBox(s.box);
   if (!dir) return;
   if (s.key === 'filmCard') { swipeToNeighbourFilm(dir); return; }
+  if (s.key === 'shelf') { swipeToGenre(dir); return; }
   if (dir === 'right') history.back();
 }, { passive: true });
 
@@ -13691,21 +13805,28 @@ function swipeToNeighbourFilm(dir) {
   if (!m) return;
   _cardWalk.i = next;
   openModal(m);
-  // The card arrives from the side the finger came from, unless the person
-  // has asked the system for less movement.
-  if (swipeStill()) return;
+  // The card arrives from the side the finger came from.
+  swipeSlideIn(modalBox, dir, 100);
+}
+
+/* What replaced the old content comes in from the side the finger came
+ * from. The card crosses a whole width because it IS the thing being
+ * swapped; the shelf only leans in, because a screenful of posters sliding
+ * the full way costs far more than the gesture is worth. */
+function swipeSlideIn(box, dir, percent) {
+  if (!box || swipeStill()) return;
   const from = dir === 'left' ? 1 : -1;
-  modalBox.style.transition = 'none';
-  modalBox.style.transform = `translateX(${from * 100}%)`;
+  box.style.transition = 'none';
+  box.style.transform = `translateX(${from * percent}%)`;
   // A missing requestAnimationFrame must not throw out of a touch handler
-  // and leave the card parked off-screen.
+  // and leave the content parked off-screen.
   const nextFrame = window.requestAnimationFrame
     ? window.requestAnimationFrame.bind(window)
     : (fn) => setTimeout(fn, 16);
   nextFrame(() => {
-    modalBox.style.transition = 'transform .18s ease-out';
-    modalBox.style.transform = '';
-    setTimeout(() => { modalBox.style.transition = ''; }, 220);
+    box.style.transition = 'transform .18s ease-out';
+    box.style.transform = '';
+    setTimeout(() => { box.style.transition = ''; }, 220);
   });
 }
 </script>
