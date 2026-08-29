@@ -1313,6 +1313,38 @@
      after the dialog has listed what it will do. */
   .btn-danger { background: var(--flash); color: var(--paper); border: none; }
   .btn-ghost { background: none; border: 1px solid var(--border); color: var(--dust); }
+  /* ---------- the statistics page ---------- */
+  /* Figures first, then the ranked lists. A bar carries no number of its
+     own: the digit beside it is the fact, and the bar is there so the eye
+     can rank without reading. */
+  .stat-figs { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; }
+  .stat-fig { display: flex; flex-direction: column; gap: 2px; }
+  .stat-fig b {
+    font-family: var(--font-display); font-weight: 400; font-size: 28px;
+    line-height: 1; color: var(--paper); font-variant-numeric: tabular-nums;
+  }
+  .stat-fig span {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ash);
+  }
+  .stat-block { margin-top: 18px; }
+  .stat-head {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--steel); margin-bottom: 8px;
+    padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+  .stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .stat-name {
+    flex: 0 0 38%; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 13px; color: var(--dust);
+  }
+  .stat-bar { flex: 1; height: 6px; background: var(--coal2); border-radius: 2px; overflow: hidden; }
+  .stat-bar i { display: block; height: 100%; background: var(--blood); }
+  .stat-n {
+    flex: 0 0 auto; min-width: 34px; text-align: right;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ash);
+    font-variant-numeric: tabular-nums;
+  }
   /* Full width, so the one control that undoes the whole sheet reads as
      belonging to the sheet rather than to the section under it. */
   .filter-reset[hidden] { display: none; }
@@ -6277,6 +6309,84 @@ function anyFilterSet(st) {
     || (st.directors && st.directors.length));
 }
 
+/* ---------- the statistics page ---------- */
+/*
+ * One pass over the catalogue, one report. Counts, not the weighted taste
+ * profile the die uses: «скільки фільмів з цим актором я подивився» is a
+ * different question from «наскільки цей актор впливає на випадання», and
+ * answering the first with the second would print numbers nobody can check
+ * against their own shelf.
+ *
+ * Percentages are of WATCHED films, not of the catalogue: the page is about
+ * what this person has seen.
+ */
+const STATS_TOP_PEOPLE = 10;
+const STATS_DECADE_MIN = 1930;
+
+/** A month and a year back from `now`, in milliseconds. */
+const STATS_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const STATS_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+function statsTop(map, keep = STATS_TOP_PEOPLE) {
+  return Object.entries(map)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, keep)
+    .map(([name, n]) => ({ name, n }));
+}
+
+/** Which ten-year block a release year belongs to, or null. */
+function statsDecade(year) {
+  const y = Number(year);
+  if (!Number.isFinite(y) || y < STATS_DECADE_MIN) return null;
+  return Math.floor(y / 10) * 10;
+}
+
+function libraryStats(movies, marks, opts = {}) {
+  const { watchedAt, now } = opts;
+  const at = watchedAt || {};
+  const stamp = Number(now) || 0;
+  const out = {
+    watched: 0, liked: 0, must: 0,
+    genres: [], decades: [], actors: [], directors: [],
+    lastMonth: 0, lastYear: 0, dated: 0, undated: 0,
+  };
+  const genres = {}, decades = {}, actors = {}, directors = {};
+  for (const m of movies || []) {
+    const key = markKey(m);
+    if (!key) continue;
+    const seen = isMarked(marks && marks.watchedIds, m);
+    if (isMarked(marks && marks.likedIds, m)) out.liked++;
+    if (isMarked(marks && marks.mustIds, m)) out.must++;
+    if (!seen) continue;
+    out.watched++;
+    if (m.genre_group) genres[m.genre_group] = (genres[m.genre_group] || 0) + 1;
+    const dec = statsDecade(m.year);
+    if (dec !== null) decades[dec] = (decades[dec] || 0) + 1;
+    for (const d of splitPeople(m.director)) directors[d] = (directors[d] || 0) + 1;
+    for (const a of (m.cast || []).slice(0, 5)) {
+      const name = String(a);
+      actors[name] = (actors[name] || 0) + 1;
+    }
+    // When it was marked, for the two windows. A film marked before the app
+    // started keeping times has no answer, and saying «0 this year» about it
+    // would be a lie — so it is counted as undated instead, and the page
+    // says how many of those there are.
+    const when = Number(at[key]);
+    if (!Number.isFinite(when) || when <= 0) { out.undated++; continue; }
+    out.dated++;
+    if (stamp && stamp - when <= STATS_MONTH_MS) out.lastMonth++;
+    if (stamp && stamp - when <= STATS_YEAR_MS) out.lastYear++;
+  }
+  const pct = (n) => (out.watched > 0 ? Math.round((n / out.watched) * 100) : 0);
+  out.genres = statsTop(genres, 99).map(g => ({ ...g, pct: pct(g.n) }));
+  out.decades = Object.entries(decades)
+    .map(([d, n]) => ({ decade: Number(d), n, pct: pct(n) }))
+    .sort((a, b) => a.decade - b.decade);
+  out.actors = statsTop(actors);
+  out.directors = statsTop(directors);
+  return out;
+}
+
 /** How many of these the person has already seen. */
 function countWatchedIn(list, watchedIds) {
   return (list || []).reduce((n, m) => n + (isMarked(watchedIds, m) ? 1 : 0), 0);
@@ -6353,6 +6463,7 @@ if (typeof module !== 'undefined' && module.exports) {
     SWIPE_EDGE_PX, SWIPE_AXIS_PX, SWIPE_TRIGGER_MIN_PX,
     swipeStartAllowed, swipeAxis, swipeVerdict, swipeStep,
     genreStep, swipeDismisses, anyFilterSet, countWatchedIn,
+    libraryStats, statsDecade, statsTop, STATS_TOP_PEOPLE, STATS_MONTH_MS, STATS_YEAR_MS,
     DICE_RECEIPT_KINDS, receiptReasons,
   };
 }
@@ -6507,6 +6618,7 @@ async function loadMarks(uid) {
     watched: localMarksKey(uid, 'watched'),
     liked: localMarksKey(uid, 'liked'),
     must: localMarksKey(uid, 'must'),
+    watchedAt: localMarksKey(uid, 'watched_at'),
   };
   // Marks held for a batch flush that never happened — a closed tab, a lost
   // network. They are NEWER than whatever the server answers below, so they
@@ -6516,6 +6628,13 @@ async function loadMarks(uid) {
   const storedPending = localPendingMarksKey(uid) ? localStore.get(localPendingMarksKey(uid)) : null;
   pendingMarks = (storedPending && !Array.isArray(storedPending)) ? storedPending : {};
   const apply = (source) => {
+    // When each film was marked seen, by tmdb_id. Only the statistics page
+    // reads it, and only forward from the day the column shipped — an
+    // account with a history has films here that will never have a time,
+    // and the page counts those separately rather than calling them old.
+    watchedAt = (source.watched_at && typeof source.watched_at === 'object' && !Array.isArray(source.watched_at))
+      ? source.watched_at : {};
+    window.watchedAt = watchedAt;
     watched = new Set((source.watched || []).map(String));
     liked = new Set((source.liked || []).map(String));
     must = new Set((source.must || []).map(String));
@@ -6539,6 +6658,7 @@ async function loadMarks(uid) {
     if (!res.ok) throw new Error(`marks ${res.status}`);
     const data = await res.json();
     apply(data);
+    if (localKeys.watchedAt) localStore.set(localKeys.watchedAt, watchedAt);
     if (localKeys.watched) localStore.set(localKeys.watched, [...watched]);
     if (localKeys.liked) localStore.set(localKeys.liked, [...liked]);
     if (localKeys.must) localStore.set(localKeys.must, [...must]);
@@ -6553,6 +6673,7 @@ async function loadMarks(uid) {
       watched: localKeys.watched ? localStore.get(localKeys.watched) : [],
       liked: localKeys.liked ? localStore.get(localKeys.liked) : [],
       must: localKeys.must ? localStore.get(localKeys.must) : [],
+      watched_at: localKeys.watchedAt ? localStore.get(localKeys.watchedAt) : {},
     });
   }
 }
@@ -6925,6 +7046,8 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
+/* When each watched film was marked, by tmdb_id — see loadMarks(). */
+let watchedAt = {};
 let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, searchWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', actors: [], directors: [], searchScope: 'here',
   // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
   // whatever you last left it on stays that way for every film after it,
@@ -11844,6 +11967,59 @@ const accountBox = document.getElementById('accountBox');
 const onboardOverlay = document.getElementById('onboardOverlay');
 const onboardBox = document.getElementById('onboardBox');
 
+/* ---------- the statistics page ---------- */
+/*
+ * Counted from the marks and the catalogue already in hand, so it costs
+ * nothing to open and works offline. libraryStats() does the arithmetic
+ * (src/logic.js, unit-tested); everything here is the drawing.
+ *
+ * A bar is drawn with a width, not with a picture: the number is the fact
+ * and the bar is only there so the eye can rank them without reading.
+ */
+function statsBarRows(rows, { label = 'name', value = 'n', pct = null, max = 0 } = {}) {
+  const top = max || rows.reduce((n, r) => Math.max(n, r[value]), 0) || 1;
+  return rows.map(r => `
+    <div class="stat-row">
+      <div class="stat-name">${esc(String(r[label]))}</div>
+      <div class="stat-bar"><i style="width:${Math.max(2, Math.round((r[value] / top) * 100))}%"></i></div>
+      <div class="stat-n">${pct ? `${r[pct]}%` : r[value]}</div>
+    </div>`).join('');
+}
+
+function renderStats() {
+  const box = document.getElementById('accStats');
+  if (!box) return;
+  const s = libraryStats(catalogSource(), { watchedIds: watched, likedIds: liked, mustIds: must },
+    { watchedAt, now: Date.now() });
+  if (!s.watched && !s.liked) {
+    box.innerHTML = '<div class="add-hint">Ще нема що рахувати — познач перший фільм.</div>';
+    return;
+  }
+  const section = (title, body) => body
+    ? `<div class="stat-block"><div class="stat-head">${title}</div>${body}</div>` : '';
+  // The two windows are the only numbers here that could not be worked out
+  // from the marks alone, and they are honest about it: films marked before
+  // the app started keeping times are counted as «без дати», not as zero.
+  const windows = s.dated
+    ? `<div class="stat-figs">
+         <div class="stat-fig"><b>${s.lastMonth}</b><span>за місяць</span></div>
+         <div class="stat-fig"><b>${s.lastYear}</b><span>за рік</span></div>
+       </div>${s.undated ? `<div class="add-hint">Час позначки збережено для ${s.dated} ${pluralFilms(s.dated)}. Решта ${s.undated} — позначені раніше, ніж застосунок почав це запамʼятовувати.</div>` : ''}`
+    : `<div class="add-hint">Тут зʼявиться, скільки фільмів ти подивився за місяць і за рік. Відлік почався сьогодні — попередні ${s.watched} ${pluralFilms(s.watched)} дат не мають.</div>`;
+  box.innerHTML = `
+    <div class="stat-figs">
+      <div class="stat-fig"><b>${s.watched}</b><span>переглянуто</span></div>
+      <div class="stat-fig"><b>${s.liked}</b><span>рекомендую</span></div>
+      <div class="stat-fig"><b>${s.must}</b><span>обовʼязково</span></div>
+    </div>
+    ${section('Останнім часом', windows)}
+    ${section('Жанри', s.genres.length ? statsBarRows(s.genres, { pct: 'pct' }) : '')}
+    ${section('Роки виходу', s.decades.length
+      ? statsBarRows(s.decades.map(d => ({ ...d, name: `${d.decade}-ті` })), { pct: 'pct' }) : '')}
+    ${section('Актори', s.actors.length ? statsBarRows(s.actors) : '')}
+    ${section('Режисери', s.directors.length ? statsBarRows(s.directors) : '')}`;
+}
+
 function openAccount() {
   const user = auth.currentUser;
   const username = (user && user.displayName)
@@ -11949,9 +12125,12 @@ function openAccount() {
           <span>${esc(name)}</span>
         </label>`).join('')}
     </div>
+    <div class="acc-label">Статистика</div>
+    <div class="stats" id="accStats"></div>
     <div class="acc-actions">
       <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>
     </div>`;
+  renderStats();
   const accExit = accountBox.querySelector('#accCloseBtn');
   paintExitControl(accExit);
   accExit.addEventListener('click', () => exitScreen(closeAccount));
