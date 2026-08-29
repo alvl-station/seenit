@@ -6083,6 +6083,95 @@ function extractTitleCandidates(text) {
   return result.slice(0, 12);
 }
 
+/* ---------- going back ---------- */
+/* The order «назад» takes screens off, innermost first.
+ *
+ * The list is the whole rule, so it is data rather than a chain of ifs: what
+ * «back» means is precisely «whichever of these is open and sits deepest».
+ * A film card opens on top of everything — a collection, the friends
+ * overlay, the dice hand — so it leads; the three at the end are not
+ * screens at all but modes the catalogue is wearing, and a screen laid over
+ * one of them has to come off before the mode does.
+ *
+ * Onboarding is deliberately absent. It is the one thing on screen that is
+ * not a place the person navigated INTO, and letting «back» skip it would
+ * drop somebody into an app that has not finished asking who they are.
+ */
+const NAV_SURFACES = [
+  'confirm', 'filmCard', 'colEdit', 'addModal',
+  'account', 'recs', 'friends',
+  'dice', 'filter', 'settings', 'trash', 'admin', 'menu',
+  'collection', 'addMode', 'search',
+];
+
+/** The one screen «back» should close now, given what is open. */
+function topNavSurface(open) {
+  if (!open) return null;
+  for (const key of NAV_SURFACES) if (open[key]) return key;
+  return null;
+}
+
+/* ---------- reading a drag ---------- */
+/* A finger on this app is almost always scrolling a catalogue, so a swipe
+ * has to earn the interpretation rather than be assumed. Three rules, kept
+ * here as numbers because they are what «too twitchy» and «too stiff» are
+ * arguments about.
+ */
+// Safari's own back-swipe lives at the left edge, and since the app now
+// answers history navigation, a gesture started there would fire TWICE —
+// once from Safari, once from us — and take two screens off for one
+// movement. Both edges are ceded: the right one is Control Centre.
+const SWIPE_EDGE_PX = 24;
+// Nothing is decided until the finger has said which way it is going.
+const SWIPE_AXIS_PX = 12;
+// And horizontal has to beat vertical clearly, or a diagonal scroll would
+// read as a swipe.
+const SWIPE_AXIS_RATIO = 1.5;
+// Far enough to be deliberate: a share of the screen, with a floor for
+// narrow phones.
+const SWIPE_TRIGGER_RATIO = 0.28;
+const SWIPE_TRIGGER_MIN_PX = 64;
+// Or fast enough to be a flick, which is how people actually swipe once
+// they trust the gesture.
+const SWIPE_FLICK_SPEED = 0.5;      // px per ms
+const SWIPE_FLICK_MIN_PX = 24;
+// A speed measured over less than a frame is not a speed. No finger crosses
+// thirty pixels in a millisecond, so a duration that short means the clock
+// was not watching, and the distance rule decides alone.
+const SWIPE_FLICK_MIN_MS = 16;
+
+/** False where the browser has its own gesture and ours must keep out. */
+function swipeStartAllowed(startX, width) {
+  if (!(width > 0)) return false;
+  return startX > SWIPE_EDGE_PX && startX < width - SWIPE_EDGE_PX;
+}
+
+/** 'x', 'y', or null while the finger has not committed. */
+function swipeAxis(dx, dy) {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (ax < SWIPE_AXIS_PX && ay < SWIPE_AXIS_PX) return null;
+  return ax > ay * SWIPE_AXIS_RATIO ? 'x' : 'y';
+}
+
+/** Which way the drag landed, or null if it should spring back. */
+function swipeVerdict({ dx, dt, width }) {
+  const far = Math.abs(dx) >= Math.max(SWIPE_TRIGGER_MIN_PX, (width || 0) * SWIPE_TRIGGER_RATIO);
+  const flick = dt >= SWIPE_FLICK_MIN_MS && Math.abs(dx) / dt >= SWIPE_FLICK_SPEED && Math.abs(dx) >= SWIPE_FLICK_MIN_PX;
+  if (!far && !flick) return null;
+  return dx > 0 ? 'right' : 'left';
+}
+
+/* Where a swipe lands inside a list of films. Left brings the NEXT one in
+ * from the right, the way every gallery does it. At either end the answer
+ * is null and the card springs back: running out of films is not a reason
+ * to close the one being read. */
+function swipeStep(count, i, dir) {
+  if (!(count > 0) || !(i >= 0) || i >= count) return null;
+  const next = dir === 'left' ? i + 1 : dir === 'right' ? i - 1 : null;
+  if (next === null || next < 0 || next >= count) return null;
+  return next;
+}
+
 /* ---------- batch-add line parsing ---------- */
 function parseBatchLine(line) {
   const m = line.match(/^(.*?)[,(]\s*(\d{4})\)?\s*$/);
@@ -6134,6 +6223,9 @@ if (typeof module !== 'undefined' && module.exports) {
     TITLE_TRIGGER_WORDS, UI_JUNK_PHRASES,
     isJunkLine, cleanCandidate, isPlausibleTitle, extractTitleCandidates,
     parseBatchLine,
+    NAV_SURFACES, topNavSurface,
+    SWIPE_EDGE_PX, SWIPE_AXIS_PX, SWIPE_TRIGGER_MIN_PX,
+    swipeStartAllowed, swipeAxis, swipeVerdict, swipeStep,
   };
 }
 // The catalogue lives on D1 and is fetched at sign-in (loadCatalog in
@@ -8063,6 +8155,7 @@ function openModal(m) {
   // The guard reads the state BEFORE the class is set, because the class is
   // what "already open" means.
   overlay.classList.add('open');
+  navSync();
   lockScroll(overlay);
   wireAdminEditor(m);
   unmuteTrailer();
@@ -8298,6 +8391,7 @@ function closeModal() {
   clearTrailerWatch();
   _modalMovie = null;
   unlockScroll(overlay);
+  navSync();
 }
 overlay.addEventListener('click', e => {
   if (e.target === overlay || e.target.closest('.modal-close')) { closeModal(); return; }
@@ -8608,7 +8702,7 @@ document.getElementById('main').addEventListener('click', e => {
   }
   if (card) {
     const m = MOVIES.find(x => x.id === card.dataset.id);
-    if (m) openModal(m);
+    if (m) { rememberCardWalk(card); openModal(m); }
   }
 });
 document.getElementById('search').addEventListener('input', e => {
@@ -8632,6 +8726,7 @@ let _searchAnimGuard = 0;
 function openSearch(focus = true) {
   topSearch.classList.remove('no-anim');
   topSearch.classList.add('open');
+  navSync();
   // The word gives up the room the field needs: 42px of SEENIT plus a
   // half-width field plus three icons does not fit a 375px phone, and what
   // was pushed off the edge was the field's own way out.
@@ -8665,6 +8760,7 @@ function closeSearch() {
     searchInput.value = '';
     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
+  navSync();
 }
 /* The one control does both: open, then close-and-clear. A search that can
  * only be turned off by emptying a field somebody has to find first is the
@@ -8784,6 +8880,7 @@ function wireSheet(sheetId, backdropId) {
     if (sheetIsMenuScreen(sheetId)) {
       paintExitControl(document.getElementById(`${sheetId.replace(/Sheet$/, '')}CloseBtn`));
     }
+    navSync();
   };
   const close = () => {
     backdrop.hidden = true;
@@ -8791,6 +8888,7 @@ function wireSheet(sheetId, backdropId) {
     sheet.setAttribute('aria-hidden', 'true');
     unlockScroll(sheet);
     if (sheetIsBand(sheetId)) syncSheetNav();
+    navSync();
   };
   backdrop.addEventListener('click', close);
   return { open, close };
@@ -9501,6 +9599,7 @@ diceResultsEl.addEventListener('click', e => {
   if (!m) return;
   diceSheet.close();
   _diceReturn = true;
+  rememberCardWalk(card);
   openModal(m);
 });
 
@@ -11224,7 +11323,7 @@ function renderBatchRows(rows, recommendedBy) {
   });
 }
 
-function openAddModal() { addModalHome(); addOverlay.classList.add('open'); lockScroll(addOverlay); }
+function openAddModal() { addModalHome(); addOverlay.classList.add('open'); lockScroll(addOverlay); navSync(); }
 /* Coming back from a screen the ADD pane sent you to must land back on
  * that pane, not in the menu (owner-reported: додати → «Добірки SeenIt» →
  * назад opened the menu). The flag is read by the screen's own exit
@@ -11236,7 +11335,7 @@ function returnToAddCollections() {
   const tab = addBox.querySelector('.add-mode-tab[data-m="collection"]');
   if (tab) tab.click();
 }
-function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(addOverlay); }
+function closeAddModal() { addOverlay.classList.remove('open'); unlockScroll(addOverlay); navSync(); }
 /* ---------- delete mode ----------
  * Entering the mode does not select anything and does not touch data; the
  * only irreversible step is the confirm, and it happens once for the whole
@@ -11299,6 +11398,7 @@ function setAddMode(on) {
   // keepDrawn: entering the mode changes how cards LOOK, not which films are
   // listed, so somebody who had scrolled keeps their place.
   render({ keepDrawn: true });
+  navSync();
 }
 
 function toggleAddSelection(id) {
@@ -11388,12 +11488,14 @@ function askConfirm({ title, lines = [], goText }) {
   dlg.classList.add('open');
   dlg.setAttribute('aria-hidden', 'false');
   lockScroll(dlg);
+  navSync();
   return new Promise(resolve => {
     const done = ok => {
       backdrop.hidden = true;
       dlg.classList.remove('open');
       dlg.setAttribute('aria-hidden', 'true');
       unlockScroll(dlg);
+      navSync();
       go.removeEventListener('click', onGo);
       cancel.removeEventListener('click', onCancel);
       backdrop.removeEventListener('click', onCancel);
@@ -11916,10 +12018,11 @@ function openAccount() {
       .finally(() => { btn.disabled = false; });
   });
   accountOverlay.classList.add('open');
+  navSync();
   lockScroll(accountOverlay);
   syncSheetNav();
 }
-function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); syncSheetNav(); }
+function closeAccount() { accountOverlay.classList.remove('open'); unlockScroll(accountOverlay); syncSheetNav(); navSync(); }
 
 function openOnboarding() {
   // The name comes FIRST, before the guide (owner's call), because it is the
@@ -12312,6 +12415,7 @@ function openCollectionAsCatalog(col) {
     collection_id: col.collection_id, source: col.source, public: col.public,
     ids: new Set((col.film_ids || []).map(String)),
   };
+  navSync();
   document.getElementById('collectionPlateName').textContent = `Добірка · ${col.name}`;
   document.getElementById('collectionPlate').hidden = false;
   // My own marks opened as a collection: every film here is watched by
@@ -12335,6 +12439,7 @@ function openCollectionAsCatalog(col) {
 }
 function closeCollectionCatalog() {
   openCatalogCollection = null;
+  navSync();
   document.getElementById('collectionPlate').hidden = true;
   document.getElementById('collectionPlateActions').hidden = true;
   document.body.classList.remove('marks-collection');
@@ -12438,10 +12543,11 @@ function openRecs() {
   _returnToAddCollections = false;
   renderRecs();
   recsOverlay.classList.add('open');
+  navSync();
   lockScroll(recsOverlay);
   syncSheetNav();
 }
-function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); syncSheetNav(); }
+function closeRecs() { _recsFriend = null; recsOverlay.classList.remove('open'); unlockScroll(recsOverlay); syncSheetNav(); navSync(); }
 
 function pickGridHtml(items, { ranks = false } = {}) {
   return `<div class="trend-grid">${items.map((m, i) => `
@@ -12549,6 +12655,7 @@ function openFriends(username = null) {
   // would hide that behind an errand nobody asked for twice.
   friendsView = 'list';
   friendsOverlay.classList.add('open');
+  navSync();
   // Named, like every other overlay: this screen re-renders itself while it
   // is open (a tab, a person, a «+» that reloads the shelf), and an unnamed
   // hold would be added again on each one and released only once — the
@@ -12564,6 +12671,7 @@ function closeFriends() {
   friendsView = 'list';
   unlockScroll(friendsOverlay);
   syncSheetNav();
+  navSync();
 }
 
 function personRowHtml(p, opts = {}) {
@@ -13340,6 +13448,266 @@ onboardOverlay.addEventListener('click', e => { if (e.target === onboardOverlay)
 
 addBtn.addEventListener('click', openAddModal);
 addOverlay.addEventListener('click', e => { if (e.target === addOverlay) closeAddModal(); });
+
+/* ---------- going back ---------- */
+/*
+ * The app had no history at all: every screen was a class on a div, so the
+ * phone's own «back» — the Android button, Safari's swipe from the left
+ * edge — left the PAGE. Open a film, press back, and you are out of SeenIt
+ * with the screen you were on, the filter you set and your place in the
+ * list all gone. That is the bug this fixes; a back GESTURE, if we add one,
+ * is then just another way to ask for the same thing.
+ *
+ * One sacrificial entry, put back after each screen closes — not a stack
+ * mirroring the open screens. The app reopens things behind other things on
+ * purpose (a closing film card brings the dice hand back, a closing
+ * collection returns to the friend it was opened from), and a stack we kept
+ * ourselves would drift out of step with the screen the first time one of
+ * those ran. So the guard entry is a token meaning «something is open», and
+ * what actually gets closed is read from the DOM at the moment «back»
+ * happens. The screen cannot lie about being open; a stack can.
+ *
+ * The cost, and it is a real one: leaving the app now takes as many presses
+ * as there are screens open. From a clear shelf it is still one.
+ */
+const NAV_CLOSERS = {
+  confirm:    { open: () => elIsOpen('deleteDialog'), close: () => document.getElementById('deleteDialogCancel').click() },
+  filmCard:   { open: () => overlay.classList.contains('open'), close: closeModal },
+  colEdit:    { open: () => elIsOpen('colEditSheet'), close: () => colEditSheet.close() },
+  addModal:   { open: () => addOverlay.classList.contains('open'), close: closeAddModal },
+  account:    { open: () => elIsOpen('accountOverlay'), close: closeAccount },
+  recs:       { open: () => elIsOpen('recsOverlay'), close: closeRecs },
+  friends:    { open: () => elIsOpen('friendsOverlay'), close: closeFriends },
+  dice:       { open: () => elIsOpen('diceSheet'), close: () => diceSheet.close() },
+  filter:     { open: () => elIsOpen('filterSheet'), close: () => filterSheet.close() },
+  settings:   { open: () => elIsOpen('settingsSheet'), close: () => settingsSheet.close() },
+  trash:      { open: () => elIsOpen('trashSheet'), close: () => trashSheet.close() },
+  admin:      { open: () => elIsOpen('adminSheet'), close: () => adminSheet.close() },
+  menu:       { open: () => elIsOpen('menuSheet'), close: () => menuSheet.close() },
+  collection: { open: () => !!openCatalogCollection, close: closeCollectionCatalog },
+  addMode:    { open: () => addMode, close: () => setAddMode(false) },
+  search:     { open: () => searchIsOpen(), close: () => closeSearch() },
+};
+
+function elIsOpen(id) {
+  const el = document.getElementById(id);
+  return !!el && el.classList.contains('open');
+}
+
+/* What is on screen right now, asked fresh. A closer that throws must not
+ * decide the answer for the screens below it. */
+function navOpenNow() {
+  const open = {};
+  for (const key of NAV_SURFACES) {
+    try { open[key] = !!NAV_CLOSERS[key].open(); } catch (err) { open[key] = false; }
+  }
+  return open;
+}
+
+let _navGuard = false;      // our entry is on the stack
+let _navExpectPop = false;  // we asked for that back ourselves — swallow it
+
+/* Called whenever anything opens or closes. Arms the guard while a screen is
+ * showing, and spends it once the last one is gone — without that the first
+ * press after closing everything by hand would be absorbed doing nothing,
+ * which reads as a broken back button. */
+function navSync() {
+  const showing = !!topNavSurface(navOpenNow());
+  if (showing === _navGuard) return;
+  if (showing) {
+    _navGuard = true;
+    try { history.pushState({ seenitNav: true }, ''); } catch (err) { _navGuard = false; }
+  } else {
+    _navGuard = false;
+    _navExpectPop = true;
+    try { history.back(); } catch (err) { _navExpectPop = false; }
+    // A back that never lands would leave the flag set and eat the next real
+    // press. Nothing depends on the timing, so a late release is harmless.
+    setTimeout(() => { _navExpectPop = false; }, 1000);
+  }
+}
+
+window.addEventListener('popstate', () => {
+  if (_navExpectPop) { _navExpectPop = false; return; }
+  _navGuard = false;                       // whatever we pushed is spent
+  const top = topNavSurface(navOpenNow());
+  if (!top) return;                        // nothing open: the next press leaves, as it should
+  // The closer calls navSync on its way out, which re-arms the guard if
+  // anything is still showing — including something it reopened itself.
+  try { NAV_CLOSERS[top].close(); } catch (err) { /* a stuck screen must not wedge the button */ }
+  navSync();
+});
+
+/* ---------- swiping ---------- */
+/*
+ * Two meanings, because the two surfaces are two different things.
+ *
+ * On a SCREEN a sideways drag means «back» — and it does not decide that
+ * itself, it asks history.back(), the same door the phone's own button
+ * knocks on. One mechanism, two ways in.
+ *
+ * On the FILM CARD it means the next film, the way a gallery works: the
+ * card is a thing you read one of and then want the one beside it, and
+ * closing it already has a cross, the button and the edge gesture. The two
+ * readings never overlap, because the card is always on top when it is
+ * open — the same rule NAV_SURFACES already encodes.
+ *
+ * What the finger drags has to move with it. A gesture that decides in
+ * silence and then jumps reads as a fault, so the surface follows the drag
+ * and springs back when the drag does not earn the trip.
+ */
+
+/* The modes are absent on purpose. An open collection, «Додати» and search
+ * change what the catalogue IS rather than laying a screen over it, so
+ * there is nothing to slide out from under the finger; a swipe there would
+ * close something the eye cannot see moving. They keep the button. */
+const SWIPE_BOXES = {
+  filmCard: () => modalBox,
+  colEdit: () => document.getElementById('colEditSheet'),
+  addModal: () => document.getElementById('addMovieBox') || addOverlay.firstElementChild,
+  account: () => document.getElementById('accountBox') || accountOverlay.firstElementChild,
+  recs: () => document.getElementById('recsBox') || recsOverlay.firstElementChild,
+  friends: () => document.getElementById('friendsBox') || friendsOverlay.firstElementChild,
+  dice: () => document.getElementById('diceSheet'),
+  filter: () => document.getElementById('filterSheet'),
+  settings: () => document.getElementById('settingsSheet'),
+  trash: () => document.getElementById('trashSheet'),
+  admin: () => document.getElementById('adminSheet'),
+  menu: () => document.getElementById('menuSheet'),
+};
+
+/* The films either side of the open card, in the order they are ON SCREEN.
+ * Read from the DOM rather than recomputed: what «next» means is what the
+ * eye would call next, and the grid is grouped into genre sections whose
+ * reading order no filter function reproduces. */
+let _cardWalk = null;
+function rememberCardWalk(cardEl) {
+  const scope = cardEl.closest('#diceResults') || cardEl.closest('#main');
+  if (!scope) { _cardWalk = null; return; }
+  const ids = [...scope.querySelectorAll('.card')].map(el => el.dataset.id);
+  const i = ids.indexOf(cardEl.dataset.id);
+  _cardWalk = i < 0 ? null : { ids, i };
+}
+
+/* An element the finger is on that scrolls sideways itself — the genre
+ * ribbon is the only one in the app, but asking the question is cheaper
+ * than keeping a list that will rot. */
+function insideSideScroller(node) {
+  for (let el = node; el && el !== document.body; el = el.parentElement) {
+    if (el.scrollWidth > el.clientWidth + 4) {
+      const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+      const ox = style ? style.overflowX : '';
+      if (ox === 'auto' || ox === 'scroll') return true;
+    }
+  }
+  return false;
+}
+
+let _swipe = null;
+
+function swipeSurfaceNow() {
+  const key = topNavSurface(navOpenNow());
+  if (!key || !SWIPE_BOXES[key]) return null;
+  const box = SWIPE_BOXES[key]();
+  return box ? { key, box } : null;
+}
+
+function swipeStill() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function swipeMoveBox(box, dx) {
+  box.style.transition = 'none';
+  box.style.transform = `translateX(${dx}px)`;
+}
+/* Inline rather than a stylesheet rule: these screens already carry opening
+ * animations of their own, and a transform transition living in the CSS
+ * would apply to those too. The spring-back belongs to the gesture, so it
+ * is put on for the spring and taken off after. */
+function swipeReleaseBox(box) {
+  if (!box) return;
+  if (swipeStill()) { box.style.transition = ''; box.style.transform = ''; return; }
+  box.style.transition = 'transform .22s ease-out';
+  box.style.transform = '';
+  setTimeout(() => { box.style.transition = ''; }, 260);
+}
+
+document.addEventListener('touchstart', (e) => {
+  _swipe = null;
+  if (!e.touches || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const width = window.innerWidth || 0;
+  if (!swipeStartAllowed(t.clientX, width)) return;
+  const surface = swipeSurfaceNow();
+  if (!surface) return;
+  if (insideSideScroller(e.target)) return;
+  _swipe = {
+    ...surface, width,
+    x0: t.clientX, y0: t.clientY, t0: Date.now(),
+    axis: null, dx: 0,
+  };
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!_swipe || !e.touches || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const dx = t.clientX - _swipe.x0;
+  const dy = t.clientY - _swipe.y0;
+  if (!_swipe.axis) {
+    _swipe.axis = swipeAxis(dx, dy);
+    // A drag that turned out to be a scroll is not ours, and asking again
+    // mid-gesture would let a wandering finger steal it back.
+    if (_swipe.axis === 'y') { _swipe = null; return; }
+    if (!_swipe.axis) return;
+  }
+  _swipe.dx = dx;
+  // Ours now: the page must not scroll under a gesture that is going to
+  // move a screen instead.
+  if (e.cancelable) e.preventDefault();
+  // On a screen only «back» exists, so a drag the other way pulls against
+  // a wall rather than promising something that will not happen.
+  const shown = _swipe.key === 'filmCard' ? dx : Math.max(0, dx);
+  swipeMoveBox(_swipe.box, shown);
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  const s = _swipe;
+  _swipe = null;
+  if (!s || s.axis !== 'x') { if (s) swipeReleaseBox(s.box); return; }
+  const dir = swipeVerdict({ dx: s.dx, dt: Date.now() - s.t0, width: s.width });
+  swipeReleaseBox(s.box);
+  if (!dir) return;
+  if (s.key === 'filmCard') { swipeToNeighbourFilm(dir); return; }
+  if (dir === 'right') history.back();
+}, { passive: true });
+
+/* The card changes film without closing: the person is reading the shelf,
+ * not leaving it. */
+function swipeToNeighbourFilm(dir) {
+  if (!_cardWalk) return;
+  const next = swipeStep(_cardWalk.ids.length, _cardWalk.i, dir);
+  if (next === null) return;                 // an end of the list: nothing to do
+  const id = _cardWalk.ids[next];
+  const m = MOVIES.find(x => x.id === id) || catalogSource().find(x => x.id === id);
+  if (!m) return;
+  _cardWalk.i = next;
+  openModal(m);
+  // The card arrives from the side the finger came from, unless the person
+  // has asked the system for less movement.
+  if (swipeStill()) return;
+  const from = dir === 'left' ? 1 : -1;
+  modalBox.style.transition = 'none';
+  modalBox.style.transform = `translateX(${from * 100}%)`;
+  // A missing requestAnimationFrame must not throw out of a touch handler
+  // and leave the card parked off-screen.
+  const nextFrame = window.requestAnimationFrame
+    ? window.requestAnimationFrame.bind(window)
+    : (fn) => setTimeout(fn, 16);
+  nextFrame(() => {
+    modalBox.style.transition = 'transform .18s ease-out';
+    modalBox.style.transform = '';
+    setTimeout(() => { modalBox.style.transition = ''; }, 220);
+  });
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </body>
