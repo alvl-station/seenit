@@ -408,6 +408,18 @@
   /* The ribbon and its two chevrons ride one row; the chevrons are the only
      thing that says the line travels (owner-reported: nothing did). */
   .chips-row { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
+  /* Only ever on screen while a search is running, so it costs the header
+     nothing the rest of the time. Reads as a quiet aside under the ribbon,
+     not as another filter control competing with it. */
+  .search-watched[hidden] { display: none; }
+  .search-watched {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ash); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .search-watched input { accent-color: var(--blood); width: 16px; height: 16px; margin: 0; }
+  .search-watched b { color: var(--dust); font-weight: 400; }
   .chips {
     flex: 1; min-width: 0;
     display: flex; flex-wrap: nowrap; gap: 8px;
@@ -715,7 +727,13 @@
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
     letter-spacing: -.01em; font-size: 19px; display: flex; align-items: baseline; gap: 10px;
     border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 0 0 16px;
-    position: sticky; top: calc(var(--header-h, 128px) - 1px); z-index: 5;
+    /* Below the header AND below the collection plate, which pins itself to
+       the same strip and outranks this one (z-index 45 against 5). Resting a
+       pixel under the header alone put the genre name exactly where the
+       plate stops, and the plate covered it (owner-reported). --plate-block-h
+       is zero whenever no collection is open, so an ordinary shelf is
+       unchanged. */
+    position: sticky; top: calc(var(--header-h, 128px) + var(--plate-block-h, 0px) - 1px); z-index: 5;
     background: var(--bg);
   }
   .genre-section h2 .count { color: var(--text-muted); font-size: 13px; font-weight: 400; }
@@ -1134,6 +1152,11 @@
      this film came up. A rule under it ties it to the card below. */
   .dice-why {
     margin: 0 0 6px; padding-bottom: 4px;
+    /* Held open even when it says nothing. A card whose only reasons are
+       ones the reader did not ask about prints an empty line, and without
+       a floor here that cell would stand shorter than the three beside it
+       and the row would step. */
+    min-height: 1.2em;
     border-bottom: 1px solid var(--border);
     display: flex; flex-wrap: wrap; gap: 2px 14px;
     font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .05em;
@@ -1290,6 +1313,11 @@
      after the dialog has listed what it will do. */
   .btn-danger { background: var(--flash); color: var(--paper); border: none; }
   .btn-ghost { background: none; border: 1px solid var(--border); color: var(--dust); }
+  /* Full width, so the one control that undoes the whole sheet reads as
+     belonging to the sheet rather than to the section under it. */
+  .filter-reset[hidden] { display: none; }
+  .filter-reset { display: flex; margin: 0 0 4px; }
+  .filter-reset .btn-ghost { flex: 1; }
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   /* ---------- login screen ---------- */
@@ -2436,6 +2464,17 @@
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>
     </button>
   </div>
+  <!-- Watched films left the shelf, and that includes leaving SEARCH — so
+       looking for a film you have already seen finds nothing, and the
+       honest reading of nothing is «I do not have it» (owner-reported: it
+       sent him to add a film that was already there). This offers them
+       back, but only while a search is running and only when there are
+       some to offer: it carries the count, because «показати переглянуті»
+       with nothing behind it is a checkbox that lies. -->
+  <label class="search-watched" id="searchWatchedRow" hidden>
+    <input type="checkbox" id="searchWatchedBox">
+    <span>Показати переглянуті <b id="searchWatchedCount"></b></span>
+  </label>
   <!-- «Усі одразу» lays every genre out at once, and with a full catalogue
        that is four or five rows before a single poster (owner-reported).
        This folds it back to the first row and out again. It appears ONLY
@@ -2652,6 +2691,14 @@
     <button class="hicon" id="filterCloseBtn" type="button" title="Закрити" aria-label="Закрити">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
     </button>
+  </div>
+  <!-- One tap back to the whole catalogue (owner's ask). It sits ABOVE the
+       sections it undoes, where the eye lands on opening the sheet, and it
+       is absent whenever nothing is set: a dead button on top teaches
+       people to ignore the top of the sheet. Sorting is not among what it
+       clears — that changes the order, not the contents. -->
+  <div class="filter-reset" id="filterResetRow" hidden>
+    <button class="btn-ghost" id="filterResetBtn" type="button">Скинути всі</button>
   </div>
   <div class="sheet-label">Сортування</div>
   <div class="opts" id="sortOpts">
@@ -5695,6 +5742,25 @@ function diceShares(parts) {
  * they weigh, at most `max` of them; an empty answer means the card rode
  * luck and its rating, and the caller should say THAT rather than nothing.
  */
+/* What the receipt SAYS, which is not the same as what the die weighed.
+ *
+ * The line is read at a glance, and only three things on it answer the
+ * question a person actually has — whose film is this, who is in it, what
+ * kind of thing is it (owner's call). «Свіжий 2026 • 50%» reads like one
+ * more filter chip and tells nobody anything they wanted.
+ *
+ * Freshness and the crowd stay in diceReasons, because rollDice asks that
+ * function whether a card has any reason at all, and its two rules — at
+ * least one film from the last six years, at most one card of pure luck —
+ * are built on the answer. Drop them there and the fresh card becomes
+ * «unreasoned», so the luck rule swaps out the very card the freshness
+ * rule just swapped in.
+ */
+const DICE_RECEIPT_KINDS = ['director', 'actor', 'genre'];
+function receiptReasons(reasons) {
+  return (reasons || []).filter(r => r && DICE_RECEIPT_KINDS.includes(r.kind));
+}
+
 function diceReasons(m, stats, opts = {}) {
   const { max = 3, now } = opts;
   const reasons = [];
@@ -6186,6 +6252,36 @@ function swipeDismisses({ dy, dt, height }) {
   return far || flick;
 }
 
+/* Is anything actually narrowing the shelf right now?
+ *
+ * The reset button asks this so it can stay out of the way when there is
+ * nothing to reset — a control that can do nothing is worse than one that
+ * is not there, and a sheet that opens with a dead button on top teaches
+ * people to ignore the top of the sheet.
+ *
+ * SORT is deliberately absent. It changes the order, not the contents: it
+ * hides no film, so clearing it would undo a choice without giving anything
+ * back.
+ */
+function anyFilterSet(st) {
+  if (!st) return false;
+  return !!(st.query
+    || (st.tab && st.tab !== 'all')
+    || st.showWatched
+    || (st.genre && st.genre !== 'all')
+    || (st.recommender && st.recommender !== 'all')
+    || (st.type && st.type !== 'all')
+    || (st.years && st.years !== 'all')
+    || (st.provider && st.provider !== 'all')
+    || (st.actors && st.actors.length)
+    || (st.directors && st.directors.length));
+}
+
+/** How many of these the person has already seen. */
+function countWatchedIn(list, watchedIds) {
+  return (list || []).reduce((n, m) => n + (isMarked(watchedIds, m) ? 1 : 0), 0);
+}
+
 /* Where a swipe lands along the genre ribbon.
  *
  * «Усі» has no chip of its own — it is the neutral state you reach by
@@ -6201,17 +6297,6 @@ function genreStep(genres, current, dir) {
   return next === null ? null : list[next];
 }
 
-/* The shelf does not travel the way a card does. There is nothing behind it
- * to reveal, and dragging several hundred cards across the screen would
- * cost more than the gesture is worth on the oldest iPad we support. It
- * GIVES instead: a short damped travel that says the drag was heard, and
- * the switch itself does the rest. */
-const SWIPE_SHELF_DAMP = 0.35;
-const SWIPE_SHELF_CAP_PX = 72;
-function swipeDamp(dx, damp = SWIPE_SHELF_DAMP, cap = SWIPE_SHELF_CAP_PX) {
-  const moved = (dx || 0) * damp;
-  return Math.max(-cap, Math.min(cap, moved));
-}
 
 /* ---------- batch-add line parsing ---------- */
 function parseBatchLine(line) {
@@ -6267,7 +6352,8 @@ if (typeof module !== 'undefined' && module.exports) {
     NAV_SURFACES, topNavSurface,
     SWIPE_EDGE_PX, SWIPE_AXIS_PX, SWIPE_TRIGGER_MIN_PX,
     swipeStartAllowed, swipeAxis, swipeVerdict, swipeStep,
-    genreStep, swipeDamp, SWIPE_SHELF_CAP_PX, swipeDismisses,
+    genreStep, swipeDismisses, anyFilterSet, countWatchedIn,
+    DICE_RECEIPT_KINDS, receiptReasons,
   };
 }
 // The catalogue lives on D1 and is fetched at sign-in (loadCatalog in
@@ -6839,7 +6925,7 @@ resetSessionBtn.addEventListener('click', () => {
 });
 
 /* ---------- state ---------- */
-let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', actors: [], directors: [], searchScope: 'here',
+let state = { tab: 'all', genre: 'all', sort: 'rating', query: '', recommender: 'all', showWatched: false, searchWatched: false, hideAwards: false, hideScores: false, type: 'all', years: 'all', provider: 'all', actors: [], directors: [], searchScope: 'here',
   // Trailer sound is a PREFERENCE, not a per-film choice (owner's call):
   // whatever you last left it on stays that way for every film after it,
   // until you change it again. Default on — a trailer nobody can hear is a
@@ -6875,6 +6961,9 @@ function saveSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       tab: state.tab, genre: state.genre, sort: state.sort,
       recommender: state.recommender, showWatched: state.showWatched,
+      // Remembered: it is a standing preference about how search behaves,
+      // not a property of one query.
+      searchWatched: state.searchWatched,
       hideAwards: state.hideAwards, hideScores: state.hideScores, type: state.type, years: state.years, provider: state.provider,
       actors: state.actors, directors: state.directors,
       trailerSound: state.trailerSound,
@@ -6898,6 +6987,7 @@ if (Array.isArray(savedSettings.actors)) state.actors = savedSettings.actors;
 if (Array.isArray(savedSettings.directors)) state.directors = savedSettings.directors;
 if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
+if (typeof savedSettings.searchWatched === 'boolean') state.searchWatched = savedSettings.searchWatched;
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
 
 // filterCatalog(), findDuplicateMovie() now live in src/logic.js (loaded before this file).
@@ -6934,28 +7024,46 @@ function searchSource() {
   return (state.query && state.searchScope === 'all') ? MOVIES : catalogSource();
 }
 
-function visibleMovies() {
-  // An open collection narrows the SOURCE; every filter below applies the
-  // same as always — that is the whole contract of «відкрити як каталог».
+/* The filters as they stand, in one place, so the grid and anything that
+ * needs to ask a what-if question of the same shelf cannot drift apart. */
+function currentFilterOpts(keepWatched) {
   // Inside my own marks-as-a-collection everything is watched, so the
   // «Дивився» isolation would either change nothing or read as broken; its
   // toggle is hidden there (style.css) and its saved state waits untouched
   // for the ordinary catalogue.
   const showWatched = (openCatalogCollection && openCatalogCollection.source === 'marks')
     ? false : state.showWatched;
-  // Watched films left the general shelf (owner's call) — but a narrowed
-  // screen is not the general shelf. A collection is a list somebody made
-  // on purpose, and one's own «Рекомендую» is watched from end to end;
-  // applying the rule there would hand back an empty screen. Adding to a
-  // collection is choosing FROM the catalogue, so it keeps them too — you
-  // cannot add what you cannot see.
-  const keepWatched = !!openCatalogCollection || addMode;
-  return filterCatalog(searchSource(), {
+  return {
     query: state.query, tab: state.tab, showWatched, keepWatched,
-    genre: state.genre, recommender: state.recommender, type: state.type, years: state.years, provider: state.provider,
-    actors: state.actors, directors: state.directors,
+    genre: state.genre, recommender: state.recommender, type: state.type, years: state.years,
+    provider: state.provider, actors: state.actors, directors: state.directors,
     likedIds: liked, watchedIds: watched,
-  });
+  };
+}
+
+function visibleMovies() {
+  // An open collection narrows the SOURCE; every filter below applies the
+  // same as always — that is the whole contract of «відкрити як каталог».
+  /* Watched films have left the shelf, and a collection is no exception
+   * (owner's call, narrowing the earlier rule): a list somebody made is
+   * still a place you go to find something to watch, and what you have
+   * seen does not belong there any more than it does on the shelf.
+   *
+   * One kind of collection is exempt, and only one: your own marks opened
+   * as a catalogue. «Дивився», «Рекомендую» and «Обовʼязково» are lists OF
+   * marks — every film in them is watched by definition, so the rule would
+   * hand back an empty screen and delete the feature.
+   *
+   * Adding to a collection keeps them too: that is choosing FROM the
+   * catalogue, and you cannot add what you cannot see.
+   */
+  const keepWatched = (openCatalogCollection && openCatalogCollection.source === 'marks')
+    || addMode
+    // And while SEARCHING, if the reader has asked for them back. Searching
+    // is the question «do I have this film», not «what shall I watch», and
+    // the shelf's rule was answering the wrong one.
+    || !!(state.query && state.searchWatched);
+  return filterCatalog(searchSource(), currentFilterOpts(keepWatched));
 }
 
 /* ---------- toast (save success/error banner) ---------- */
@@ -7373,8 +7481,40 @@ function placeBatchSentinel(main) {
  *   changed (delete mode, a mark) — resetting to the first batch there would
  *   yank the page out from under someone who had scrolled.
  */
+/* Shown only while there is something to undo. Driven from render() rather
+ * than from each control: every filter change ends in a render, so this
+ * cannot drift out of step with the state the way a list of call sites
+ * would the first time a new filter was added. */
+function syncFilterReset() {
+  const row = document.getElementById('filterResetRow');
+  if (row) row.hidden = !anyFilterSet(state);
+}
+
+/* Offered only while a search is running, and only when there is something
+ * to offer — a «показати переглянуті» with nothing behind it is a checkbox
+ * that lies. The count is part of the label for the same reason: it says
+ * what ticking it would give you. */
+function syncSearchWatched() {
+  const row = document.getElementById('searchWatchedRow');
+  if (!row) return;
+  const relevant = !!state.query
+    && state.tab === 'all'
+    && !state.showWatched
+    && !addMode
+    && !(openCatalogCollection && openCatalogCollection.source === 'marks');
+  if (!relevant) { row.hidden = true; return; }
+  // What the same search would find if the rule stood aside.
+  const n = countWatchedIn(filterCatalog(searchSource(), currentFilterOpts(true)), watched);
+  row.hidden = n === 0;
+  if (!n) return;
+  document.getElementById('searchWatchedCount').textContent = `(${n})`;
+  document.getElementById('searchWatchedBox').checked = !!state.searchWatched;
+}
+
 function render(opts = {}) {
   const main = document.getElementById('main');
+  syncFilterReset();
+  syncSearchWatched();
   const items = visibleMovies();
   // Here and not at the end: render() returns early for every empty state —
   // an empty catalogue, a collection with nothing in it, a search that
@@ -8747,6 +8887,12 @@ document.getElementById('main').addEventListener('click', e => {
     if (m) { rememberCardWalk(card); openModal(m); }
   }
 });
+document.getElementById('searchWatchedBox').addEventListener('change', e => {
+  state.searchWatched = !!e.target.checked;
+  renderChips();
+  render();
+  saveSettings();
+});
 document.getElementById('search').addEventListener('input', e => {
   state.query = e.target.value.trim();
   renderChips();
@@ -9252,6 +9398,10 @@ document.getElementById('menuBtn').addEventListener('click', () => { closeMenuSc
 document.getElementById('menuCloseBtn').addEventListener('click', menuSheet.close);
 document.getElementById('filterBtn').addEventListener('click', () => { closeMenuScreens(); filterSheet.open(); });
 document.getElementById('filterCloseBtn').addEventListener('click', filterSheet.close);
+/* The sheet stays OPEN afterwards (owner's ask puts the control inside it):
+ * the point is to start again from the whole catalogue, and closing the
+ * sheet would take away the sections they are about to set. */
+document.getElementById('filterResetBtn').addEventListener('click', resetFilters);
 /* A row hands the bottom edge over: the menu goes, the screen takes its
  * place there. One thing at that edge at a time, always in the same spot,
  * so the thumb never has to go looking. Getting back to the menu is the
@@ -9413,13 +9563,42 @@ window.addEventListener('seenit:booted', syncHeaderHeight);
  * what stands until a collection is actually open. */
 const collectionPlateEl = document.getElementById('collectionPlate');
 if (collectionPlateEl) {
+  const plateActionsEl = document.getElementById('collectionPlateActions');
   const syncPlateHeight = () => {
     const h = Math.round(collectionPlateEl.getBoundingClientRect().height);
     if (h > 0) document.documentElement.style.setProperty('--plate-h', `${h}px`);
+    /* How far the pinned block reaches BELOW the header, and zero when no
+     * collection is open.
+     *
+     * The genre titles pin themselves too, and they used to come to rest a
+     * pixel under the header — which is ABOVE where the plate rests, and the
+     * plate is the one with z-index 45. So the plate sat on the genre name
+     * (owner-reported). They cannot both claim the same strip; this says
+     * how much of it is already taken.
+     *
+     * Kept separate from --plate-h on purpose: that one deliberately holds
+     * its last measurement so the actions row has a number to work with,
+     * and a stale height here would push every genre title down a plate's
+     * worth on a shelf with no plate at all. */
+    const shown = !collectionPlateEl.hidden && h > 0;
+    const actionsH = plateActionsEl && !plateActionsEl.hidden
+      ? Math.round(plateActionsEl.getBoundingClientRect().height) : 0;
+    const block = !shown ? 0 : (actionsH > 0 ? h + 12 + actionsH : h + 8);
+    document.documentElement.style.setProperty('--plate-block-h', `${block}px`);
   };
   syncPlateHeight();
-  if (typeof ResizeObserver === 'function') new ResizeObserver(syncPlateHeight).observe(collectionPlateEl);
-  else window.addEventListener('resize', syncPlateHeight);
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(syncPlateHeight);
+    ro.observe(collectionPlateEl);
+    if (plateActionsEl) ro.observe(plateActionsEl);
+  } else {
+    window.addEventListener('resize', syncPlateHeight);
+  }
+  // A ResizeObserver reports a hidden element as zero-sized, but `hidden`
+  // is toggled without any resize on some engines — so the two moments that
+  // actually change the answer say so themselves (see openCollectionCatalog
+  // and closeCollectionCatalog).
+  window.syncPlateBlock = syncPlateHeight;
 }
 
 /* ---------- back to the top of the shelf ----------
@@ -9583,8 +9762,14 @@ function renderDiceResults(picks) {
     const reasons = diceReasons(m, stats, { markCounts, accounts: markingAccounts });
     // The share is the point of the line, so it is the part that carries
     // the colour — the name tells you WHAT weighed, the number how much.
-    const why = reasons.length
-      ? reasons.map(r => `<span class="dice-why-tag">${esc(r.text)} <i>•</i> <b>${r.pct}%</b></span>`).join('')
+    // Three states, not two. A card whose only reasons are freshness or
+    // other people's marks says NOTHING rather than «випадкова карта»: it
+    // was not luck that dealt it, and that phrase is reserved — the hand
+    // may hold exactly one card of pure luck, and it must be findable.
+    const shown = receiptReasons(reasons);
+    const why = shown.length
+      ? shown.map(r => `<span class="dice-why-tag">${esc(r.text)} <i>•</i> <b>${r.pct}%</b></span>`).join('')
+      : reasons.length ? ''
       : '<span class="dice-why-tag dice-why-tag--luck">випадкова карта</span>';
     return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m, { rich: true })}</div>`;
   }).join('');
@@ -9776,7 +9961,7 @@ function renderChips() {
   // promise films the section no longer holds.
   for (const m of filterCatalog(searchSource(), {
     query: state.query, tab: state.tab, showWatched: state.showWatched,
-    keepWatched: !!openCatalogCollection || addMode,
+    keepWatched: (openCatalogCollection && openCatalogCollection.source === 'marks') || addMode,
     genre: 'all', recommender: state.recommender, type: state.type,
     years: state.years, provider: state.provider,
     actors: state.actors, directors: state.directors,
@@ -10409,10 +10594,35 @@ async function addFilmToMine(record, { collectionId = MY_FILMS_ID, collectionNam
 
 // TMDb genre id -> our own genre/genre_group taxonomy (see GENRE_ORDER above)
 // TMDB_GENRE_MAP, mapGenre(), slugify() now live in src/logic.js (loaded before this file).
+/* A request that answers is handled; a request that says NOTHING was not.
+ *
+ * Owner-reported: «Завантажую деталі…» stood for ever on a film that never
+ * loaded, and the only way out was a reload. showConfirm() catches a
+ * rejection and says so — but a fetch that neither resolves nor rejects
+ * raises nothing to catch, and iOS Safari will hold a stalled connection for
+ * minutes. Nothing in this app had a deadline: there was not one
+ * AbortController in it.
+ *
+ * Applied to the third-party lookups only, and deliberately so. These are
+ * small answers behind a message the reader is waiting in front of, so a
+ * deadline turns an endless wait into an error they can retry. The catalogue
+ * and library calls are a different case — fourteen pages of films on a bad
+ * connection can legitimately take a while, and cutting those off would turn
+ * a slow load into a broken one.
+ */
+const PROXY_TIMEOUT_MS = 15000;
+function fetchWithTimeout(url, opts = {}, ms = PROXY_TIMEOUT_MS) {
+  if (typeof AbortController !== 'function') return fetch(url, opts);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 async function tmdbFetch(path, params = {}) {
   const url = new URL(API_PROXY + '/tmdb/3' + path);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url, { headers: await proxyHeaders({ accept: 'application/json' }) });
+  const res = await fetchWithTimeout(url, { headers: await proxyHeaders({ accept: 'application/json' }) });
   if (!res.ok) throw new Error(`TMDb ${res.status}`);
   return res.json();
 }
@@ -10450,7 +10660,7 @@ async function fetchOmdbData(titleEn, titleUk, year, kind) {
     url.searchParams.set('t', title);
     if (withYear && year) url.searchParams.set('y', year);
     url.searchParams.set('type', kind === 'tv' ? 'series' : 'movie');
-    const res = await fetch(url, { headers: await proxyHeaders() });
+    const res = await fetchWithTimeout(url, { headers: await proxyHeaders() });
     const data = await res.json();
     // A body with no `Response` field is not an OMDb answer — it is a proxy
     // error (401, 429, upstream failure). Treating it as data would show the
@@ -10489,7 +10699,7 @@ async function fetchWikidataAwardCategories(imdbId) {
   if (!imdbId || !/^tt\d+$/.test(imdbId)) return null;
   try {
     const url = `${API_PROXY}/wikidata/sparql?format=json&query=${encodeURIComponent(buildWikidataAwardsQuery(imdbId))}`;
-    const res = await fetch(url, { headers: await proxyHeaders({ Accept: 'application/sparql-results+json' }) });
+    const res = await fetchWithTimeout(url, { headers: await proxyHeaders({ Accept: 'application/sparql-results+json' }) });
     if (!res.ok) return null;
     const data = await res.json();
     return parseWikidataAwards(data.results && data.results.bindings);
@@ -12458,8 +12668,14 @@ function openCollectionAsCatalog(col) {
     ids: new Set((col.film_ids || []).map(String)),
   };
   navSync();
+  /* The ribbon starts wide open (owner's ask). Walking into a collection
+   * while «Трилери» was still picked shows a slice of a list you have not
+   * seen yet, and on a small collection that slice is often empty — which
+   * reads as a broken collection rather than as a filter still standing. */
+  state.genre = 'all';
   document.getElementById('collectionPlateName').textContent = `Добірка · ${col.name}`;
   document.getElementById('collectionPlate').hidden = false;
+  if (window.syncPlateBlock) window.syncPlateBlock();
   // My own marks opened as a collection: every film here is watched by
   // definition, so the watched dimming and the «Дивився» toggle would
   // describe nothing. The class stands both down (style.css) while the
@@ -12484,6 +12700,7 @@ function closeCollectionCatalog() {
   navSync();
   document.getElementById('collectionPlate').hidden = true;
   document.getElementById('collectionPlateActions').hidden = true;
+  if (window.syncPlateBlock) window.syncPlateBlock();
   document.body.classList.remove('marks-collection');
   syncDeleteAvailability();
   state.searchScope = 'here';
@@ -13698,7 +13915,9 @@ function swipeToGenre(dir) {
   render();
   saveSettings();
   centreActiveChip();
-  swipeSlideIn(document.getElementById('main'), dir, 22);
+  // Fading, not sliding: see swipeFadeBox. The shelf is the page, and a page
+  // that moves sideways takes the viewport with it.
+  swipeFadeIn(document.getElementById('main'));
 }
 
 function swipeStill() {
@@ -13708,15 +13927,36 @@ function swipeMoveBox(box, dx, dy = 0) {
   box.style.transition = 'none';
   box.style.transform = dy ? `translateY(${dy}px)` : `translateX(${dx}px)`;
 }
+
+/* The shelf answers with LIGHT, not with movement.
+ *
+ * It used to slide a damped 72px under the finger, and that shifted the
+ * whole page sideways on a phone (owner-reported, with a screenshot: the
+ * grid offset left, a stray poster showing past the right edge). A
+ * transform does not change layout — but it DOES extend the scrollable
+ * overflow area, so translating the shelf right made the document 72px
+ * wider than the screen and iOS scrolled to fit. The card and the sheets
+ * are safe from this because they sit in fixed, full-screen layers that
+ * cannot widen the page; the shelf IS the page.
+ *
+ * Opacity has no such reach. Nothing about the box changes, so nothing can
+ * be scrolled to.
+ */
+function swipeFadeBox(box, k) {
+  if (!box) return;
+  box.style.transition = 'none';
+  box.style.opacity = String(k);
+}
 /* Inline rather than a stylesheet rule: these screens already carry opening
  * animations of their own, and a transform transition living in the CSS
  * would apply to those too. The spring-back belongs to the gesture, so it
  * is put on for the spring and taken off after. */
 function swipeReleaseBox(box) {
   if (!box) return;
-  if (swipeStill()) { box.style.transition = ''; box.style.transform = ''; return; }
-  box.style.transition = 'transform .22s ease-out';
+  if (swipeStill()) { box.style.transition = ''; box.style.transform = ''; box.style.opacity = ''; return; }
+  box.style.transition = 'transform .22s ease-out, opacity .22s ease-out';
   box.style.transform = '';
+  box.style.opacity = '';
   setTimeout(() => { box.style.transition = ''; }, 260);
 }
 
@@ -13769,9 +14009,11 @@ document.addEventListener('touchmove', (e) => {
     swipeMoveBox(_swipe.box, 0, Math.max(0, dy));
     return;
   }
-  const shown = _swipe.key === 'filmCard' ? dx
-    : _swipe.key === 'shelf' ? swipeDamp(dx)
-    : Math.max(0, dx);
+  if (_swipe.key === 'shelf') {
+    swipeFadeBox(_swipe.box, 1 - Math.min(0.18, Math.abs(dx) / 900));
+    return;
+  }
+  const shown = _swipe.key === 'filmCard' ? dx : Math.max(0, dx);
   swipeMoveBox(_swipe.box, shown);
 }, { passive: false });
 
@@ -13813,6 +14055,21 @@ function swipeToNeighbourFilm(dir) {
  * from. The card crosses a whole width because it IS the thing being
  * swapped; the shelf only leans in, because a screenful of posters sliding
  * the full way costs far more than the gesture is worth. */
+/* The new genre arrives by coming up to full strength. */
+function swipeFadeIn(box) {
+  if (!box || swipeStill()) return;
+  box.style.transition = 'none';
+  box.style.opacity = '0.45';
+  const nextFrame = window.requestAnimationFrame
+    ? window.requestAnimationFrame.bind(window)
+    : (fn) => setTimeout(fn, 16);
+  nextFrame(() => {
+    box.style.transition = 'opacity .2s ease-out';
+    box.style.opacity = '';
+    setTimeout(() => { box.style.transition = ''; }, 240);
+  });
+}
+
 function swipeSlideIn(box, dir, percent) {
   if (!box || swipeStill()) return;
   const from = dir === 'left' ? 1 : -1;
