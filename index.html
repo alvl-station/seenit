@@ -2,7 +2,14 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- viewport-fit=cover: without it the browser fills the safe areas with the
+     page BACKGROUND and starts the content below them, which is what put a
+     flat grey band across the top of the screen above the frosted header
+     (owner-reported, measured at #15161A — exactly --bg). With it, the page
+     owns those bands and the header's glass runs to the physical edge; what
+     keeps text out from under the clock is env(safe-area-inset-*), used in
+     style.css. The two go together and neither works alone. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SeenIt</title>
 <style>
   
@@ -45,7 +52,8 @@
     --tpl-radius: var(--radius-overlay) var(--radius-overlay) 0 0;
     --tpl-pad-x: 18px;
     --tpl-pad-y: 18px;
-    --tpl-pad-foot: 30px;
+    
+    --tpl-pad-foot: calc(30px + var(--safe-bottom));
     
     --glass-rgb: 19, 19, 23;
     --glass-alpha: .7;
@@ -241,6 +249,10 @@
     --radius: 3px;
     --radius-overlay: 16px;
     --control-h: 44px;
+
+    
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -266,7 +278,7 @@
   
   header {
     
-    padding: 8px 24px 10px; max-width: 1280px; margin: 0 auto;
+    padding: calc(8px + var(--safe-top)) 24px 10px; max-width: 1280px; margin: 0 auto;
     position: sticky; top: 0; z-index: 46;
     background: var(--tpl-ground);
   }
@@ -1326,7 +1338,7 @@
   #loginOverlay {
     position: fixed; inset: 0; background: var(--bg);
     display: flex; align-items: flex-start; justify-content: center;
-    z-index: 999; padding: 20px;
+    z-index: 999; padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
     
     overflow-y: auto;
   }
@@ -1678,7 +1690,7 @@
 
   
   .toast {
-    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
+    position: fixed; left: 50%; bottom: calc(24px + var(--safe-bottom)); transform: translate(-50%, 16px);
     max-width: calc(100% - 32px); z-index: 1000;
     background: var(--surface); border: 1px solid var(--border); color: var(--text);
     padding: 12px 18px; border-radius: 6px; font-size: 14px;
@@ -1751,7 +1763,7 @@
     .prov-row { flex-direction: row; flex-wrap: wrap; }
     .prov { flex: 1 1 46%; min-width: 0; }
 
-    header { padding: 18px 18px 12px; }
+    header { padding: calc(18px + var(--safe-top)) 18px 12px; }
     main { padding-left: 18px; padding-right: 18px; }
     
     .col-plate, .col-plate-actions { width: calc(100% - 36px); }
@@ -1802,7 +1814,13 @@
     #settingsBackdrop { background: none; pointer-events: none; }
 
     
-    .modal-overlay > .modal > .modal-close { top: 16px; z-index: 5; }
+    .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
+
+    
+    #filterSheet, #trashSheet, #adminSheet, #colEditSheet {
+      --tpl-pad-y: calc(18px + var(--safe-top));
+    }
+    [data-surface="screen"] { --tpl-pad-y: calc(20px + var(--safe-top)); }
   }
 
   @media (max-width: 400px) {
@@ -2817,8 +2835,9 @@ const SWIPE_TRIGGER_MIN_PX = 64;
 const SWIPE_FLICK_SPEED = .5;
 const SWIPE_FLICK_MIN_PX = 24;
 const SWIPE_FLICK_MIN_MS = 16;
-function swipeStartAllowed(startX, width) {
+function swipeStartAllowed(startX, width, {hostOwnsEdges: hostOwnsEdges = true} = {}) {
 if (!(width > 0)) return false;
+if (!hostOwnsEdges) return true;
 return startX > SWIPE_EDGE_PX && startX < width - SWIPE_EDGE_PX;
 }
 function swipeAxis(dx, dy) {
@@ -6417,6 +6436,10 @@ msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
 return;
 }
 if (!msg) return;
+if (msg.event === 'infoDelivery' && msg.info && typeof msg.info.muted === 'boolean') {
+const btn = modalBox.querySelector('.film-sound');
+if (btn) btn.setAttribute('aria-pressed', msg.info.muted ? 'false' : 'true');
+}
 const state = msg.event === 'onStateChange' ? msg.info : msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined;
 if (state === -1 || state === 5) {
 const frame = modalBox.querySelector('.modal-trailer iframe');
@@ -6470,8 +6493,7 @@ if (_soundNeedsGesture) return;
 const ask = () => {
 const iframe = modalBox.querySelector('.modal-trailer iframe');
 if (!iframe || !iframe.contentWindow) return;
-const btn = modalBox.querySelector('.film-sound');
-if (btn && btn.getAttribute('aria-pressed') !== 'true') return;
+if (!state.trailerSound) return;
 iframe.contentWindow.postMessage(JSON.stringify({
 event: 'command',
 func: 'unMute',
@@ -6497,6 +6519,7 @@ _unmuteTimers = [];
 clearTrailerWatch();
 _modalMovie = null;
 unlockScroll(overlay);
+revealWalkedCard();
 navSync();
 }
 
@@ -6517,6 +6540,7 @@ args: ''
 }), '*');
 }
 soundBtn.setAttribute('aria-pressed', String(on));
+_soundNeedsGesture = false;
 state.trailerSound = on;
 saveSettings();
 return;
@@ -10491,6 +10515,19 @@ admin: () => document.getElementById('adminSheet'),
 menu: () => document.getElementById('menuSheet')
 };
 
+const _standalone = (() => {
+try {
+if (window.navigator && window.navigator.standalone) return true;
+return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+} catch (err) {
+return false;
+}
+})();
+
+function hostOwnsScreenEdges() {
+return !_standalone;
+}
+
 let _cardWalk = null;
 
 function rememberCardWalk(cardEl) {
@@ -10503,8 +10540,25 @@ const ids = [ ...scope.querySelectorAll('.card') ].map(el => el.dataset.id);
 const i = ids.indexOf(cardEl.dataset.id);
 _cardWalk = i < 0 ? null : {
 ids: ids,
-i: i
+i: i,
+from: i
 };
+}
+
+function revealWalkedCard() {
+if (!_cardWalk || _cardWalk.i === _cardWalk.from) return;
+const id = _cardWalk.ids[_cardWalk.i];
+_cardWalk.from = _cardWalk.i;
+const card = [ ...document.querySelectorAll('#main .card, #diceResults .card') ].find(el => el.dataset.id === id);
+if (!card) return;
+try {
+card.scrollIntoView({
+block: 'center',
+inline: 'nearest'
+});
+} catch (err) {
+card.scrollIntoView();
+}
 }
 
 function insideSideScroller(node) {
@@ -10599,7 +10653,9 @@ _swipe = null;
 if (!e.touches || e.touches.length !== 1) return;
 const t = e.touches[0];
 const width = window.innerWidth || 0;
-if (!swipeStartAllowed(t.clientX, width)) return;
+if (!swipeStartAllowed(t.clientX, width, {
+hostOwnsEdges: hostOwnsScreenEdges()
+})) return;
 const surface = swipeSurfaceNow(e.target);
 if (!surface) return;
 if (insideSideScroller(e.target)) return;
