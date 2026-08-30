@@ -72,7 +72,7 @@
   
   header {
     
-    padding: 16px 24px 10px; max-width: 1280px; margin: 0 auto;
+    padding: 8px 24px 10px; max-width: 1280px; margin: 0 auto;
     position: sticky; top: 0; z-index: 46;
     background: var(--bg);
   }
@@ -641,14 +641,19 @@
   
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     
-    header,
     .sheet,
     .modal,
     .col-plate {
       -webkit-backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
       backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
     }
-    header { background: rgba(21, 22, 26, .74); }
+    
+    header {
+      -webkit-backdrop-filter: blur(20px) grayscale(.6) brightness(.96);
+      backdrop-filter: blur(20px) grayscale(.6) brightness(.96);
+    }
+    
+    header { background: rgba(21, 22, 26, .55); }
     
     
     .sheet { background: rgba(19, 19, 23, .7); }
