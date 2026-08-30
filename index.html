@@ -5,6 +5,193 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SeenIt</title>
 <style>
+  
+
+  
+  :root {
+    --glass-blur: 24px;
+    --glass-grey: .92;
+    --glass-light: .94;
+    --glass-alpha: .72;
+    
+    --glass-tint-alpha: .52;
+
+    
+    --tone-ground: rgb(var(--tone-rgb));
+    --tone-edge: transparent;
+    --tone-edge-w: 0;
+    --tone-alpha: var(--glass-tint-alpha);
+  }
+
+  
+  [data-surface] {
+    --tpl-ground: var(--coal2);
+    --tpl-head-ground: var(--coal2);
+    --tpl-edge: transparent;
+    --tpl-radius: var(--radius);
+    --tpl-pad-x: 0px;
+    --tpl-pad-y: 0px;
+    --tpl-pad-foot: 0px;
+    
+    --glass-rgb: 19, 19, 23;
+    --tpl-frost: blur(var(--glass-blur)) grayscale(var(--glass-grey)) brightness(var(--glass-light));
+    --tpl-frost-ground: rgba(var(--glass-rgb), var(--glass-alpha));
+  }
+
+  
+  [data-surface="window"] {
+    --tpl-ground: var(--coal2);
+    --tpl-head-ground: var(--coal2);
+    --tpl-radius: var(--radius-overlay) var(--radius-overlay) 0 0;
+    --tpl-pad-x: 18px;
+    --tpl-pad-y: 18px;
+    --tpl-pad-foot: 30px;
+    
+    --glass-rgb: 19, 19, 23;
+    --glass-alpha: .7;
+  }
+
+  
+  [data-surface="screen"] {
+    --tpl-ground: var(--surface);
+    --tpl-head-ground: var(--surface);
+    --tpl-edge: var(--border);
+    --tpl-radius: var(--radius-overlay);
+    --tpl-pad-x: 22px;
+    --tpl-pad-y: 20px;
+    --glass-rgb: 16, 17, 20;
+  }
+
+  
+  [data-surface="popup"] {
+    --tpl-ground: var(--surface);
+    --tpl-head-ground: var(--surface);
+    --tpl-edge: var(--border);
+    --tpl-radius: var(--radius-overlay);
+    --glass-rgb: 16, 17, 20;
+  }
+
+  
+  [data-surface="plate"] {
+    --tpl-ground: var(--blood);
+    --tpl-head-ground: var(--blood);
+    --tpl-radius: 2px;
+    
+    --tpl-frost-ground: var(--blood);
+  }
+
+  
+  [data-surface="bar"] {
+    --tpl-ground: var(--coal);
+    --tpl-head-ground: var(--coal);
+    
+    --glass-rgb: var(--coal-rgb);
+    --glass-alpha: .55;
+    --glass-blur: 20px;
+    --glass-grey: .6;
+    --glass-light: .96;
+  }
+
+  
+
+  
+  .btn {
+    --tone-rgb: var(--graphite-rgb);
+    --tone-ink: var(--text);
+    --tone-edge: var(--border);
+    --tone-edge-w: 1px;
+    --tone-alpha: .5;
+  }
+  
+  .btn-primary {
+    --tone-rgb: var(--blood-rgb);
+    --tone-ink: var(--paper);
+    --tone-alpha: .58;
+  }
+  
+  .btn-danger {
+    --tone-rgb: var(--flash-rgb);
+    --tone-ink: var(--paper);
+    --tone-alpha: .58;
+  }
+  .btn-ghost {
+    --tone-rgb: var(--surface-rgb);
+    --tone-ink: var(--dust);
+    --tone-edge: var(--border);
+    --tone-edge-w: 1px;
+    --tone-alpha: .34;
+    
+    --tone-ground: transparent;
+  }
+  
+  .chip, .opt {
+    --tone-rgb: var(--surface-rgb);
+    --tone-ink: var(--text-muted);
+    --tone-edge: var(--border);
+    --tone-edge-w: 1px;
+  }
+  
+  .opt { --tone-ink: var(--dust); }
+  
+  .chip.active, .opt.active {
+    --tone-rgb: var(--blood-rgb);
+    --tone-ink: var(--paper);
+    --tone-edge-w: 1px;
+    --tone-alpha: .58;
+  }
+
+  
+
+  
+  .sheet-title { --type-size: 11px; --type-track: .24em; --type-ink: var(--ash); }
+  
+  .sheet-label { --type-size: 10px; --type-track: .12em; --type-ink: var(--slate); }
+  
+  .login-lbl,
+  .pick-collection .lbl { --type-size: 10px; --type-track: .18em; --type-ink: var(--ash); }
+  
+  .modal-providers .lbl,
+  .modal-cast .lbl { --type-size: 11px; --type-track: .06em; --type-ink: var(--text-muted); }
+  
+  .col-plate-name { --type-size: 11px; --type-track: .14em; --type-ink: var(--paper); }
+
+  
+  .tab, .add-tab {
+    --tab-ink: var(--ash);
+    --tab-ink-on: var(--paper);
+    --tab-rule: 2px;
+    --tab-rule-on: var(--blood);
+  }
+  .add-mode-tab {
+    --tab-ink: var(--slate);
+    --tab-ink-on: var(--paper);
+    --tab-rule: 0px;
+    --tab-rule-on: transparent;
+  }
+
+  
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    [data-material="glass"] {
+      --tpl-ground: var(--tpl-frost-ground);
+      --tpl-head-ground: transparent;
+      
+      --tpl-edge: transparent;
+      -webkit-backdrop-filter: var(--tpl-frost);
+      backdrop-filter: var(--tpl-frost);
+    }
+
+    
+    
+    .btn, .btn-primary, .btn-danger, .btn-ghost, .chip, .opt,
+    .chip.active, .opt.active {
+      
+      
+      --tone-ground: rgba(var(--tone-rgb), var(--tone-alpha));
+      
+      --tone-edge: transparent;
+    }
+
+  }
   :root {
     
     --blood: #8E0000;
@@ -16,8 +203,15 @@
     --dust: #D5D7DB;
 
     
+    --blood-rgb: 142, 0, 0;
+    --flash-rgb: 194, 20, 20;
+    --graphite-rgb: 42, 44, 49;
+
+    
     --coal: #15161A;
     --surface: #17181D;
+    --coal-rgb: 21, 22, 26;
+    --surface-rgb: 23, 24, 29;
     --coal2: #1B1C21;
     --border: #24262C;
     --steel: #3A3D44;
@@ -74,7 +268,7 @@
     
     padding: 8px 24px 10px; max-width: 1280px; margin: 0 auto;
     position: sticky; top: 0; z-index: 46;
-    background: var(--bg);
+    background: var(--tpl-ground);
   }
   
   header::after {
@@ -194,7 +388,7 @@
   .col-plate[hidden], .col-plate-actions[hidden] { display: none; }
   .col-plate {
     display: flex; align-items: center; gap: 10px;
-    background: var(--blood); border-radius: 2px;
+    background: var(--tpl-ground); border-radius: var(--tpl-radius);
     padding: 0 4px 0 14px; margin-bottom: 10px;
     
     position: sticky; top: calc(var(--header-h, 0px) + 8px); z-index: 45;
@@ -203,8 +397,8 @@
     margin: 12px auto 0;
   }
   .col-plate-name {
-    flex: 1; min-width: 0; color: var(--paper);
-    font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
+    flex: 1; min-width: 0; color: var(--type-ink);
+    font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
     text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     padding: 12px 0;
   }
@@ -271,12 +465,12 @@
   .tab {
     background: none; border: none; padding: 10px 0 8px; cursor: pointer;
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    letter-spacing: .02em; font-size: 13px; color: var(--ash);
-    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    letter-spacing: .02em; font-size: 13px; color: var(--tab-ink);
+    border-bottom: var(--tab-rule) solid transparent; margin-bottom: -1px;
     transition: color .15s, border-color .15s;
     -webkit-tap-highlight-color: transparent;
   }
-  .tab.active { color: var(--paper); border-bottom-color: var(--blood); }
+  .tab.active { color: var(--tab-ink-on); border-bottom-color: var(--tab-rule-on); }
   .tab .n { font-family: var(--font-mono); font-size: 10px; color: var(--slate); }
   
 
@@ -342,7 +536,7 @@
   .genre-fold svg { transform: rotate(180deg); }
   body[data-genres="all"] .chip { flex: none; }
   .chip {
-    background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge); color: var(--tone-ink);
     padding: 8px 12px; border-radius: 2px; font-size: 12px; cursor: pointer;
     font-family: var(--font-mono); white-space: nowrap;
     flex: 1 0 auto; text-align: center;
@@ -353,7 +547,7 @@
   @media (hover: hover) {
     .chip:hover { border-color: var(--accent2); color: var(--text); }
   }
-  .chip.active { background: var(--blood); color: var(--paper); border-color: transparent; }
+  .chip.active { background: var(--tone-ground); color: var(--tone-ink); border-color: var(--tone-edge); }
 
   
   .topbar-search {
@@ -423,8 +617,9 @@
   .sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.3); }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 81;
-    background: var(--coal2); border-radius: 16px 16px 0 0;
-    padding: 18px 18px 30px; max-height: 80vh; overflow-y: auto;
+    background: var(--tpl-ground); border-radius: var(--tpl-radius);
+    padding: var(--tpl-pad-y) var(--tpl-pad-x) var(--tpl-pad-foot);
+    max-height: 80vh; overflow-y: auto;
     transform: translateY(105%); visibility: hidden;
     transition: transform .22s ease-out, visibility 0s linear .22s;
   }
@@ -442,30 +637,36 @@
   .add-modal > .sheet-title,
   .add-form > .sheet-title { margin-bottom: 14px; }
   
+  
+  .sheet-head,
+  [data-surface="screen"] > .sheet-title,
+  [data-surface="screen"] > .friend-head {
+    position: sticky; top: calc(-1 * var(--tpl-pad-y)); z-index: 3;
+    margin: calc(-1 * var(--tpl-pad-y)) calc(-1 * var(--tpl-pad-x)) 0;
+    padding: var(--tpl-pad-y) var(--tpl-pad-x) 10px;
+    background: var(--tpl-head-ground);
+  }
   .sheet-head {
     display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: -18px; z-index: 3;
-    margin: -18px -18px 0; padding: 18px 18px 10px;
-    background: var(--coal2);
   }
   .sheet-head .sheet-title { margin-bottom: 0; }
   .sheet-title {
-    font-family: var(--font-mono); font-size: 11px; letter-spacing: .24em;
-    text-transform: uppercase; color: var(--ash); margin-bottom: 6px;
+    font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
+    text-transform: uppercase; color: var(--type-ink); margin-bottom: 6px;
   }
   .sheet-label {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--slate); margin: 16px 0 8px;
+    font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
+    text-transform: uppercase; color: var(--type-ink); margin: 16px 0 8px;
   }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; }
   .opt {
-    background: var(--surface); border: 1px solid var(--border); color: var(--dust);
+    background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge); color: var(--tone-ink);
     padding: 10px 14px; border-radius: 2px; font-size: 12px; cursor: pointer;
     font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em;
     display: inline-flex; align-items: center; justify-content: center; min-height: 40px;
     -webkit-tap-highlight-color: transparent;
   }
-  .opt.active { background: var(--blood); color: var(--paper); border-color: transparent; }
+  .opt.active { background: var(--tone-ground); color: var(--tone-ink); border-color: var(--tone-edge); }
   
   .opts--people .opt { padding: 7px 10px; min-height: 32px; font-size: 10.5px; letter-spacing: .02em; }
   .sheet-row {
@@ -639,54 +840,10 @@
   }
   .modal-overlay.open { display: flex; }
   
-  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-    
-    .sheet,
-    .modal,
-    .col-plate {
-      -webkit-backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
-      backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
-    }
-    
-    header {
-      -webkit-backdrop-filter: blur(20px) grayscale(.6) brightness(.96);
-      backdrop-filter: blur(20px) grayscale(.6) brightness(.96);
-    }
-    
-    header { background: rgba(21, 22, 26, .55); }
-    
-    
-    .sheet { background: rgba(19, 19, 23, .7); }
-    .modal { background: rgba(16, 17, 20, .72); }
-
-    
-    .sheet-head,
-    #recsBox > .sheet-title, #recsBox > .sheet-head,
-    #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
-    #accountBox > .sheet-title, #accountBox > .sheet-head,
-    #onboardBox > .sheet-title, #onboardBox > .sheet-head { background: transparent; }
-
-    
-    .chip, .opt { background: rgba(23, 24, 29, .52); }
-    .btn { background: rgba(42, 44, 49, .5); }
-    .btn-ghost { background: rgba(23, 24, 29, .34); }
-    .chip.active, .opt.active, .btn-primary { background: rgba(142, 0, 0, .58); }
-    .btn-danger { background: rgba(194, 20, 20, .58); }
-
-    
-    .chip, .opt, .btn, .btn-ghost, .btn-danger, .btn-primary { border-color: transparent; }
-
-    
-    header::after { display: none; }
-    .nav-row { border-bottom: 0; }
-
-    
-    .sheet-row { border-top-color: transparent; }
-  }
 
   .modal {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-overlay); max-width: 560px; width: 100%;
+    background: var(--tpl-ground); border: 1px solid var(--tpl-edge);
+    border-radius: var(--tpl-radius); max-width: 560px; width: 100%;
     display: flex; flex-direction: column; overflow: hidden; position: relative;
   }
 
@@ -780,8 +937,8 @@
     border-top: 1px solid var(--border);
   }
   .modal-providers .lbl {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--text-muted); margin-bottom: 8px;
+    font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track);
+    color: var(--type-ink); margin-bottom: 8px;
   }
   .prov-row { display: flex; flex-direction: column; gap: 6px; }
   
@@ -823,7 +980,7 @@
     text-align: justify; hyphens: auto;
   }
   .modal-cast { margin-bottom: 16px; }
-  .modal-cast .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 5px; }
+  .modal-cast .lbl { font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track); color: var(--type-ink); margin-bottom: 5px; }
   
   .actor {
     display: inline-block; background: var(--surface2); border: 1px solid var(--border);
@@ -893,9 +1050,10 @@
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
+  
   .pick-collection .lbl {
-    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--ash); margin-bottom: 8px;
+    font-size: var(--type-size); letter-spacing: var(--type-track); text-transform: uppercase;
+    color: var(--type-ink); margin-bottom: 8px;
   }
   .pick-collection .opt--has { color: var(--slate); border-color: var(--border); cursor: default; }
   .pick-collection .opt--has svg { margin-left: 6px; vertical-align: -2px; color: var(--blood); }
@@ -909,7 +1067,7 @@
   
   .btn {
     display: inline-flex; align-items: center; gap: 7px;
-    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    border: var(--tone-edge-w) solid var(--tone-edge); background: var(--tone-ground); color: var(--tone-ink);
     padding: 9px 14px; border-radius: 3px; cursor: pointer; text-decoration: none;
     font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .1em;
     text-transform: uppercase;
@@ -974,10 +1132,11 @@
     display: inline-flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
   }
-  .btn-primary { background: var(--blood); color: var(--paper); border: none; }
-  
-  .btn-danger { background: var(--flash); color: var(--paper); border: none; }
-  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--dust); }
+  .btn-primary, .btn-danger, .btn-ghost {
+    background: var(--tone-ground); color: var(--tone-ink);
+    border: var(--tone-edge-w) solid var(--tone-edge);
+  }
+
   
   
   .stat-figs { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; }
@@ -1190,8 +1349,8 @@
   
   .login-field { display: grid; gap: 6px; margin-bottom: 14px; }
   .login-lbl {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em;
-    text-transform: uppercase; color: var(--ash);
+    font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
+    text-transform: uppercase; color: var(--type-ink);
   }
   .login-field input {
     width: 100%; box-sizing: border-box; height: var(--control-h);
@@ -1247,17 +1406,9 @@
 
   
   
-  #accountBox, #onboardBox, #friendsBox, #recsBox { padding: 20px 22px; }
+  [data-surface="screen"] { padding: var(--tpl-pad-y) var(--tpl-pad-x); }
 
   
-  #recsBox > .sheet-title, #recsBox > .sheet-head,
-  #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
-  #accountBox > .sheet-title, #accountBox > .sheet-head,
-  #onboardBox > .sheet-title, #onboardBox > .sheet-head {
-    position: sticky; top: -20px; z-index: 3;
-    margin: -20px -22px 0; padding: 20px 22px 10px;
-    background: var(--surface);
-  }
   
   #recsBox > .modal-close, #friendsBox > .modal-close,
   #accountBox > .modal-close, #onboardBox > .modal-close {
@@ -1665,6 +1816,8 @@
   
   .add-modal > .modal-close { top: 10px; right: 10px; }
   .add-modal .sheet-head { padding-right: 44px; }
+  
+  [data-surface="screen"]#addMovieBox { --tpl-pad-x: 0px; --tpl-pad-y: 0px; }
   .add-form { padding: 22px 24px; position: relative; }
   .add-form h2 {
     margin: 0 0 14px; font-size: 19px;
@@ -1676,12 +1829,12 @@
   .add-mode-tab {
     background: none; border: none; padding: 0 0 4px; cursor: pointer;
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    letter-spacing: -.01em; font-size: 17px; color: var(--slate);
+    letter-spacing: -.01em; font-size: 17px; color: var(--tab-ink);
     transition: color .15s;
     -webkit-tap-highlight-color: transparent;
   }
   
-  .add-mode-tab.active { color: var(--paper); }
+  .add-mode-tab.active { color: var(--tab-ink-on); }
   .mycol-row {
     display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
     padding: 10px 2px; border-top: 1px solid var(--border);
@@ -1706,12 +1859,12 @@
     flex: 1; text-align: center;
     background: none; border: none; padding: 8px 0; cursor: pointer;
     font-family: var(--font-mono); font-weight: 400; text-transform: uppercase;
-    letter-spacing: .12em; font-size: 11px; color: var(--ash);
-    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    letter-spacing: .12em; font-size: 11px; color: var(--tab-ink);
+    border-bottom: var(--tab-rule) solid transparent; margin-bottom: -1px;
     transition: color .15s, border-color .15s;
     -webkit-tap-highlight-color: transparent;
   }
-  .add-tab.active { color: var(--paper); border-bottom-color: var(--blood); }
+  .add-tab.active { color: var(--tab-ink-on); border-bottom-color: var(--tab-rule-on); }
   .add-pane input[type="text"], .add-pane input[type="file"] {
     width: 100%; box-sizing: border-box; background: var(--surface2);
     border: 1px solid var(--border); color: var(--text);
@@ -1788,6 +1941,13 @@
       transition-duration: .01ms !important;
       animation-duration: .01ms !important;
     }
+  }
+
+  
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    header::after { display: none; }
+    .nav-row { border-bottom: 0; }
+    .sheet-row { border-top-color: transparent; }
   }
 </style>
 <!-- The mark, generated from brand/virazh.js at build time so it can never
@@ -1881,7 +2041,7 @@
   </div>
 </div>
 <div id="appRoot" style="display:none">
-<header>
+<header data-surface="bar" data-material="glass">
   <!-- The book's header (vol. II §10): the WORD, «It» in blood, left; three
        icons right — search, add, menu. The mark itself left the header: it
        stays on the login screen, the favicon and volume I. -->
@@ -2003,7 +2163,7 @@
      not pinned yet and still occupies its place in the flow, so a plate
      whose sticky offset assumes a pinned header landed inside the header's
      box and was covered by it. -->
-<div class="col-plate" id="collectionPlate" hidden>
+<div class="col-plate" id="collectionPlate" data-surface="plate" data-material="glass" hidden>
   <span class="col-plate-name" id="collectionPlateName"></span>
   <!-- An arrow, not a cross (owner's call). A cross ends something; this
        returns you to the screen you opened the collection FROM — the
@@ -2026,7 +2186,7 @@
      name, its exit and its sharing state; four more controls beside them
      would bury the name they describe. -->
 <div class="sheet-backdrop" id="colEditBackdrop" hidden></div>
-<div class="sheet" id="colEditSheet" aria-hidden="true">
+<div class="sheet" id="colEditSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title" id="colEditTitle">Редагувати добірку</div>
     <button class="hicon" id="colEditCloseBtn" type="button" title="Закрити">
@@ -2053,7 +2213,7 @@
      and it vanished every time a panel re-rendered its innerHTML. Out here
      it is one node that nothing redraws and nothing covers. -->
 <div class="sheet-backdrop" id="menuBackdrop" hidden></div>
-<div class="sheet" id="menuSheet" aria-hidden="true">
+<div class="sheet" id="menuSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <!-- The menu's own way out (owner's call). It used to have none: tapping
        the backdrop was it, and once the backdrop stopped blocking touches
        so the catalogue could scroll behind, that way out went with it. A
@@ -2097,7 +2257,7 @@
      person's shelf. Duplicates first, because a film in the catalogue twice
      splits everybody's marks between two rows that look identical. -->
 <div class="sheet-backdrop" id="adminBackdrop" hidden></div>
-<div class="sheet" id="adminSheet" aria-hidden="true">
+<div class="sheet" id="adminSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Адмін</div>
     <button class="hicon" id="adminCloseBtn" type="button" title="Закрити">
@@ -2116,7 +2276,7 @@
      it holds (that is FILTER). The rows keep their historical ids — the
      wiring and the tests hold onto them. -->
 <div class="sheet-backdrop" id="settingsBackdrop" hidden></div>
-<div class="sheet" id="settingsSheet" aria-hidden="true">
+<div class="sheet" id="settingsSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Налаштування</div>
     <button class="hicon" id="settingsCloseBtn" type="button" title="Закрити">
@@ -2144,7 +2304,7 @@
 <!-- The trash: what was removed from a collection lies here for 24 hours
      before the removal becomes real; until then it can be put back. -->
 <div class="sheet-backdrop" id="trashBackdrop" hidden></div>
-<div class="sheet" id="trashSheet" aria-hidden="true">
+<div class="sheet" id="trashSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Кошик</div>
     <button class="hicon" id="trashCloseBtn" type="button" title="Закрити">
@@ -2163,7 +2323,7 @@
      (userTasteStats/rollDice in logic.js). A sheet like FILTER — the same
      strip of glass at the same edge — filled by renderDiceResults(). -->
 <div class="sheet-backdrop" id="diceBackdrop" hidden></div>
-<div class="sheet" id="diceSheet" aria-hidden="true">
+<div class="sheet" id="diceSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Дзиґа радить</div>
     <button class="hicon" id="diceCloseBtn" type="button" title="Закрити" aria-label="Закрити">
@@ -2174,7 +2334,7 @@
   <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Ще раз</button></div>
 </div>
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
-<div class="sheet" id="filterSheet" aria-hidden="true">
+<div class="sheet" id="filterSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <!-- Its own cross, for the same reason the menu grew one: on a phone the
        backdrop lets touches through to the catalogue, so it is no longer a
        way out. A cross and not an arrow — FILTER belongs to the catalogue
@@ -2266,22 +2426,22 @@
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
-  <div class="modal" id="modalBox"></div>
+  <div class="modal" id="modalBox" data-surface="popup" data-material="glass"></div>
 </div>
 <div class="modal-overlay" id="addMovieOverlay">
-  <div class="modal add-modal" id="addMovieBox"></div>
+  <div class="modal add-modal" id="addMovieBox" data-surface="screen" data-material="glass"></div>
 </div>
 <div class="modal-overlay" id="accountOverlay">
-  <div class="modal add-modal" id="accountBox"></div>
+  <div class="modal add-modal" id="accountBox" data-surface="screen" data-material="glass"></div>
 </div>
 <div class="modal-overlay" id="onboardOverlay">
-  <div class="modal add-modal" id="onboardBox"></div>
+  <div class="modal add-modal" id="onboardBox" data-surface="screen" data-material="glass"></div>
 </div>
 <div class="modal-overlay" id="recsOverlay">
-  <div class="modal add-modal" id="recsBox"></div>
+  <div class="modal add-modal" id="recsBox" data-surface="screen" data-material="glass"></div>
 </div>
 <div class="modal-overlay" id="friendsOverlay">
-  <div class="modal add-modal" id="friendsBox"></div>
+  <div class="modal add-modal" id="friendsBox" data-surface="screen" data-material="glass"></div>
 </div>
 </div>
 
@@ -2298,7 +2458,8 @@
  * See the matching `typeof module` guard at the bottom.
  */
 /* ---------- awards: recognize known ceremonies for icon + description ----------
- * Award fields are free-text ("Оскар — найкращий фільм"), so matching is by
+ * Award fields are free-text — a ceremony and its category in one Ukrainian
+ * string — so matching is by
  * regex against the whole string rather than an exact-name lookup — lets
  * people type the category after an em-dash without breaking recognition.
  * Unrecognized text (a festival we don't know) still displays fine, just
@@ -2391,7 +2552,7 @@ if (typeof module !== 'undefined' && module.exports) {
 const GENRES_DATA = {
   TMDB_GENRE_MAP: {
   // One group per TMDb genre, deliberately. The groups used to be a short
-  // curated list and everything unmapped fell into "Інше" — which is how a
+  // curated list and everything unmapped fell into the catch-all — which is how a
   // Pixar film ended up filed as "other". A film should land in the group
   // named after its own genre; the chips row wraps, so more of them costs
   // layout, not comprehension.
@@ -2479,7 +2640,7 @@ const UI_DATA = {
   gridL: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="1"/><rect x="3" y="13" width="18" height="8" rx="1"/></svg>',
   trophy: '<svg viewBox="0.8 1.3 22.4 22.4" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
   star: '<svg viewBox="1.36 0.91 21.28 21.28" width="13" height="13" fill="currentColor" stroke="none"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.6 6.1 20.6l1.3-6.6-4.9-4.6 6.6-.8L12 2.5z"/></svg>',
-  // The «обовʼязково до перегляду» toggle: outline like the eye and the
+  // The must-watch toggle: outline like the eye and the
   // heart, and its ON state fills through CSS the same way the heart's
   // does. Distinct from `star`/`ratingStar` above, which are filled and
   // sized for award badges, not for a 16px control.
@@ -2516,13 +2677,423 @@ const UI_DATA = {
   },
 
   // Display order of the genre sections on the catalog page; anything not
-  // listed falls into the trailing "Інше" bucket.
+  // listed falls into the trailing catch-all bucket.
   GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = UI_DATA;
 }
+const LOGIC_CATALOGUE_WRITES = function() {
+function uniqueMovieId(preferred, catalog) {
+const taken = new Set((catalog || []).map(m => m && m.id).filter(Boolean));
+if (!taken.has(preferred)) return preferred;
+for (let n = 2; n < 1e3; n++) {
+const candidate = `${preferred}-${n}`;
+if (!taken.has(candidate)) return candidate;
+}
+return `${preferred}-${taken.size + 1}`;
+}
+function mergeRefreshedMovie(existing, fetched) {
+const merged = {
+...existing || {},
+...fetched || {}
+};
+merged.id = existing && existing.id || fetched && fetched.id;
+if (existing && existing.recommended_by && !(fetched && fetched.recommended_by)) {
+merged.recommended_by = existing.recommended_by;
+}
+for (const key of [ 'critic_score', 'awards_won', 'awards_nominated', 'trailer_url', 'poster_url' ]) {
+const incoming = fetched && fetched[key];
+const isEmpty = incoming === undefined || incoming === null || incoming === '' || Array.isArray(incoming) && !incoming.length;
+if (isEmpty && existing && existing[key] !== undefined) merged[key] = existing[key];
+}
+Object.keys(merged).forEach(k => merged[k] === undefined && delete merged[k]);
+return merged;
+}
+function slugify(titleEn, titleUk, year) {
+const base = (titleEn || titleUk || 'film').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+return `${base || 'film'}-${year || 'x'}`;
+}
+function collectionIdFrom(name, {taken: taken = [], at: at = 0} = {}) {
+const latin = String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+const stamp = (Number(at) || 0).toString(36).slice(-6);
+const base = latin || `col-${stamp || '0'}`;
+const used = new Set(taken || []);
+if (!used.has(base)) return base;
+for (let n = 2; n < 100; n++) {
+const next = `${base}-${n}`.slice(0, 40);
+if (!used.has(next)) return next;
+}
+return `${base}-${stamp}`.slice(0, 40);
+}
+function pickTrailer(videos) {
+const list = videos || [];
+return list.find(v => v.site === 'YouTube' && v.type === 'Trailer') || list.find(v => v.site === 'YouTube');
+}
+function normTitleForDup(s) {
+return (s || '').toLowerCase().trim().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+function findDuplicateMovie(catalog, titleUk, titleEn, year) {
+const tUk = normTitleForDup(titleUk), tEn = normTitleForDup(titleEn);
+if (!tUk && !tEn) return null;
+return (catalog || []).find(m => {
+if (year && m.year && String(m.year) !== String(year)) return false;
+const mUk = normTitleForDup(m.canonical_title_uk), mEn = normTitleForDup(m.canonical_title_en);
+return tUk && (tUk === mUk || tUk === mEn) || tEn && (tEn === mUk || tEn === mEn);
+}) || null;
+}
+function findCatalogueDuplicates(catalog) {
+const byKey = new Map;
+for (const m of catalog || []) {
+if (!m) continue;
+const year = m.year ? String(m.year) : '';
+const keys = new Set;
+for (const t of [ m.canonical_title_uk, m.canonical_title_en ]) {
+const n = normTitleForDup(t);
+if (n) keys.add(`${n}|${year}`);
+}
+for (const k of keys) {
+const bucket = byKey.get(k);
+if (bucket) bucket.push(m); else byKey.set(k, [ m ]);
+}
+}
+const seen = new Set;
+const groups = [];
+for (const [, films] of byKey) {
+if (films.length < 2) continue;
+const ids = films.map(f => f.tmdb_id || f.id).sort();
+const fingerprint = ids.join(',');
+if (seen.has(fingerprint)) continue;
+seen.add(fingerprint);
+groups.push(films);
+}
+return groups.sort((a, b) => b.length - a.length);
+}
+function missingFields(existing, fresh) {
+const isBlank = v => v === undefined || v === null || v === '' || Array.isArray(v) && v.length === 0;
+const out = {};
+for (const [key, value] of Object.entries(fresh || {})) {
+if (key === 'id') continue;
+if (isBlank(value)) continue;
+if (isBlank(existing ? existing[key] : undefined)) out[key] = value;
+}
+return out;
+}
+function catalogIdsLost(live, incoming) {
+const keep = new Set(Object.keys(incoming || {}));
+return Object.keys(live || {}).filter(id => !keep.has(id));
+}
+function mergeCatalogAdditively(live, source) {
+const merged = {
+...source || {},
+...live || {}
+};
+return merged;
+}
+return {
+uniqueMovieId: uniqueMovieId,
+mergeRefreshedMovie: mergeRefreshedMovie,
+slugify: slugify,
+collectionIdFrom: collectionIdFrom,
+pickTrailer: pickTrailer,
+normTitleForDup: normTitleForDup,
+findDuplicateMovie: findDuplicateMovie,
+findCatalogueDuplicates: findCatalogueDuplicates,
+missingFields: missingFields,
+catalogIdsLost: catalogIdsLost,
+mergeCatalogAdditively: mergeCatalogAdditively
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_CATALOGUE_WRITES;
+
+const LOGIC_GESTURES = function() {
+const SWIPE_EDGE_PX = 24;
+const SWIPE_AXIS_PX = 12;
+const SWIPE_AXIS_RATIO = 1.5;
+const SWIPE_TRIGGER_RATIO = .28;
+const SWIPE_TRIGGER_MIN_PX = 64;
+const SWIPE_FLICK_SPEED = .5;
+const SWIPE_FLICK_MIN_PX = 24;
+const SWIPE_FLICK_MIN_MS = 16;
+function swipeStartAllowed(startX, width) {
+if (!(width > 0)) return false;
+return startX > SWIPE_EDGE_PX && startX < width - SWIPE_EDGE_PX;
+}
+function swipeAxis(dx, dy) {
+const ax = Math.abs(dx), ay = Math.abs(dy);
+if (ax < SWIPE_AXIS_PX && ay < SWIPE_AXIS_PX) return null;
+return ax > ay * SWIPE_AXIS_RATIO ? 'x' : 'y';
+}
+function swipeVerdict({dx: dx, dt: dt, width: width}) {
+const far = Math.abs(dx) >= Math.max(SWIPE_TRIGGER_MIN_PX, (width || 0) * SWIPE_TRIGGER_RATIO);
+const flick = dt >= SWIPE_FLICK_MIN_MS && Math.abs(dx) / dt >= SWIPE_FLICK_SPEED && Math.abs(dx) >= SWIPE_FLICK_MIN_PX;
+if (!far && !flick) return null;
+return dx > 0 ? 'right' : 'left';
+}
+function swipeStep(count, i, dir) {
+if (!(count > 0) || !(i >= 0) || i >= count) return null;
+const next = dir === 'left' ? i + 1 : dir === 'right' ? i - 1 : null;
+if (next === null || next < 0 || next >= count) return null;
+return next;
+}
+const SWIPE_DISMISS_RATIO = .18;
+function swipeDismisses({dy: dy, dt: dt, height: height}) {
+if (!(dy > 0)) return false;
+const far = dy >= Math.max(SWIPE_TRIGGER_MIN_PX, (height || 0) * SWIPE_DISMISS_RATIO);
+const flick = dt >= SWIPE_FLICK_MIN_MS && dy / dt >= SWIPE_FLICK_SPEED && dy >= SWIPE_FLICK_MIN_PX;
+return far || flick;
+}
+function anyFilterSet(st) {
+if (!st) return false;
+return !!(st.query || st.tab && st.tab !== 'all' || st.showWatched || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
+}
+const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'menu', 'collection', 'addMode', 'search' ];
+function topNavSurface(open) {
+if (!open) return null;
+for (const key of NAV_SURFACES) if (open[key]) return key;
+return null;
+}
+return {
+SWIPE_EDGE_PX: SWIPE_EDGE_PX,
+SWIPE_AXIS_PX: SWIPE_AXIS_PX,
+SWIPE_AXIS_RATIO: SWIPE_AXIS_RATIO,
+SWIPE_TRIGGER_RATIO: SWIPE_TRIGGER_RATIO,
+SWIPE_TRIGGER_MIN_PX: SWIPE_TRIGGER_MIN_PX,
+SWIPE_FLICK_SPEED: SWIPE_FLICK_SPEED,
+SWIPE_FLICK_MIN_PX: SWIPE_FLICK_MIN_PX,
+SWIPE_FLICK_MIN_MS: SWIPE_FLICK_MIN_MS,
+swipeStartAllowed: swipeStartAllowed,
+swipeAxis: swipeAxis,
+swipeVerdict: swipeVerdict,
+swipeStep: swipeStep,
+SWIPE_DISMISS_RATIO: SWIPE_DISMISS_RATIO,
+swipeDismisses: swipeDismisses,
+anyFilterSet: anyFilterSet,
+NAV_SURFACES: NAV_SURFACES,
+topNavSurface: topNavSurface
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_GESTURES;
+
+const LOGIC_IDENTITY = function() {
+const AUTH_DOMAIN_SUFFIX = '@sceneit-app.local';
+function usernameToEmail(username) {
+return (username || '').trim().toLowerCase().replace(/\s+/g, '') + AUTH_DOMAIN_SUFFIX;
+}
+const MARK_LISTS = [ 'watched', 'liked', 'must' ];
+function userMarksPath(uid, list) {
+if (typeof uid !== 'string' || !uid.trim()) return null;
+if (!MARK_LISTS.includes(list)) return null;
+if (/[.$#[\]/]/.test(uid)) return null;
+return `kino/users/${uid}/${list}`;
+}
+function localMarksKey(uid, list) {
+if (!MARK_LISTS.includes(list)) return null;
+return uid ? `seenit_${uid}_${list}` : null;
+}
+function localStatsKey(uid) {
+return uid ? `seenit_${uid}_stats` : null;
+}
+function userServicesPath(uid) {
+if (typeof uid !== 'string' || !uid.trim()) return null;
+if (/[.$#[\]/]/.test(uid)) return null;
+return `kino/users/${uid}/services`;
+}
+function userCatalogPath(uid) {
+if (typeof uid !== 'string' || !uid.trim()) return null;
+if (/[.$#[\]/]/.test(uid)) return null;
+return `kino/users/${uid}/movies`;
+}
+const USERNAME_MIN = 4;
+function searchNameLongEnough(raw) {
+return normalizeSearchName(raw).length >= USERNAME_MIN;
+}
+function normalizeSearchName(raw) {
+return String(raw || '').trim().toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]+/g, '').replace(/\.{2,}/g, '.').replace(/^[._-]+/, '').slice(0, 32).replace(/[._-]+$/, '');
+}
+function defaultDisplayName(user) {
+const raw = String(user && user.displayName || '').replace(/\s+/g, ' ').trim();
+return raw.slice(0, 64) || null;
+}
+function defaultSearchName(user) {
+const display = normalizeSearchName(user && user.displayName);
+if (display) return display;
+const local = String(user && user.email || '').split('@')[0];
+return normalizeSearchName(local);
+}
+return {
+AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX,
+usernameToEmail: usernameToEmail,
+MARK_LISTS: MARK_LISTS,
+userMarksPath: userMarksPath,
+localMarksKey: localMarksKey,
+localStatsKey: localStatsKey,
+userServicesPath: userServicesPath,
+userCatalogPath: userCatalogPath,
+USERNAME_MIN: USERNAME_MIN,
+searchNameLongEnough: searchNameLongEnough,
+normalizeSearchName: normalizeSearchName,
+defaultDisplayName: defaultDisplayName,
+defaultSearchName: defaultSearchName
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_IDENTITY;
+
+const LOGIC_MAINTENANCE = function() {
+function backupCounts(data) {
+if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+return Object.fromEntries(Object.entries(data).map(([k, v]) => [ k, v && typeof v === 'object' ? Object.keys(v).length : 1 ]));
+}
+function backupRejectionReason(data) {
+const counts = backupCounts(data);
+if (!counts || Object.keys(counts).length === 0) return 'Read kino/ but got nothing back.';
+const perUserMovies = Object.values(data && data.users || {}).some(u => u && u.movies && Object.keys(u.movies).length);
+if (!counts.movies && !perUserMovies) return 'Backup contains no movies (neither kino/movies nor any kino/users/*/movies).';
+return null;
+}
+const ENRICHMENT_RECHECK_DAYS = 30;
+function enrichmentCheckedRecently(movie, now = Date.now(), days = ENRICHMENT_RECHECK_DAYS) {
+const stamp = movie && movie.enrichment_checked_at;
+if (!stamp) return false;
+const then = Date.parse(stamp);
+if (!Number.isFinite(then)) return false;
+return now - then < days * 24 * 60 * 60 * 1e3;
+}
+return {
+backupCounts: backupCounts,
+backupRejectionReason: backupRejectionReason,
+ENRICHMENT_RECHECK_DAYS: ENRICHMENT_RECHECK_DAYS,
+enrichmentCheckedRecently: enrichmentCheckedRecently
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_MAINTENANCE;
+
+const LOGIC_OMDB = function() {
+function isOmdbAnswer(data) {
+return !!data && typeof data === 'object' && typeof data.Response === 'string';
+}
+function omdbTitleMatches(returned, requested) {
+const a = normalizeTitleForMatch(returned);
+const b = normalizeTitleForMatch(requested);
+if (!a || !b) return false;
+if (a === b) return true;
+return normalizeTitleForMatch(titleHead(returned)) === b || normalizeTitleForMatch(titleHead(requested)) === a;
+}
+function titleHead(text) {
+return String(text == null ? '' : text).split(/[:\u2013\u2014(]|\s-\s/)[0];
+}
+function normalizeTitleForMatch(text) {
+return String(text == null ? '' : text).toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/['\u2019\u02bc\u0060]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+function isOmdbQuotaExhausted(data) {
+const err = data && typeof data === 'object' ? String(data.Error || '') : '';
+return /limit reached|request limit/i.test(err);
+}
+function parseOmdbYear(value) {
+const m = /(\d{4})/.exec(String(value == null ? '' : value));
+return m ? Number(m[1]) : null;
+}
+function omdbYearAcceptable(returnedYear, expectedYear, tolerance = 1) {
+const expected = parseOmdbYear(expectedYear);
+if (expected === null) return true;
+const got = parseOmdbYear(returnedYear);
+if (got === null) return false;
+return Math.abs(got - expected) <= tolerance;
+}
+return {
+isOmdbAnswer: isOmdbAnswer,
+omdbTitleMatches: omdbTitleMatches,
+titleHead: titleHead,
+normalizeTitleForMatch: normalizeTitleForMatch,
+isOmdbQuotaExhausted: isOmdbQuotaExhausted,
+parseOmdbYear: parseOmdbYear,
+omdbYearAcceptable: omdbYearAcceptable
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_OMDB;
+
+const LOGIC_SEARCH = function() {
+function levenshtein(a, b) {
+if (a === b) return 0;
+if (!a.length) return b.length;
+if (!b.length) return a.length;
+let prev = Array.from({
+length: b.length + 1
+}, (_, j) => j);
+for (let i = 1; i <= a.length; i++) {
+const cur = [ i ];
+for (let j = 1; j <= b.length; j++) {
+cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
+}
+prev = cur;
+}
+return prev[b.length];
+}
+function matches(m, q) {
+if (!q) return true;
+const query = q.toLowerCase().trim();
+if (!query) return true;
+const hay = [ m.canonical_title_uk || '', m.canonical_title_en || '', m.country || '', m.director || '', ...m.cast || [] ].join(' ').toLowerCase();
+if (hay.includes(query)) return true;
+const qWords = query.split(/\s+/).filter(Boolean);
+const hayWords = hay.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+return qWords.every(qw => {
+if (hayWords.some(hw => hw.includes(qw))) return true;
+if (qw.length < 3) return false;
+const maxDist = qw.length <= 4 ? 1 : qw.length <= 8 ? 1 : 2;
+return hayWords.some(hw => Math.abs(hw.length - qw.length) <= maxDist && levenshtein(qw, hw) <= maxDist);
+});
+}
+const YEAR_BUCKETS = [ {
+key: 'pre1980',
+label: 'до 1980',
+from: null,
+to: 1980
+}, {
+key: '1980s',
+label: '1980–1989',
+from: 1980,
+to: 1990
+}, {
+key: '1990s',
+label: '1990–1999',
+from: 1990,
+to: 2e3
+}, {
+key: '2000s',
+label: '2000–2009',
+from: 2e3,
+to: 2010
+}, {
+key: '2010plus',
+label: '2010 і новіші',
+from: 2010,
+to: null
+} ];
+function matchesYearBucket(movie, keys) {
+if (!keys || keys === 'all') return true;
+const wanted = String(keys).split(',').map(k => YEAR_BUCKETS.find(x => x.key === k.trim())).filter(Boolean);
+if (!wanted.length) return true;
+const y = Number(movie && movie.year);
+if (!Number.isFinite(y) || y <= 0) return false;
+return wanted.some(b => (b.from === null || y >= b.from) && (b.to === null || y < b.to));
+}
+return {
+levenshtein: levenshtein,
+matches: matches,
+YEAR_BUCKETS: YEAR_BUCKETS,
+matchesYearBucket: matchesYearBucket
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_SEARCH;
+
 const IS_NODE = typeof module !== 'undefined' && !!module.exports;
 
 const AWARDS = IS_NODE ? require('./data/awards.js') : AWARDS_DATA;
@@ -2539,41 +3110,17 @@ const TITLE_TRIGGER_WORDS = OCR_WORDS.TITLE_TRIGGER_WORDS;
 
 const UI_JUNK_PHRASES = OCR_WORDS.UI_JUNK_PHRASES;
 
-const AUTH_DOMAIN_SUFFIX = '@sceneit-app.local';
+const {AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX, usernameToEmail: usernameToEmail, MARK_LISTS: MARK_LISTS, userMarksPath: userMarksPath, localMarksKey: localMarksKey, localStatsKey: localStatsKey, userServicesPath: userServicesPath, userCatalogPath: userCatalogPath, USERNAME_MIN: USERNAME_MIN, searchNameLongEnough: searchNameLongEnough, normalizeSearchName: normalizeSearchName, defaultDisplayName: defaultDisplayName, defaultSearchName: defaultSearchName} = IS_NODE ? require('./logic/identity.js') : LOGIC_IDENTITY;
 
-function usernameToEmail(username) {
-return (username || '').trim().toLowerCase().replace(/\s+/g, '') + AUTH_DOMAIN_SUFFIX;
-}
+const {levenshtein: levenshtein, matches: matches, YEAR_BUCKETS: YEAR_BUCKETS, matchesYearBucket: matchesYearBucket} = IS_NODE ? require('./logic/search.js') : LOGIC_SEARCH;
 
-const MARK_LISTS = [ 'watched', 'liked', 'must' ];
+const {isOmdbAnswer: isOmdbAnswer, omdbTitleMatches: omdbTitleMatches, titleHead: titleHead, normalizeTitleForMatch: normalizeTitleForMatch, isOmdbQuotaExhausted: isOmdbQuotaExhausted, parseOmdbYear: parseOmdbYear, omdbYearAcceptable: omdbYearAcceptable} = IS_NODE ? require('./logic/omdb.js') : LOGIC_OMDB;
 
-function userMarksPath(uid, list) {
-if (typeof uid !== 'string' || !uid.trim()) return null;
-if (!MARK_LISTS.includes(list)) return null;
-if (/[.$#[\]/]/.test(uid)) return null;
-return `kino/users/${uid}/${list}`;
-}
+const {uniqueMovieId: uniqueMovieId, mergeRefreshedMovie: mergeRefreshedMovie, slugify: slugify, collectionIdFrom: collectionIdFrom, pickTrailer: pickTrailer, normTitleForDup: normTitleForDup, findDuplicateMovie: findDuplicateMovie, findCatalogueDuplicates: findCatalogueDuplicates, missingFields: missingFields, catalogIdsLost: catalogIdsLost, mergeCatalogAdditively: mergeCatalogAdditively} = IS_NODE ? require('./logic/catalogue-writes.js') : LOGIC_CATALOGUE_WRITES;
 
-function localMarksKey(uid, list) {
-if (!MARK_LISTS.includes(list)) return null;
-return uid ? `seenit_${uid}_${list}` : null;
-}
+const {SWIPE_EDGE_PX: SWIPE_EDGE_PX, SWIPE_AXIS_PX: SWIPE_AXIS_PX, SWIPE_AXIS_RATIO: SWIPE_AXIS_RATIO, SWIPE_TRIGGER_RATIO: SWIPE_TRIGGER_RATIO, SWIPE_TRIGGER_MIN_PX: SWIPE_TRIGGER_MIN_PX, SWIPE_FLICK_SPEED: SWIPE_FLICK_SPEED, SWIPE_FLICK_MIN_PX: SWIPE_FLICK_MIN_PX, SWIPE_FLICK_MIN_MS: SWIPE_FLICK_MIN_MS, swipeStartAllowed: swipeStartAllowed, swipeAxis: swipeAxis, swipeVerdict: swipeVerdict, swipeStep: swipeStep, SWIPE_DISMISS_RATIO: SWIPE_DISMISS_RATIO, swipeDismisses: swipeDismisses, anyFilterSet: anyFilterSet, NAV_SURFACES: NAV_SURFACES, topNavSurface: topNavSurface} = IS_NODE ? require('./logic/gestures.js') : LOGIC_GESTURES;
 
-function localStatsKey(uid) {
-return uid ? `seenit_${uid}_stats` : null;
-}
-
-function userServicesPath(uid) {
-if (typeof uid !== 'string' || !uid.trim()) return null;
-if (/[.$#[\]/]/.test(uid)) return null;
-return `kino/users/${uid}/services`;
-}
-
-function userCatalogPath(uid) {
-if (typeof uid !== 'string' || !uid.trim()) return null;
-if (/[.$#[\]/]/.test(uid)) return null;
-return `kino/users/${uid}/movies`;
-}
+const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason, ENRICHMENT_RECHECK_DAYS: ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently: enrichmentCheckedRecently} = IS_NODE ? require('./logic/maintenance.js') : LOGIC_MAINTENANCE;
 
 const CATALOGUE_PAGE = 1e3;
 
@@ -3004,44 +3551,6 @@ const total = marks && typeof marks.size === 'number' ? marks.size : [ ...marks 
 return total - orphanedMarkIds(marks, movies).length;
 }
 
-function isOmdbAnswer(data) {
-return !!data && typeof data === 'object' && typeof data.Response === 'string';
-}
-
-function omdbTitleMatches(returned, requested) {
-const a = normalizeTitleForMatch(returned);
-const b = normalizeTitleForMatch(requested);
-if (!a || !b) return false;
-if (a === b) return true;
-return normalizeTitleForMatch(titleHead(returned)) === b || normalizeTitleForMatch(titleHead(requested)) === a;
-}
-
-function titleHead(text) {
-return String(text == null ? '' : text).split(/[:\u2013\u2014(]|\s-\s/)[0];
-}
-
-function normalizeTitleForMatch(text) {
-return String(text == null ? '' : text).toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/['\u2019\u02bc\u0060]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-}
-
-function isOmdbQuotaExhausted(data) {
-const err = data && typeof data === 'object' ? String(data.Error || '') : '';
-return /limit reached|request limit/i.test(err);
-}
-
-function parseOmdbYear(value) {
-const m = /(\d{4})/.exec(String(value == null ? '' : value));
-return m ? Number(m[1]) : null;
-}
-
-function omdbYearAcceptable(returnedYear, expectedYear, tolerance = 1) {
-const expected = parseOmdbYear(expectedYear);
-if (expected === null) return true;
-const got = parseOmdbYear(returnedYear);
-if (got === null) return false;
-return Math.abs(got - expected) <= tolerance;
-}
-
 function buildWikidataAwardsQuery(imdbId) {
 return `SELECT ?type ?awardLabelEn ?awardLabelUk WHERE {\n  VALUES ?imdbId { "${imdbId}" }\n  {\n    { ?film wdt:P345 ?imdbId ; wdt:P166 ?award . BIND("won" AS ?type) }\n    UNION\n    { ?film wdt:P345 ?imdbId ; wdt:P1411 ?award . BIND("nom" AS ?type) }\n    UNION\n    { ?film wdt:P345 ?imdbId . ?person p:P166 ?st . ?st pq:P642 ?film ; ps:P166 ?award . BIND("won" AS ?type) }\n    UNION\n    { ?film wdt:P345 ?imdbId . ?person p:P1411 ?st2 . ?st2 pq:P642 ?film ; ps:P1411 ?award . BIND("nom" AS ?type) }\n  }\n  OPTIONAL { ?award rdfs:label ?awardLabelEn . FILTER(lang(?awardLabelEn) = "en") }\n  OPTIONAL { ?award rdfs:label ?awardLabelUk . FILTER(lang(?awardLabelUk) = "uk") }\n} LIMIT 200`;
 }
@@ -3072,29 +3581,6 @@ if (!label) continue;
 if (type === 'won') result.won.push(label); else if (type === 'nom') result.nominated.push(label);
 }
 return result;
-}
-
-function backupCounts(data) {
-if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-return Object.fromEntries(Object.entries(data).map(([k, v]) => [ k, v && typeof v === 'object' ? Object.keys(v).length : 1 ]));
-}
-
-function backupRejectionReason(data) {
-const counts = backupCounts(data);
-if (!counts || Object.keys(counts).length === 0) return 'Read kino/ but got nothing back.';
-const perUserMovies = Object.values(data && data.users || {}).some(u => u && u.movies && Object.keys(u.movies).length);
-if (!counts.movies && !perUserMovies) return 'Backup contains no movies (neither kino/movies nor any kino/users/*/movies).';
-return null;
-}
-
-const ENRICHMENT_RECHECK_DAYS = 30;
-
-function enrichmentCheckedRecently(movie, now = Date.now(), days = ENRICHMENT_RECHECK_DAYS) {
-const stamp = movie && movie.enrichment_checked_at;
-if (!stamp) return false;
-const then = Date.parse(stamp);
-if (!Number.isFinite(then)) return false;
-return now - then < days * 24 * 60 * 60 * 1e3;
 }
 
 const ENRICHMENT_RESULTS = {
@@ -3303,39 +3789,6 @@ out.push(uk === category ? text : `${name} за ${uk}`);
 return out;
 }
 
-function levenshtein(a, b) {
-if (a === b) return 0;
-if (!a.length) return b.length;
-if (!b.length) return a.length;
-let prev = Array.from({
-length: b.length + 1
-}, (_, j) => j);
-for (let i = 1; i <= a.length; i++) {
-const cur = [ i ];
-for (let j = 1; j <= b.length; j++) {
-cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
-}
-prev = cur;
-}
-return prev[b.length];
-}
-
-function matches(m, q) {
-if (!q) return true;
-const query = q.toLowerCase().trim();
-if (!query) return true;
-const hay = [ m.canonical_title_uk || '', m.canonical_title_en || '', m.country || '', m.director || '', ...m.cast || [] ].join(' ').toLowerCase();
-if (hay.includes(query)) return true;
-const qWords = query.split(/\s+/).filter(Boolean);
-const hayWords = hay.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-return qWords.every(qw => {
-if (hayWords.some(hw => hw.includes(qw))) return true;
-if (qw.length < 3) return false;
-const maxDist = qw.length <= 4 ? 1 : qw.length <= 8 ? 1 : 2;
-return hayWords.some(hw => Math.abs(hw.length - qw.length) <= maxDist && levenshtein(qw, hw) <= maxDist);
-});
-}
-
 const EXCLUDED_PROVIDER_KEYS = new Set([ 'rakuten tv', 'hbo max', 'google play', 'crunchyroll', 'mubi' ]);
 
 function visibleProviders(providers) {
@@ -3412,42 +3865,6 @@ return (order || []).slice().sort((a, b) => weight(b) - weight(a) || order.index
 function hasProvider(movie, name) {
 if (!name || name === 'all') return true;
 return visibleProviders(movie && movie.providers).some(p => p.name === name);
-}
-
-const YEAR_BUCKETS = [ {
-key: 'pre1980',
-label: 'до 1980',
-from: null,
-to: 1980
-}, {
-key: '1980s',
-label: '1980–1989',
-from: 1980,
-to: 1990
-}, {
-key: '1990s',
-label: '1990–1999',
-from: 1990,
-to: 2e3
-}, {
-key: '2000s',
-label: '2000–2009',
-from: 2e3,
-to: 2010
-}, {
-key: '2010plus',
-label: '2010 і новіші',
-from: 2010,
-to: null
-} ];
-
-function matchesYearBucket(movie, keys) {
-if (!keys || keys === 'all') return true;
-const wanted = String(keys).split(',').map(k => YEAR_BUCKETS.find(x => x.key === k.trim())).filter(Boolean);
-if (!wanted.length) return true;
-const y = Number(movie && movie.year);
-if (!Number.isFinite(y) || y <= 0) return false;
-return wanted.some(b => (b.from === null || y >= b.from) && (b.to === null || y < b.to));
 }
 
 const EXCLUDED_COUNTRIES = new Set([ 'росія', 'russia', 'russian federation', 'российская федерация', 'россия', 'рф' ]);
@@ -3730,72 +4147,6 @@ poster_url: m.poster_url
 return JSON.stringify(strip(oldLists)) !== JSON.stringify(strip(newLists));
 }
 
-function catalogIdsLost(live, incoming) {
-const keep = new Set(Object.keys(incoming || {}));
-return Object.keys(live || {}).filter(id => !keep.has(id));
-}
-
-function mergeCatalogAdditively(live, source) {
-const merged = {
-...source || {},
-...live || {}
-};
-return merged;
-}
-
-function normTitleForDup(s) {
-return (s || '').toLowerCase().trim().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-}
-
-function findDuplicateMovie(catalog, titleUk, titleEn, year) {
-const tUk = normTitleForDup(titleUk), tEn = normTitleForDup(titleEn);
-if (!tUk && !tEn) return null;
-return (catalog || []).find(m => {
-if (year && m.year && String(m.year) !== String(year)) return false;
-const mUk = normTitleForDup(m.canonical_title_uk), mEn = normTitleForDup(m.canonical_title_en);
-return tUk && (tUk === mUk || tUk === mEn) || tEn && (tEn === mUk || tEn === mEn);
-}) || null;
-}
-
-function findCatalogueDuplicates(catalog) {
-const byKey = new Map;
-for (const m of catalog || []) {
-if (!m) continue;
-const year = m.year ? String(m.year) : '';
-const keys = new Set;
-for (const t of [ m.canonical_title_uk, m.canonical_title_en ]) {
-const n = normTitleForDup(t);
-if (n) keys.add(`${n}|${year}`);
-}
-for (const k of keys) {
-const bucket = byKey.get(k);
-if (bucket) bucket.push(m); else byKey.set(k, [ m ]);
-}
-}
-const seen = new Set;
-const groups = [];
-for (const [, films] of byKey) {
-if (films.length < 2) continue;
-const ids = films.map(f => f.tmdb_id || f.id).sort();
-const fingerprint = ids.join(',');
-if (seen.has(fingerprint)) continue;
-seen.add(fingerprint);
-groups.push(films);
-}
-return groups.sort((a, b) => b.length - a.length);
-}
-
-function missingFields(existing, fresh) {
-const isBlank = v => v === undefined || v === null || v === '' || Array.isArray(v) && v.length === 0;
-const out = {};
-for (const [key, value] of Object.entries(fresh || {})) {
-if (key === 'id') continue;
-if (isBlank(value)) continue;
-if (isBlank(existing ? existing[key] : undefined)) out[key] = value;
-}
-return out;
-}
-
 const MARK_ACT_LIST = {
 watch: 'watched',
 like: 'liked',
@@ -3909,57 +4260,6 @@ group: 'Драми'
 
 function mapGenre(genreIds, meta) {
 return primaryGenre(genreIds, meta);
-}
-
-function uniqueMovieId(preferred, catalog) {
-const taken = new Set((catalog || []).map(m => m && m.id).filter(Boolean));
-if (!taken.has(preferred)) return preferred;
-for (let n = 2; n < 1e3; n++) {
-const candidate = `${preferred}-${n}`;
-if (!taken.has(candidate)) return candidate;
-}
-return `${preferred}-${taken.size + 1}`;
-}
-
-function mergeRefreshedMovie(existing, fetched) {
-const merged = {
-...existing || {},
-...fetched || {}
-};
-merged.id = existing && existing.id || fetched && fetched.id;
-if (existing && existing.recommended_by && !(fetched && fetched.recommended_by)) {
-merged.recommended_by = existing.recommended_by;
-}
-for (const key of [ 'critic_score', 'awards_won', 'awards_nominated', 'trailer_url', 'poster_url' ]) {
-const incoming = fetched && fetched[key];
-const isEmpty = incoming === undefined || incoming === null || incoming === '' || Array.isArray(incoming) && !incoming.length;
-if (isEmpty && existing && existing[key] !== undefined) merged[key] = existing[key];
-}
-Object.keys(merged).forEach(k => merged[k] === undefined && delete merged[k]);
-return merged;
-}
-
-function slugify(titleEn, titleUk, year) {
-const base = (titleEn || titleUk || 'film').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-return `${base || 'film'}-${year || 'x'}`;
-}
-
-function collectionIdFrom(name, {taken: taken = [], at: at = 0} = {}) {
-const latin = String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
-const stamp = (Number(at) || 0).toString(36).slice(-6);
-const base = latin || `col-${stamp || '0'}`;
-const used = new Set(taken || []);
-if (!used.has(base)) return base;
-for (let n = 2; n < 100; n++) {
-const next = `${base}-${n}`.slice(0, 40);
-if (!used.has(next)) return next;
-}
-return `${base}-${stamp}`.slice(0, 40);
-}
-
-function pickTrailer(videos) {
-const list = videos || [];
-return list.find(v => v.site === 'YouTube' && v.type === 'Trailer') || list.find(v => v.site === 'YouTube');
 }
 
 function youtubeVideoId(url) {
@@ -4263,28 +4563,6 @@ const id = youtubeVideoId(url);
 return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
 }
 
-const USERNAME_MIN = 4;
-
-function searchNameLongEnough(raw) {
-return normalizeSearchName(raw).length >= USERNAME_MIN;
-}
-
-function normalizeSearchName(raw) {
-return String(raw || '').trim().toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]+/g, '').replace(/\.{2,}/g, '.').replace(/^[._-]+/, '').slice(0, 32).replace(/[._-]+$/, '');
-}
-
-function defaultDisplayName(user) {
-const raw = String(user && user.displayName || '').replace(/\s+/g, ' ').trim();
-return raw.slice(0, 64) || null;
-}
-
-function defaultSearchName(user) {
-const display = normalizeSearchName(user && user.displayName);
-if (display) return display;
-const local = String(user && user.email || '').split('@')[0];
-return normalizeSearchName(local);
-}
-
 const PROVIDER_KINDS = {
 flatrate: 'Передплата',
 free: 'Безкоштовно',
@@ -4414,69 +4692,6 @@ seen.add(key);
 result.push(c);
 }
 return result.slice(0, 12);
-}
-
-const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'menu', 'collection', 'addMode', 'search' ];
-
-function topNavSurface(open) {
-if (!open) return null;
-for (const key of NAV_SURFACES) if (open[key]) return key;
-return null;
-}
-
-const SWIPE_EDGE_PX = 24;
-
-const SWIPE_AXIS_PX = 12;
-
-const SWIPE_AXIS_RATIO = 1.5;
-
-const SWIPE_TRIGGER_RATIO = .28;
-
-const SWIPE_TRIGGER_MIN_PX = 64;
-
-const SWIPE_FLICK_SPEED = .5;
-
-const SWIPE_FLICK_MIN_PX = 24;
-
-const SWIPE_FLICK_MIN_MS = 16;
-
-function swipeStartAllowed(startX, width) {
-if (!(width > 0)) return false;
-return startX > SWIPE_EDGE_PX && startX < width - SWIPE_EDGE_PX;
-}
-
-function swipeAxis(dx, dy) {
-const ax = Math.abs(dx), ay = Math.abs(dy);
-if (ax < SWIPE_AXIS_PX && ay < SWIPE_AXIS_PX) return null;
-return ax > ay * SWIPE_AXIS_RATIO ? 'x' : 'y';
-}
-
-function swipeVerdict({dx: dx, dt: dt, width: width}) {
-const far = Math.abs(dx) >= Math.max(SWIPE_TRIGGER_MIN_PX, (width || 0) * SWIPE_TRIGGER_RATIO);
-const flick = dt >= SWIPE_FLICK_MIN_MS && Math.abs(dx) / dt >= SWIPE_FLICK_SPEED && Math.abs(dx) >= SWIPE_FLICK_MIN_PX;
-if (!far && !flick) return null;
-return dx > 0 ? 'right' : 'left';
-}
-
-function swipeStep(count, i, dir) {
-if (!(count > 0) || !(i >= 0) || i >= count) return null;
-const next = dir === 'left' ? i + 1 : dir === 'right' ? i - 1 : null;
-if (next === null || next < 0 || next >= count) return null;
-return next;
-}
-
-const SWIPE_DISMISS_RATIO = .18;
-
-function swipeDismisses({dy: dy, dt: dt, height: height}) {
-if (!(dy > 0)) return false;
-const far = dy >= Math.max(SWIPE_TRIGGER_MIN_PX, (height || 0) * SWIPE_DISMISS_RATIO);
-const flick = dt >= SWIPE_FLICK_MIN_MS && dy / dt >= SWIPE_FLICK_SPEED && dy >= SWIPE_FLICK_MIN_PX;
-return far || flick;
-}
-
-function anyFilterSet(st) {
-if (!st) return false;
-return !!(st.query || st.tab && st.tab !== 'all' || st.showWatched || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
 }
 
 const STATS_TOP_PEOPLE = 10;
@@ -6239,10 +6454,19 @@ clearPlayerListener();
 
 let _unmuteTimers = [];
 
+let _soundNeedsGesture = false;
+
+document.addEventListener('click', () => {
+if (!_soundNeedsGesture) return;
+_soundNeedsGesture = false;
+unmuteTrailer();
+}, true);
+
 function unmuteTrailer() {
 _unmuteTimers.forEach(clearTimeout);
 _unmuteTimers = [];
 if (!state.trailerSound) return;
+if (_soundNeedsGesture) return;
 const ask = () => {
 const iframe = modalBox.querySelector('.modal-trailer iframe');
 if (!iframe || !iframe.contentWindow) return;
@@ -10471,6 +10695,7 @@ const id = _cardWalk.ids[next];
 const m = MOVIES.find(x => x.id === id) || catalogSource().find(x => x.id === id);
 if (!m) return;
 _cardWalk.i = next;
+_soundNeedsGesture = true;
 openModal(m);
 swipeSlideIn(modalBox, dir, 100);
 }
