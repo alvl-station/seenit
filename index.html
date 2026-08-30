@@ -645,8 +645,8 @@
     .sheet,
     .modal,
     .col-plate {
-      -webkit-backdrop-filter: blur(40px) saturate(125%);
-      backdrop-filter: blur(40px) saturate(125%);
+      -webkit-backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
+      backdrop-filter: blur(24px) grayscale(.92) brightness(.94);
     }
     header { background: rgba(21, 22, 26, .74); }
     
@@ -667,14 +667,15 @@
     #accountBox > .sheet-title, #accountBox > .sheet-head,
     #onboardBox > .sheet-title, #onboardBox > .sheet-head {
       
-      -webkit-backdrop-filter: blur(34px) saturate(125%);
-      backdrop-filter: blur(34px) saturate(125%);
+      -webkit-backdrop-filter: blur(30px) grayscale(.92);
+      backdrop-filter: blur(30px) grayscale(.92);
     }
 
     
     .chip, .opt, .btn, .btn-ghost, .btn-primary, .btn-danger, .chip.active, .opt.active {
-      -webkit-backdrop-filter: blur(14px) saturate(130%);
-      backdrop-filter: blur(14px) saturate(130%);
+      
+      -webkit-backdrop-filter: blur(12px) grayscale(.7);
+      backdrop-filter: blur(12px) grayscale(.7);
     }
     .chip, .opt { background: rgba(23, 24, 29, .52); }
     .btn { background: rgba(42, 44, 49, .5); }
