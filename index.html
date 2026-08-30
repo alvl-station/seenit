@@ -649,8 +649,9 @@
     }
     header { background: rgba(21, 22, 26, .72); }
     
-    .sheet { background: rgba(27, 28, 33, .55); }
-    .modal { background: rgba(23, 24, 29, .6); }
+    
+    .sheet { background: rgba(19, 19, 23, .64); }
+    .modal { background: rgba(16, 17, 20, .68); }
 
     
     
@@ -658,14 +659,15 @@
     #recsBox > .sheet-title, #recsBox > .sheet-head,
     #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
     #accountBox > .sheet-title, #accountBox > .sheet-head,
-    #onboardBox > .sheet-title, #onboardBox > .sheet-head { background: rgba(0, 0, 0, .2); }
+    #onboardBox > .sheet-title, #onboardBox > .sheet-head { background: transparent; }
     .sheet-head,
     #recsBox > .sheet-title, #recsBox > .sheet-head,
     #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
     #accountBox > .sheet-title, #accountBox > .sheet-head,
     #onboardBox > .sheet-title, #onboardBox > .sheet-head {
-      -webkit-backdrop-filter: blur(30px) saturate(180%);
-      backdrop-filter: blur(30px) saturate(180%);
+      
+      -webkit-backdrop-filter: blur(34px) saturate(180%);
+      backdrop-filter: blur(34px) saturate(180%);
     }
 
     
@@ -678,6 +680,16 @@
     .btn-ghost { background: rgba(23, 24, 29, .34); }
     .chip.active, .opt.active, .btn-primary { background: rgba(142, 0, 0, .58); }
     .btn-danger { background: rgba(194, 20, 20, .58); }
+
+    
+    .chip, .opt, .btn, .btn-ghost, .btn-danger, .btn-primary { border-color: transparent; }
+
+    
+    header::after { display: none; }
+    .nav-row { border-bottom: 0; }
+
+    
+    .sheet-row { border-top-color: transparent; }
   }
 
   .modal {
