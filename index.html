@@ -640,6 +640,24 @@
     padding: 40px 16px; overflow-y: auto; backdrop-filter: blur(3px);
   }
   .modal-overlay.open { display: flex; }
+  
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    header,
+    .genre-section h2,
+    .sheet,
+    .modal,
+    .col-plate {
+      -webkit-backdrop-filter: blur(26px) saturate(180%);
+      backdrop-filter: blur(26px) saturate(180%);
+    }
+    header, .genre-section h2 { background: rgba(21, 22, 26, .72); }
+    .sheet { background: rgba(27, 28, 33, .78); }
+    .modal { background: rgba(23, 24, 29, .82); }
+
+    
+    .genre-section h2 { box-shadow: 0 10px 20px -14px rgba(0, 0, 0, .9); }
+  }
+
   .modal {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius-overlay); max-width: 560px; width: 100%;
