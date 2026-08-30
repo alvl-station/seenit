@@ -643,19 +643,41 @@
   
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     header,
-    .genre-section h2,
     .sheet,
     .modal,
     .col-plate {
       -webkit-backdrop-filter: blur(26px) saturate(180%);
       backdrop-filter: blur(26px) saturate(180%);
     }
-    header, .genre-section h2 { background: rgba(21, 22, 26, .72); }
+    header { background: rgba(21, 22, 26, .72); }
     .sheet { background: rgba(27, 28, 33, .78); }
     .modal { background: rgba(23, 24, 29, .82); }
 
     
-    .genre-section h2 { box-shadow: 0 10px 20px -14px rgba(0, 0, 0, .9); }
+    .sheet-head { background: rgba(27, 28, 33, .6); }
+    #recsBox > .sheet-title, #recsBox > .sheet-head,
+    #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
+    #accountBox > .sheet-title, #accountBox > .sheet-head,
+    #onboardBox > .sheet-title, #onboardBox > .sheet-head { background: rgba(23, 24, 29, .6); }
+    .sheet-head,
+    #recsBox > .sheet-title, #recsBox > .sheet-head,
+    #friendsBox > .sheet-title, #friendsBox > .sheet-head, #friendsBox > .friend-head,
+    #accountBox > .sheet-title, #accountBox > .sheet-head,
+    #onboardBox > .sheet-title, #onboardBox > .sheet-head {
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+    }
+
+    
+    .chip, .btn, .btn-ghost, .btn-primary, .btn-danger, .chip.active {
+      -webkit-backdrop-filter: blur(14px) saturate(170%);
+      backdrop-filter: blur(14px) saturate(170%);
+    }
+    .chip { background: rgba(23, 24, 29, .52); }
+    .btn { background: rgba(42, 44, 49, .5); }
+    .btn-ghost { background: rgba(23, 24, 29, .34); }
+    .chip.active, .btn-primary { background: rgba(142, 0, 0, .58); }
+    .btn-danger { background: rgba(194, 20, 20, .58); }
   }
 
   .modal {
