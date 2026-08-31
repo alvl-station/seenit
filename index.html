@@ -16,10 +16,11 @@
 
   
   :root {
-    --glass-blur: 24px;
-    --glass-grey: .92;
-    --glass-light: .94;
-    --glass-alpha: .72;
+    
+    --glass-blur: 2px;
+    --glass-grey: 1;
+    --glass-light: 1;
+    --glass-alpha: .82;
     --glass-shadow: 1;
     
     --glass-tint-alpha: .52;
@@ -45,7 +46,9 @@
     --tpl-frost: blur(var(--glass-blur)) grayscale(var(--glass-grey)) brightness(var(--glass-light));
     --tpl-frost-ground: rgba(var(--glass-rgb), var(--glass-alpha));
     
-    --tpl-rim: none;
+    --tpl-rim: 0 12px 34px rgba(0, 0, 0, var(--glass-shadow));
+    
+    --tpl-head-scrim: none;
   }
 
   
@@ -59,11 +62,6 @@
     --tpl-pad-foot: calc(30px + var(--safe-bottom));
     
     --glass-rgb: 19, 19, 23;
-    --glass-blur: 2px;
-    --glass-grey: 1;
-    --glass-light: 1;
-    --glass-alpha: .82;
-    --tpl-rim: 0 12px 34px rgba(0, 0, 0, var(--glass-shadow));
   }
 
   
@@ -84,6 +82,12 @@
     --tpl-edge: var(--border);
     --tpl-radius: var(--radius-overlay);
     --glass-rgb: 16, 17, 20;
+    
+    --glass-blur: 24px;
+    --glass-grey: .92;
+    --glass-light: .94;
+    --glass-alpha: .72;
+    --tpl-rim: none;
   }
 
   
@@ -93,18 +97,14 @@
     --tpl-radius: 2px;
     
     --tpl-frost-ground: var(--blood);
+    
+    --tpl-rim: none;
   }
 
   
   [data-surface="bar"] {
     --tpl-ground: var(--coal);
     --tpl-head-ground: var(--coal);
-    
-    --glass-rgb: var(--coal-rgb);
-    --glass-alpha: .55;
-    --glass-blur: 20px;
-    --glass-grey: .6;
-    --glass-light: .96;
   }
 
   
@@ -194,18 +194,15 @@
       -webkit-backdrop-filter: var(--tpl-frost);
       backdrop-filter: var(--tpl-frost);
       box-shadow: var(--tpl-rim);
+      
+      --tpl-head-scrim: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, .55) 0%,
+        rgba(0, 0, 0, .34) 55%,
+        rgba(0, 0, 0, 0) 100%);
     }
 
     
-    
-    .btn, .btn-primary, .btn-danger, .btn-ghost, .chip, .opt,
-    .chip.active, .opt.active {
-      
-      
-      --tone-ground: rgba(var(--tone-rgb), var(--tone-alpha));
-      
-      --tone-edge: transparent;
-    }
 
   }
   :root {
@@ -491,7 +488,19 @@
     -webkit-tap-highlight-color: transparent;
   }
   .tab.active { color: var(--tab-ink-on); border-bottom-color: var(--tab-rule-on); }
-  .tab .n { font-family: var(--font-mono); font-size: 10px; color: var(--slate); }
+
+  
+  .mark-row {
+    display: flex; gap: 18px; padding: 6px 0 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mark-row[hidden] { display: none; }
+  .mark-word {
+    color: var(--flash); font-size: 11.5px; padding: 4px 0 5px;
+    opacity: .62;
+  }
+  
+  .mark-word.active { color: var(--flash); opacity: 1; border-bottom-color: var(--flash); }
   
 
   
@@ -664,7 +673,8 @@
     position: sticky; top: calc(-1 * var(--tpl-pad-y)); z-index: 3;
     margin: calc(-1 * var(--tpl-pad-y)) calc(-1 * var(--tpl-pad-x)) 0;
     padding: var(--tpl-pad-y) var(--tpl-pad-x) 10px;
-    background: var(--tpl-head-ground);
+    
+    background: var(--tpl-head-scrim), var(--tpl-head-ground);
   }
   .sheet-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -2067,7 +2077,7 @@
   </div>
 </div>
 <div id="appRoot" style="display:none">
-<header data-surface="bar" data-material="glass">
+<header data-surface="bar">
   <!-- The book's header (vol. II §10): the WORD, «It» in blood, left; three
        icons right — search, add, menu. The mark itself left the header: it
        stays on the login screen, the favicon and volume I. -->
@@ -2114,18 +2124,31 @@
     </div>
   </div>
   <!-- Tabs are WORDS in the display face, the active one underlined in
-       blood (§07) — not pills. «All» carries no data-tab on purpose: the
-       page objects treat [data-tab] as "a selectable tab" and «All» is the
-       neutral state those tabs deselect into. FILTER opens the drawer and
-       is blood at all times (owner's call) — it opens something rather than
-       switching what you are looking at, and the colour says so up front. -->
+       blood (§07) — not pills. ONE tab now: «Watched», left, with FILTER at
+       the other end. «All» is gone because it was the neutral state of a
+       row that no longer has one — with a single toggle, off IS the neutral
+       state and a word for it is a word that changes nothing. FILTER opens
+       the drawer and is blood at all times (owner's call) — it opens
+       something rather than switching what you are looking at.
+
+       The counts left the tabs: the account's statistics already carries
+       all three figures, and a number in a tab is a second place to keep
+       the same truth. -->
   <div class="nav-row">
     <div class="tabs" id="tabs">
-      <button class="tab" id="tabAll" type="button">Усе</button>
-      <button class="tab" data-tab="liked" type="button">Рекомендую <span class="n" id="nLiked"></span></button>
-      <button class="tab tab-toggle" id="watchedToggle" type="button" title="Тільки переглянуте">Дивився <span class="n" id="nWatched"></span></button>
+      <button class="tab tab-toggle" id="watchedToggle" type="button"
+              title="Тільки переглянуте" aria-expanded="false" aria-controls="markRow">Дивився</button>
     </div>
     <button class="tab filter-word" id="filterBtn" type="button">Фільтр</button>
+  </div>
+  <!-- The marks, and they only exist INSIDE «Watched»: each one narrows
+       what is already on the screen rather than switching to a list of its
+       own (owner's call). Which is why «Must watch» can come out empty —
+       a film you have watched and still mean to watch is a rare thing, and
+       the row says what it filters rather than promising a shelf. -->
+  <div class="mark-row" id="markRow" hidden>
+    <button class="tab mark-word" data-mark="liked" type="button">Рекомендую</button>
+    <button class="tab mark-word" data-mark="must" type="button">Обовʼязково до перегляду</button>
   </div>
   <!-- The genre ribbon: one line under the navigation, a tap filters, a
        second tap clears (U-6). That it SCROLLS was invisible (owner-
@@ -2874,7 +2897,7 @@ return far || flick;
 }
 function anyFilterSet(st) {
 if (!st) return false;
-return !!(st.query || st.tab && st.tab !== 'all' || st.showWatched || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
+return !!(st.query || st.showWatched || st.onlyLiked || st.onlyMust || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
 }
 const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'menu', 'collection', 'addMode', 'search' ];
 function topNavSurface(open) {
@@ -3902,15 +3925,15 @@ if (!raw) return false;
 return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
-function filterCatalog(movies, {query: query, tab: tab, showWatched: showWatched, keepWatched: keepWatched, genre: genre, recommender: recommender, type: type, years: years, provider: provider, actors: actors, directors: directors, likedIds: likedIds, watchedIds: watchedIds}) {
+function filterCatalog(movies, {query: query, showWatched: showWatched, keepWatched: keepWatched, onlyLiked: onlyLiked, onlyMust: onlyMust, genre: genre, recommender: recommender, type: type, years: years, provider: provider, actors: actors, directors: directors, likedIds: likedIds, watchedIds: watchedIds, mustIds: mustIds}) {
 const has = isMarked;
 const q = (query || '').toLowerCase();
 return (movies || []).filter(m => {
 if (!matches(m, q)) return false;
-if (tab === 'liked') {
-if (!has(likedIds, m)) return false;
-} else if (showWatched) {
+if (showWatched) {
 if (!has(watchedIds, m)) return false;
+if (onlyLiked && !has(likedIds, m)) return false;
+if (onlyMust && !has(mustIds, m)) return false;
 } else if (!keepWatched && has(watchedIds, m)) {
 return false;
 }
@@ -5435,7 +5458,8 @@ auth.signOut().finally(() => location.reload());
 let watchedAt = {};
 
 let state = {
-tab: 'all',
+onlyLiked: false,
+onlyMust: false,
 genre: 'all',
 sort: 'rating',
 query: '',
@@ -5450,7 +5474,7 @@ provider: 'all',
 actors: [],
 directors: [],
 searchScope: 'here',
-trailerSound: true
+trailerSound: false
 };
 
 let openCatalogCollection = null;
@@ -5476,7 +5500,8 @@ return {};
 function saveSettings() {
 try {
 localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-tab: state.tab,
+onlyLiked: state.onlyLiked,
+onlyMust: state.onlyMust,
 genre: state.genre,
 sort: state.sort,
 recommender: state.recommender,
@@ -5497,8 +5522,6 @@ genres: document.body.dataset.genres
 }
 
 const savedSettings = loadSavedSettings();
-
-if (savedSettings.tab) state.tab = savedSettings.tab;
 
 if (savedSettings.genre) state.genre = savedSettings.genre;
 
@@ -5527,6 +5550,15 @@ if (savedSettings.recommender) state.recommender = savedSettings.recommender;
 
 if (typeof savedSettings.showWatched === 'boolean') state.showWatched = savedSettings.showWatched;
 
+if (savedSettings.tab === 'liked') {
+state.showWatched = true;
+state.onlyLiked = true;
+}
+
+if (typeof savedSettings.onlyLiked === 'boolean') state.onlyLiked = savedSettings.onlyLiked;
+
+if (typeof savedSettings.onlyMust === 'boolean') state.onlyMust = savedSettings.onlyMust;
+
 if (typeof savedSettings.searchWatched === 'boolean') state.searchWatched = savedSettings.searchWatched;
 
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
@@ -5551,9 +5583,10 @@ function currentFilterOpts(keepWatched) {
 const showWatched = openCatalogCollection && openCatalogCollection.source === 'marks' ? false : state.showWatched;
 return {
 query: state.query,
-tab: state.tab,
 showWatched: showWatched,
 keepWatched: keepWatched,
+onlyLiked: state.onlyLiked,
+onlyMust: state.onlyMust,
 genre: state.genre,
 recommender: state.recommender,
 type: state.type,
@@ -5562,7 +5595,8 @@ provider: state.provider,
 actors: state.actors,
 directors: state.directors,
 likedIds: liked,
-watchedIds: watched
+watchedIds: watched,
+mustIds: must
 };
 }
 
@@ -5833,7 +5867,7 @@ if (row) row.hidden = !anyFilterSet(state);
 function syncSearchWatched() {
 const row = document.getElementById('searchWatchedRow');
 if (!row) return;
-const relevant = !!state.query && state.tab === 'all' && !state.showWatched && !addMode && !(openCatalogCollection && openCatalogCollection.source === 'marks');
+const relevant = !!state.query && !state.showWatched && !addMode && !(openCatalogCollection && openCatalogCollection.source === 'marks');
 if (!relevant) {
 row.hidden = true;
 return;
@@ -5853,11 +5887,6 @@ const items = visibleMovies();
 syncDice();
 _cardAwardMovies = [];
 if (!opts.keepDrawn) _drawnTarget = RENDER_BATCH;
-const nLiked = countExistingMarks(liked, MOVIES);
-const nWatched = countExistingMarks(watched, MOVIES);
-const nMust = countExistingMarks(must, MOVIES);
-document.getElementById('nLiked').textContent = nLiked ? `(${nLiked} / ${nMust})` : '';
-document.getElementById('nWatched').textContent = nWatched ? `(${nWatched})` : '';
 if (!items.length) {
 _renderQueue = [];
 const markEl = document.getElementById('markTemplate');
@@ -5933,8 +5962,9 @@ drawQueuedCards(main, _drawnTarget);
 function resetFilters() {
 if (typeof closeSearch === 'function') closeSearch();
 state.query = '';
-state.tab = 'all';
 state.showWatched = false;
+state.onlyLiked = false;
+state.onlyMust = false;
 state.genre = 'all';
 state.recommender = 'all';
 state.type = 'all';
@@ -6447,9 +6477,10 @@ if (!msg) return;
 if (msg.event === 'infoDelivery' && msg.info && typeof msg.info.muted === 'boolean') {
 const btn = modalBox.querySelector('.film-sound');
 if (btn) btn.setAttribute('aria-pressed', msg.info.muted ? 'false' : 'true');
+if (msg.info.muted && state.trailerSound) _soundNeedsGesture = true;
 }
-const state = msg.event === 'onStateChange' ? msg.info : msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined;
-if (state === -1 || state === 5) {
+const playerState = msg.event === 'onStateChange' ? msg.info : msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined;
+if (playerState === -1 || playerState === 5) {
 const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame && frame.contentWindow) {
 frame.contentWindow.postMessage(JSON.stringify({
@@ -6460,7 +6491,7 @@ args: ''
 }
 return;
 }
-if (state === 1) {
+if (playerState === 1) {
 _trailerEverPlayed = true;
 clearTrailerTimers();
 }
@@ -7577,24 +7608,33 @@ keepDrawn: true
 saveSettings();
 });
 
+const markRowEl = document.getElementById('markRow');
+
+const watchedToggleEl = document.getElementById('watchedToggle');
+
 function syncTabs() {
-document.querySelectorAll('.tab[data-tab]').forEach(x => x.classList.toggle('active', x.dataset.tab === state.tab));
-document.getElementById('watchedToggle').classList.toggle('active', state.showWatched);
-document.getElementById('tabAll').classList.toggle('active', state.tab === 'all' && !state.showWatched);
+watchedToggleEl.classList.toggle('active', state.showWatched);
+watchedToggleEl.setAttribute('aria-expanded', String(state.showWatched));
+markRowEl.hidden = !state.showWatched;
+markRowEl.querySelectorAll('.mark-word').forEach(b => b.classList.toggle('active', b.dataset.mark === 'liked' ? state.onlyLiked : state.onlyMust));
 }
 
 document.getElementById('tabs').addEventListener('click', e => {
-if (e.target.closest('#tabAll')) {
-state.tab = 'all';
-state.showWatched = false;
-} else if (e.target.closest('#watchedToggle')) {
+if (!e.target.closest('#watchedToggle')) return;
 state.showWatched = !state.showWatched;
-if (state.showWatched) state.tab = 'all';
-} else {
-const b = e.target.closest('.tab[data-tab]');
-if (!b) return;
-state.tab = state.tab === b.dataset.tab ? 'all' : b.dataset.tab;
+if (!state.showWatched) {
+state.onlyLiked = false;
+state.onlyMust = false;
 }
+syncTabs();
+render();
+saveSettings();
+});
+
+markRowEl.addEventListener('click', e => {
+const b = e.target.closest('.mark-word');
+if (!b) return;
+if (b.dataset.mark === 'liked') state.onlyLiked = !state.onlyLiked; else state.onlyMust = !state.onlyMust;
 syncTabs();
 render();
 saveSettings();
@@ -7606,8 +7646,9 @@ function renderChips() {
 const counts = {};
 for (const m of filterCatalog(searchSource(), {
 query: state.query,
-tab: state.tab,
 showWatched: state.showWatched,
+onlyLiked: state.onlyLiked,
+onlyMust: state.onlyMust,
 keepWatched: openCatalogCollection && openCatalogCollection.source === 'marks' || addMode,
 genre: 'all',
 recommender: state.recommender,
@@ -7617,7 +7658,8 @@ provider: state.provider,
 actors: state.actors,
 directors: state.directors,
 likedIds: liked,
-watchedIds: watched
+watchedIds: watched,
+mustIds: must
 })) {
 counts[m.genre_group] = (counts[m.genre_group] || 0) + 1;
 }
@@ -10785,6 +10827,8 @@ if (!m) return;
 _cardWalk.i = next;
 _soundNeedsGesture = true;
 openModal(m);
+_soundNeedsGesture = false;
+unmuteTrailer();
 swipeSlideIn(modalBox, dir, 100);
 }
 
