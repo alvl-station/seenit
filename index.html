@@ -10474,6 +10474,13 @@ _navGuard = false;
 }
 } else {
 _navGuard = false;
+let ours = false;
+try {
+ours = !!(history.state && history.state.seenitNav);
+} catch (err) {
+ours = false;
+}
+if (!ours) return;
 _navExpectPop = true;
 try {
 history.back();
@@ -10605,10 +10612,27 @@ const to = chip.offsetLeft - (genreChipsEl.clientWidth - chip.offsetWidth) / 2;
 glideRibbon(Math.max(0, Math.min(to, max)));
 }
 
+function bounceRibbon(dir) {
+if (swipeStill()) return;
+const box = genreChipsEl;
+if (!box) return;
+box.style.transition = 'transform .12s ease-out';
+box.style.transform = `translateX(${dir === 'right' ? 12 : -12}px)`;
+setTimeout(() => {
+box.style.transform = '';
+setTimeout(() => {
+box.style.transition = '';
+}, 160);
+}, 120);
+}
+
 function swipeToGenre(dir) {
 const genres = [ ...genreChipsEl.querySelectorAll('.chip') ].map(el => el.dataset.g);
 const next = genreStep(genres, state.genre || 'all', dir);
-if (next === null) return;
+if (next === null) {
+bounceRibbon(dir);
+return;
+}
 state.genre = next;
 renderChips();
 render();
