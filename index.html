@@ -26,9 +26,10 @@
     --glass-tint-alpha: .52;
 
     
-    --tone-ground: rgb(var(--tone-rgb));
     --tone-edge: transparent;
     --tone-edge-w: 0;
+    
+    --tone-wash: .18;
     --tone-alpha: var(--glass-tint-alpha);
   }
 
@@ -112,6 +113,7 @@
   
   .btn {
     --tone-rgb: var(--graphite-rgb);
+    --tone-ground: rgb(var(--tone-rgb));
     --tone-ink: var(--text);
     --tone-edge: var(--border);
     --tone-edge-w: 1px;
@@ -120,12 +122,18 @@
   
   .btn-primary {
     --tone-rgb: var(--blood-rgb);
+    --tone-ground: rgba(var(--tone-rgb), var(--tone-wash));
+    --tone-edge: rgb(var(--tone-rgb));
+    --tone-edge-w: 1px;
     --tone-ink: var(--paper);
     --tone-alpha: .58;
   }
   
   .btn-danger {
     --tone-rgb: var(--flash-rgb);
+    --tone-ground: rgba(var(--tone-rgb), var(--tone-wash));
+    --tone-edge: rgb(var(--tone-rgb));
+    --tone-edge-w: 1px;
     --tone-ink: var(--paper);
     --tone-alpha: .58;
   }
@@ -139,17 +147,24 @@
     --tone-ground: transparent;
   }
   
-  .chip, .opt {
-    --tone-rgb: var(--surface-rgb);
+  .chip, .opt, .svc {
+    --tone-rgb: var(--graphite-rgb);
+    --tone-ground: rgb(var(--tone-rgb));
     --tone-ink: var(--text-muted);
     --tone-edge: var(--border);
     --tone-edge-w: 1px;
+    --tone-alpha: .52;
   }
   
   .opt { --tone-ink: var(--dust); }
+  .svc { --tone-ink: var(--ash); }
+
   
-  .chip.active, .opt.active {
+  .chip.active, .opt.active, .svc--on {
     --tone-rgb: var(--blood-rgb);
+    
+    --tone-ground: rgba(var(--tone-rgb), var(--tone-wash));
+    --tone-edge: rgb(var(--tone-rgb));
     --tone-ink: var(--paper);
     --tone-edge-w: 1px;
     --tone-alpha: .58;
@@ -488,19 +503,23 @@
     -webkit-tap-highlight-color: transparent;
   }
   .tab.active { color: var(--tab-ink-on); border-bottom-color: var(--tab-rule-on); }
+  
+  #watchedToggle.active { border-bottom-color: transparent; }
 
   
   .mark-row {
-    display: flex; gap: 18px; padding: 6px 0 2px;
+    display: flex; align-items: center; gap: 10px; padding: 6px 0 2px;
     border-bottom: 1px solid var(--border);
   }
   .mark-row[hidden] { display: none; }
+  
   .mark-word {
-    color: var(--flash); font-size: 11.5px; padding: 4px 0 5px;
-    opacity: .62;
+    color: var(--flash); font-size: 11.5px; font-weight: 600; padding: 4px 0 5px;
   }
   
-  .mark-word.active { color: var(--flash); opacity: 1; border-bottom-color: var(--flash); }
+  .mark-word.active { color: var(--flash); border-bottom-color: var(--flash); }
+  
+  .mark-dot { color: var(--flash); opacity: .45; font-size: 11px; line-height: 1; }
   
 
   
@@ -1571,15 +1590,15 @@
   .acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   .acc-services { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
   
+  
   .svc {
     display: inline-flex; align-items: center; cursor: pointer;
-    background: var(--surface2); border: 1px solid var(--border);
+    background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge);
     border-radius: 2px; padding: 7px 12px;
     font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--ash);
+    text-transform: uppercase; color: var(--tone-ink);
     transition: color .15s, border-color .15s;
   }
-  .svc--on { border-color: var(--blood); color: var(--paper); background: rgba(142, 0, 0, .18); }
   .svc:active { border-color: var(--flash); }
   .svc input {
     position: absolute; width: 1px; height: 1px; margin: -1px;
@@ -1800,7 +1819,8 @@
     .modal-overlay {
       padding: 0;
       align-items: stretch; justify-content: stretch;
-      background: var(--bg); backdrop-filter: none;
+      
+      background: transparent; backdrop-filter: none;
     }
     
     .modal-overlay > .modal {
@@ -2137,7 +2157,7 @@
   <div class="nav-row">
     <div class="tabs" id="tabs">
       <button class="tab tab-toggle" id="watchedToggle" type="button"
-              title="Тільки переглянуте" aria-expanded="false" aria-controls="markRow">Дивився</button>
+              title="Тільки переглянуте" aria-expanded="false" aria-controls="markRow">Переглянуто</button>
     </div>
     <button class="tab filter-word" id="filterBtn" type="button">Фільтр</button>
   </div>
@@ -2148,6 +2168,10 @@
        the row says what it filters rather than promising a shelf. -->
   <div class="mark-row" id="markRow" hidden>
     <button class="tab mark-word" data-mark="liked" type="button">Рекомендую</button>
+    <!-- A separator, not a control: it is aria-hidden and carries no
+         .mark-word, so the row's own click handler cannot mistake it for a
+         filter and a screen reader does not read a bullet out loud. -->
+    <span class="mark-dot" aria-hidden="true">•</span>
     <button class="tab mark-word" data-mark="must" type="button">Обовʼязково до перегляду</button>
   </div>
   <!-- The genre ribbon: one line under the navigation, a tap filters, a
@@ -3845,19 +3869,7 @@ function visibleProviders(providers) {
 return (providers || []).filter(p => p && p.url && !EXCLUDED_PROVIDER_KEYS.has(serviceKey(p.name)));
 }
 
-function providersInCatalogue(movies) {
-const counts = new Map;
-for (const m of movies || []) {
-for (const p of visibleProviders(m && m.providers)) {
-const name = p && p.name;
-if (name) counts.set(name, (counts.get(name) || 0) + 1);
-}
-}
-return [ ...counts.entries() ].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk')).map(([name, n]) => ({
-name: name,
-count: n
-}));
-}
+const KNOWN_SERVICES = [ 'Megogo', 'Київстар ТБ', 'sweet.tv', 'Takflix', 'Netflix', 'Apple TV', 'Amazon Prime Video' ];
 
 function actorsInCatalogue(movies) {
 const counts = new Map;
@@ -3932,7 +3944,7 @@ return (movies || []).filter(m => {
 if (!matches(m, q)) return false;
 if (showWatched) {
 if (!has(watchedIds, m)) return false;
-if (onlyLiked && !has(likedIds, m)) return false;
+if (onlyLiked && (!has(likedIds, m) || has(mustIds, m))) return false;
 if (onlyMust && !has(mustIds, m)) return false;
 } else if (!keepWatched && has(watchedIds, m)) {
 return false;
@@ -4787,8 +4799,8 @@ for (const m of movies || []) {
 const key = markKey(m);
 if (!key) continue;
 const seen = isMarked(marks && marks.watchedIds, m);
-if (isMarked(marks && marks.likedIds, m)) out.liked++;
-if (isMarked(marks && marks.mustIds, m)) out.must++;
+const starred = isMarked(marks && marks.mustIds, m);
+if (starred) out.must++; else if (isMarked(marks && marks.likedIds, m)) out.liked++;
 if (!seen) continue;
 out.watched++;
 if (m.genre_group) genres[m.genre_group] = (genres[m.genre_group] || 0) + 1;
@@ -4832,6 +4844,20 @@ const list = [ 'all', ...genres || [] ];
 const i = Math.max(0, list.indexOf(current || 'all'));
 const next = swipeStep(list.length, i, dir);
 return next === null ? null : list[next];
+}
+
+function nextGenreWithFilms(order, current, counts) {
+const list = (order || []).filter(g => g);
+const has = g => Number((counts || {})[g]) > 0;
+if (!list.length) return null;
+if (!current || current === 'all' || has(current)) return null;
+const from = list.indexOf(current);
+const start = from < 0 ? 0 : from + 1;
+for (let step = 0; step < list.length; step++) {
+const g = list[(start + step) % list.length];
+if (has(g)) return g;
+}
+return null;
 }
 
 function parseBatchLine(line) {
@@ -4991,7 +5017,7 @@ DICE_COMMUNITY_CAP: DICE_COMMUNITY_CAP,
 YEAR_BUCKETS: YEAR_BUCKETS,
 matchesYearBucket: matchesYearBucket,
 isExcludedProduction: isExcludedProduction,
-providersInCatalogue: providersInCatalogue,
+KNOWN_SERVICES: KNOWN_SERVICES,
 hasProvider: hasProvider,
 EXCLUDED_PROVIDER_KEYS: EXCLUDED_PROVIDER_KEYS,
 visibleProviders: visibleProviders,
@@ -5048,6 +5074,7 @@ swipeAxis: swipeAxis,
 swipeVerdict: swipeVerdict,
 swipeStep: swipeStep,
 genreStep: genreStep,
+nextGenreWithFilms: nextGenreWithFilms,
 swipeDismisses: swipeDismisses,
 anyFilterSet: anyFilterSet,
 countWatchedIn: countWatchedIn,
@@ -6139,8 +6166,6 @@ syncAdminRow();
 if (overlay.classList.contains('open') && _modalMovie) openModal(_modalMovie);
 }).catch(() => {});
 }
-
-const KNOWN_SERVICES = [ 'Megogo', 'Київстар ТБ', 'sweet.tv', 'Takflix', 'Netflix', 'Apple TV', 'Amazon Prime Video' ];
 
 let _services = [];
 
@@ -7627,6 +7652,7 @@ state.onlyLiked = false;
 state.onlyMust = false;
 }
 syncTabs();
+renderChips();
 render();
 saveSettings();
 });
@@ -7634,8 +7660,12 @@ saveSettings();
 markRowEl.addEventListener('click', e => {
 const b = e.target.closest('.mark-word');
 if (!b) return;
-if (b.dataset.mark === 'liked') state.onlyLiked = !state.onlyLiked; else state.onlyMust = !state.onlyMust;
+const liked = b.dataset.mark === 'liked';
+const on = liked ? !state.onlyLiked : !state.onlyMust;
+state.onlyLiked = liked && on;
+state.onlyMust = !liked && on;
 syncTabs();
+renderChips();
 render();
 saveSettings();
 });
@@ -7662,6 +7692,14 @@ watchedIds: watched,
 mustIds: must
 })) {
 counts[m.genre_group] = (counts[m.genre_group] || 0) + 1;
+}
+const moved = nextGenreWithFilms(orderGenresByTaste(GENRE_ORDER, tasteStats().genres), state.genre, counts);
+if (moved) {
+state.genre = moved;
+saveSettings();
+} else if (state.genre && state.genre !== 'all' && !counts[state.genre]) {
+state.genre = 'all';
+saveSettings();
 }
 const activeG = state.genre || 'all';
 let html = '';
@@ -7827,15 +7865,8 @@ const providerFilterEl = document.getElementById('providerFilter');
 function updateProviderFilter() {
 const label = document.getElementById('providerLabel');
 if (!providerFilterEl || !label) return;
-const values = providersInCatalogue(MOVIES);
-if (!values.length) {
-providerFilterEl.style.display = 'none';
-label.style.display = 'none';
-state.provider = 'all';
-return;
-}
-if (!values.some(v => v.name === state.provider)) state.provider = 'all';
-providerFilterEl.innerHTML = values.map(v => `<button class="opt${state.provider === v.name ? ' active' : ''}" data-prov="${esc(v.name)}" type="button">${esc(v.name)}</button>`).join('');
+if (!KNOWN_SERVICES.includes(state.provider)) state.provider = 'all';
+providerFilterEl.innerHTML = KNOWN_SERVICES.map(name => `<button class="opt${state.provider === name ? ' active' : ''}" data-prov="${esc(name)}" type="button">${esc(name)}</button>`).join('');
 providerFilterEl.style.display = '';
 label.style.display = '';
 }
