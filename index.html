@@ -1647,6 +1647,12 @@
   }
   .recs-list-chip.active { background: var(--blood); color: var(--paper); border-color: transparent; font-weight: 700; }
   .recs-list-chip[disabled] { opacity: .4; cursor: default; }
+  
+  .recs-list-from {
+    display: inline-flex; align-items: center; padding: 0 8px 0 6px;
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--slate); white-space: nowrap;
+  }
 
   .pool-card { display: flex; gap: 12px; }
   .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
@@ -9915,11 +9921,10 @@ navSync();
 }
 
 function personRowHtml(p, opts = {}) {
-const count = p.public_collections ? `${p.public_collections} ${p.public_collections === 1 ? 'добірка' : p.public_collections < 5 ? 'добірки' : 'добірок'}` : 'без відкритих добірок';
 const known = opts.marked && subs.subscriptions.some(x => x.username === p.username);
-const note = known ? ' · у підписках' : p.mutual ? ' · взаємно' : '';
+const note = known ? 'у підписках' : p.mutual ? 'взаємно' : '';
 const fold = opts.fold === undefined ? '' : `<span class="friend-fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>`;
-return `<button class="friend-row${known ? ' is-known' : ''}" type="button" data-person="${esc(p.username)}"${opts.fold === undefined ? '' : ` aria-expanded="${!!opts.fold}"`}>\n      <span class="friend-row-text">\n        <span class="friend-name">${esc(p.username)}</span>\n        <span class="friend-meta">${count}${note}</span>\n      </span>${fold}\n    </button>`;
+return `<button class="friend-row${known ? ' is-known' : ''}" type="button" data-person="${esc(p.username)}"${opts.fold === undefined ? '' : ` aria-expanded="${!!opts.fold}"`}>\n      <span class="friend-row-text">\n        <span class="friend-name">${esc(p.username)}</span>\n        ${note ? `<span class="friend-meta">${note}</span>` : ''}\n      </span>${fold}\n    </button>`;
 }
 
 function renderFriends() {
@@ -10372,7 +10377,13 @@ return;
 }
 if (recsSource === 'mine') {
 const own = shelf.filter(c => c.source === 'own');
-const ownHtml = own.length ? `<div class="recs-group"><div class="cf-label">Мої добірки</div>\n          <div class="recs-lists">${own.map(c => `<span class="recs-list-pair">\n               <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n               \x3c!-- Beside the collection rather than inside it: opening a\n                    collection and deleting it are different intentions, and\n                    one target for both is how a list gets deleted by a\n                    thumb aiming to open it. --\x3e\n               <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n               </button>\n             </span>`).join('')}</div></div>` : '';
+const chipFor = c => `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         \x3c!-- Beside the collection rather than inside it: opening a\n              collection and deleting it are different intentions, and\n              one target for both is how a list gets deleted by a\n              thumb aiming to open it. --\x3e\n         <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n         </button>\n       </span>`;
+const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="recs-lists">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
+const linkedChip = c => {
+const who = c.owner_name || c.owner_username;
+return `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         ${who ? `<span class="recs-list-from">від ${esc(who)}</span>` : ''}\n       </span>`;
+};
+const ownHtml = groupHtml('Приватні добірки', own.filter(c => !c.public), chipFor, own.some(c => !c.public) ? 'Видно лише тобі.' : '') + groupHtml('Відкриті добірки', own.filter(c => c.public), chipFor, own.some(c => c.public) ? 'Їх видно в пошуку за твоїм імʼям.' : '') + groupHtml('Добірки друзів', shelf.filter(c => c.source === 'linked'), linkedChip, 'Це посилання, не копії: власник додасть фільм — ти побачиш.');
 const recommended = MOVIES.filter(m => isMarked(liked, m));
 const mustSee = MOVIES.filter(m => isMarked(must, m));
 const chip = (list, label, count) => `<button class="recs-list-chip" data-own-marks="${list}" ${count ? '' : 'disabled'}>${label} · ${count}</button>`;
@@ -10400,7 +10411,7 @@ if (!shelf.length) {
 body.innerHTML = '<div class="add-hint">Добірки ще формуються — зазирни пізніше.</div>';
 return;
 }
-const groups = [ [ 'default', 'Добірки SeenIt' ], [ 'linked', 'Від інших' ] ];
+const groups = [ [ 'default', 'Добірки SeenIt' ] ];
 body.innerHTML = groups.map(([source, title]) => {
 const list = shelf.filter(c => c.source === source);
 if (!list.length) return '';
