@@ -156,8 +156,7 @@
     --tone-alpha: .52;
   }
   
-  .opt { --tone-ink: var(--dust); }
-  .svc { --tone-ink: var(--ash); }
+  .opt, .svc { --tone-ink: var(--dust); }
 
   
   .chip.active, .opt.active, .svc--on {
@@ -708,7 +707,8 @@
     text-transform: uppercase; color: var(--type-ink); margin: 16px 0 8px;
   }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; }
-  .opt {
+  
+  .opt, .svc {
     background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge); color: var(--tone-ink);
     padding: 10px 14px; border-radius: 2px; font-size: 12px; cursor: pointer;
     font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em;
@@ -879,6 +879,27 @@
   body[data-view="list"] .critic-row { order: 3; margin-top: 0; flex: 0 0 96px; }
   body[data-view="list"] .card-awards { order: 4; margin-top: 0; }
   body[data-view="list"] .card-toggles { order: 5; margin-top: 0; margin-left: auto; margin-right: 4px; padding-top: 0; }
+
+    
+  .card-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 56px; height: 56px; display: none;
+    align-items: center; justify-content: center;
+    padding: 0; border: 0; background: none; cursor: pointer;
+    color: var(--blood); z-index: 2;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .card-nav svg { width: 40px; height: 40px; display: block; }
+  .card-nav:hover, .card-nav:focus-visible { color: var(--flash); }
+  .card-nav:active { color: var(--flash); transform: translateY(-50%) scale(.92); }
+  .card-nav--prev { left: 16px; }
+  .card-nav--next { right: 16px; }
+  @media (min-width: 720px) {
+    .modal-overlay.open > .card-nav { display: flex; }
+    
+    .modal-overlay.open > .card-nav[hidden] { display: flex; visibility: hidden; }
+  }
 
     
   .critic-badge, .rating-badge { -webkit-tap-highlight-color: transparent; }
@@ -1588,18 +1609,9 @@
   .acc-hint.is-bad { color: var(--flash); }
   .acc-hint.is-good { color: var(--ok); }
   .acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-  .acc-services { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
+  .acc-services { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
   
   
-  .svc {
-    display: inline-flex; align-items: center; cursor: pointer;
-    background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge);
-    border-radius: 2px; padding: 7px 12px;
-    font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--tone-ink);
-    transition: color .15s, border-color .15s;
-  }
-  .svc:active { border-color: var(--flash); }
   .svc input {
     position: absolute; width: 1px; height: 1px; margin: -1px;
     padding: 0; border: 0; clip: rect(0 0 0 0); overflow: hidden;
@@ -2505,7 +2517,17 @@
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
+  <!-- Walking the shelf without closing the card. The touch swipe has done
+       this since vol. II; these are the same step for a pointer, which has
+       no swipe. Hidden unless there is a walk to step through and room
+       beside the card to stand in — see .card-nav in style.css. -->
+  <button class="card-nav card-nav--prev" id="cardPrev" type="button" aria-label="Попередній фільм" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4 7 12l8 8"/></svg>
+  </button>
   <div class="modal" id="modalBox" data-surface="popup" data-material="glass"></div>
+  <button class="card-nav card-nav--next" id="cardNext" type="button" aria-label="Наступний фільм" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4l8 8-8 8"/></svg>
+  </button>
 </div>
 <div class="modal-overlay" id="addMovieOverlay">
   <div class="modal add-modal" id="addMovieBox" data-surface="screen" data-material="glass"></div>
@@ -3680,7 +3702,7 @@ if (!Number.isFinite(year) || year <= 0) return false;
 return new Date(now).getUTCFullYear() - year > years;
 }
 
-const ENRICHMENT_MAX_AGE_YEARS = 2;
+const ENRICHMENT_MAX_AGE_YEARS = 5;
 
 function criticScoreWorthRefreshing(movie, now = Date.now()) {
 const score = movie && movie.critic_score;
@@ -6435,6 +6457,7 @@ const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисе
 modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}">${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}">${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}">${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 overlay.classList.add('open');
 navSync();
+syncFilmCardArrows();
 lockScroll(overlay);
 wireAdminEditor(m);
 unmuteTrailer();
@@ -10858,6 +10881,22 @@ if (dir === 'right') history.back();
 }, {
 passive: true
 });
+
+const cardPrevBtn = document.getElementById('cardPrev');
+
+const cardNextBtn = document.getElementById('cardNext');
+
+function syncFilmCardArrows() {
+if (!cardPrevBtn || !cardNextBtn) return;
+const walk = _cardWalk;
+const live = !!(walk && _modalMovie && walk.ids[walk.i] === _modalMovie.id);
+cardPrevBtn.hidden = !live || swipeStep(walk.ids.length, walk.i, 'right') === null;
+cardNextBtn.hidden = !live || swipeStep(walk.ids.length, walk.i, 'left') === null;
+}
+
+if (cardPrevBtn) cardPrevBtn.addEventListener('click', () => swipeToNeighbourFilm('right'));
+
+if (cardNextBtn) cardNextBtn.addEventListener('click', () => swipeToNeighbourFilm('left'));
 
 function swipeToNeighbourFilm(dir) {
 if (!_cardWalk) return;
