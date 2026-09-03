@@ -881,9 +881,10 @@
   body[data-view="list"] .card-toggles { order: 5; margin-top: 0; margin-left: auto; margin-right: 4px; padding-top: 0; }
 
     
+  
   .card-nav {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    width: 56px; height: 56px; display: none;
+    position: absolute; top: 26%; bottom: 0;
+    width: calc(25% - 140px); display: none;
     align-items: center; justify-content: center;
     padding: 0; border: 0; background: none; cursor: pointer;
     color: var(--blood); z-index: 2;
@@ -892,9 +893,11 @@
   
   .card-nav svg { width: 40px; height: 40px; display: block; }
   .card-nav:hover, .card-nav:focus-visible { color: var(--flash); }
-  .card-nav:active { color: var(--flash); transform: translateY(-50%) scale(.92); }
-  .card-nav--prev { left: 16px; }
-  .card-nav--next { right: 16px; }
+  
+  .card-nav:active svg { transform: scale(.88); }
+  .card-nav svg { transition: transform .08s ease-out; }
+  .card-nav--prev { left: 0; }
+  .card-nav--next { right: 0; }
   @media (min-width: 720px) {
     .modal-overlay.open > .card-nav { display: flex; }
     
