@@ -4667,8 +4667,10 @@ const key = p && serviceKey(p.name);
 return !!key && (owned || []).some(o => serviceKey(o) === key);
 }
 
+const PROVIDER_KINDS_PAID_PER_TITLE = [ 'rent', 'buy' ];
+
 function providerOwned(p, owned) {
-return !!p && p.kind === 'flatrate' && providerIsMine(p, owned);
+return !!p && !PROVIDER_KINDS_PAID_PER_TITLE.includes(p.kind) && providerIsMine(p, owned);
 }
 
 function sortProviders(providers, owned = []) {
