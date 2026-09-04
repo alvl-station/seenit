@@ -799,6 +799,20 @@
   .film-badges .card-badge { position: static; font-size: 11px; }
 
   
+  .film-seasons { margin: 14px 0 0; }
+  .seasons-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .seasons-row select {
+    flex: 1 1 180px; min-width: 0; max-width: 100%;
+    padding: 7px 8px; border-radius: 2px;
+    background: var(--coal2); color: var(--text);
+    border: 1px solid var(--border); font: inherit;
+    
+    font-size: 16px;
+  }
+  .seasons-row select:focus-visible { outline: 2px solid var(--flash); outline-offset: 1px; }
+  .episode-state { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+
+  
   .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
   .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
 
@@ -4928,6 +4942,95 @@ label: 'новинка'
 return null;
 }
 
+function poolSeasonsUrl(base, tmdbId, version = null) {
+const at = version === null || version === undefined || version === '' ? '' : `&v=${encodeURIComponent(version)}`;
+return `${base}/pool/seasons?id=${Number(tmdbId) || 0}${at}`;
+}
+
+function localSeasonsKey(tmdbId) {
+return `seenit_seasons_${Number(tmdbId) || 0}`;
+}
+
+function formatDay(date) {
+const t = String(date || '').slice(0, 10);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return '';
+const [y, m, d] = t.split('-');
+return `${d}.${m}.${y}`;
+}
+
+function episodeState(date, now = Date.now()) {
+const day = 24 * 60 * 60 * 1e3;
+const air = releaseDayMs(date);
+if (air === null) return 'unknown';
+const today = Math.floor(now / day) * day;
+if (air > today) return 'coming';
+if (air === today) return 'today';
+return 'out';
+}
+
+const EPISODE_STATE_LABEL = {
+out: '',
+today: 'сьогодні',
+coming: 'скоро',
+unknown: 'дата невідома'
+};
+
+function episodeOptionLabel(ep, now = Date.now()) {
+if (!ep) return '';
+const n = Number(ep.n) || 0;
+const title = String(ep.t || '').trim();
+const head = title ? `${n}. ${title}` : `Епізод ${n}`;
+const state = episodeState(ep.d, now);
+const tail = state === 'out' ? formatDay(ep.d) : EPISODE_STATE_LABEL[state];
+const when = state === 'coming' && formatDay(ep.d) ? `${formatDay(ep.d)} — скоро` : tail;
+return when ? `${head} · ${when}` : head;
+}
+
+function pluralEpisodes(n) {
+const mod10 = n % 10, mod100 = n % 100;
+if (mod10 === 1 && mod100 !== 11) return 'епізод';
+if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'епізоди';
+return 'епізодів';
+}
+
+function seasonOptionLabel(season, now = Date.now()) {
+if (!season) return '';
+const eps = Array.isArray(season.eps) ? season.eps : [];
+const ahead = eps.filter(e => {
+const st = episodeState(e.d, now);
+return st !== 'out' && st !== 'today';
+}).length;
+const name = String(season.name || '').trim() || `Сезон ${Number(season.n) || 0}`;
+const count = `${eps.length} ${pluralEpisodes(eps.length)}`;
+return ahead ? `${name} · ${count} (${ahead} попереду)` : `${name} · ${count}`;
+}
+
+function currentSeasonIndex(seasons, now = Date.now()) {
+const list = Array.isArray(seasons) ? seasons : [];
+if (!list.length) return -1;
+let best = -1;
+list.forEach((s, i) => {
+if (Number(s.n) === 0) return;
+const started = (s.eps || []).some(e => {
+const st = episodeState(e.d, now);
+return st === 'out' || st === 'today';
+});
+if (started) best = i;
+});
+if (best >= 0) return best;
+const firstReal = list.findIndex(s => Number(s.n) !== 0);
+return firstReal >= 0 ? firstReal : 0;
+}
+
+function episodeStateLine(ep, now = Date.now()) {
+if (!ep) return '';
+const state = episodeState(ep.d, now);
+if (state === 'today') return 'Вийшов сьогодні';
+if (state === 'unknown') return 'Дата виходу невідома';
+const day = formatDay(ep.d);
+return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
+}
+
 function parseBatchLine(line) {
 const m = line.match(/^(.*?)[,(]\s*(\d{4})\)?\s*$/);
 if (m) return {
@@ -5137,6 +5240,16 @@ BADGE_NEW_EPISODE_DAYS: BADGE_NEW_EPISODE_DAYS,
 BADGE_SOON_DAYS: BADGE_SOON_DAYS,
 releaseDayMs: releaseDayMs,
 releaseBadge: releaseBadge,
+poolSeasonsUrl: poolSeasonsUrl,
+localSeasonsKey: localSeasonsKey,
+formatDay: formatDay,
+episodeState: episodeState,
+EPISODE_STATE_LABEL: EPISODE_STATE_LABEL,
+episodeOptionLabel: episodeOptionLabel,
+seasonOptionLabel: seasonOptionLabel,
+currentSeasonIndex: currentSeasonIndex,
+pluralEpisodes: pluralEpisodes,
+episodeStateLine: episodeStateLine,
 NAV_SURFACES: NAV_SURFACES,
 topNavSurface: topNavSurface,
 SWIPE_EDGE_PX: SWIPE_EDGE_PX,
@@ -6441,6 +6554,90 @@ return `<button class="opt${has ? ' opt--has' : ''}" type="button"\n        data
 }).join('')}${create}</div>`;
 }
 
+let _seasonPick = {
+id: null,
+season: 0,
+episode: 0
+};
+
+async function fetchSeasons(m) {
+const version = localStore.get(localCatalogueVersionKey());
+const key = localSeasonsKey(m.tmdb_id);
+const cached = localStore.get(key);
+if (cached && !Array.isArray(cached) && cached.v === version && Array.isArray(cached.seasons)) {
+return cached.seasons;
+}
+const res = await fetch(poolSeasonsUrl(API_PROXY, m.tmdb_id, version), {
+headers: await proxyHeaders()
+});
+if (!res.ok) return null;
+const body = await res.json();
+const seasons = Array.isArray(body.seasons) ? body.seasons : [];
+localStore.set(key, {
+v: version,
+seasons: seasons
+});
+return seasons;
+}
+
+function seasonsHtml(seasons, pick) {
+const season = seasons[pick.season];
+const eps = season && season.eps || [];
+const options = (list, label, chosen) => list.map((x, i) => `<option value="${i}"${i === chosen ? ' selected' : ''}>${esc(label(x))}</option>`).join('');
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      <select class="season-select" aria-label="Сезон">${options(seasons, s => seasonOptionLabel(s), pick.season)}</select>\n      <select class="episode-select" aria-label="Епізод">${options(eps, e => episodeOptionLabel(e), pick.episode)}</select>\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+}
+
+async function wireSeasons(m) {
+const box = modalBox.querySelector('#filmSeasons');
+if (!box || !m || !m.tmdb_id) return;
+if (!String(m.type || '').startsWith('серіал')) return;
+let seasons = null;
+try {
+seasons = await fetchSeasons(m);
+} catch (err) {
+return;
+}
+if (!seasons || !seasons.length) return;
+if (!modalBox.contains(box) || _modalMovie !== m) return;
+const sameFilm = _seasonPick.id === m.id;
+const pick = sameFilm ? {
+..._seasonPick
+} : {
+id: m.id,
+season: Math.max(currentSeasonIndex(seasons), 0),
+episode: 0
+};
+if (!seasons[pick.season]) pick.season = 0;
+if (!(seasons[pick.season].eps || [])[pick.episode]) pick.episode = 0;
+_seasonPick = pick;
+const draw = () => {
+box.innerHTML = seasonsHtml(seasons, _seasonPick);
+};
+draw();
+box.hidden = false;
+box.addEventListener('change', e => {
+const el = e.target;
+if (el.classList.contains('season-select')) {
+_seasonPick = {
+..._seasonPick,
+season: Number(el.value) || 0,
+episode: 0
+};
+draw();
+return;
+}
+if (el.classList.contains('episode-select')) {
+_seasonPick = {
+..._seasonPick,
+episode: Number(el.value) || 0
+};
+const eps = (seasons[_seasonPick.season] || {}).eps || [];
+const line = box.querySelector('.episode-state');
+if (line) line.textContent = episodeStateLine(eps[_seasonPick.episode]);
+}
+});
+}
+
 function collectionChoiceHtml() {
 const own = shelf.filter(c => c.source === 'own' && c.collection_id !== MY_FILMS_ID);
 return `<div class="collection-choice">\n    <label class="cf-label">У добірку</label>\n    <div class="opts">\n      <button class="opt active" data-cc-id="${esc(MY_FILMS_ID)}" data-cc-name="${esc(MY_FILMS_NAME)}" type="button">${esc(MY_FILMS_NAME)}</button>\n      ${own.map(c => `<button class="opt" data-cc-id="${esc(c.collection_id)}" data-cc-name="${esc(c.name)}" type="button">${esc(c.name)}</button>`).join('')}\n      <button class="opt opt--new" data-cc-new="1" type="button">${ICON.plus} Нова добірка</button>\n    </div>\n    <div class="pick-col-create" data-cc-create hidden>\n      <div class="field-clear-wrap">\n        <input id="cfNewColName" data-cc-name-input type="text" placeholder="Назва нової добірки">\n      </div>\n    </div>\n  </div>`;
@@ -6508,12 +6705,13 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}">${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}">${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}">${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}">${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}">${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}">${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 overlay.classList.add('open');
 navSync();
 syncFilmCardArrows();
 lockScroll(overlay);
 wireAdminEditor(m);
+wireSeasons(m);
 unmuteTrailer();
 nudgeTrailerToPlay();
 }
