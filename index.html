@@ -2779,7 +2779,10 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing catch-all bucket.
-  GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Інше'],
+  // The Ukrainian shelf leads the ribbon: it is the shelf this catalogue
+  // exists to have, and a person looking for it should not scroll past
+  // twenty genres to find it. Not a genre — see shelveFilm() in logic.js.
+  GENRE_ORDER: ['Українське', 'Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -4045,6 +4048,25 @@ if (!raw) return false;
 return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
+const UKRAINIAN_COUNTRIES = new Set([ 'україна', 'ukraine' ]);
+
+const UKRAINIAN_GROUP = 'Українське';
+
+function isUkrainianProduction(movie) {
+const raw = String(movie && movie.country || '');
+if (!raw) return false;
+return raw.split(',').some(part => UKRAINIAN_COUNTRIES.has(part.trim().toLowerCase()));
+}
+
+function shelveFilm(movie) {
+if (!movie || !isUkrainianProduction(movie)) return movie;
+if (movie.genre_group === UKRAINIAN_GROUP) return movie;
+return {
+...movie,
+genre_group: UKRAINIAN_GROUP
+};
+}
+
 function filterCatalog(movies, {query: query, showWatched: showWatched, keepWatched: keepWatched, onlyLiked: onlyLiked, onlyMust: onlyMust, genre: genre, recommender: recommender, type: type, years: years, provider: provider, actors: actors, directors: directors, likedIds: likedIds, watchedIds: watchedIds, mustIds: mustIds}) {
 const has = isMarked;
 const q = (query || '').toLowerCase();
@@ -5270,6 +5292,9 @@ matchesYearBucket: matchesYearBucket,
 isExcludedProduction: isExcludedProduction,
 KNOWN_SERVICES: KNOWN_SERVICES,
 hasProvider: hasProvider,
+UKRAINIAN_GROUP: UKRAINIAN_GROUP,
+isUkrainianProduction: isUkrainianProduction,
+shelveFilm: shelveFilm,
 EXCLUDED_PROVIDER_KEYS: EXCLUDED_PROVIDER_KEYS,
 visibleProviders: visibleProviders,
 actorsInCatalogue: actorsInCatalogue,
@@ -8395,7 +8420,7 @@ const paintedFromCache = Array.isArray(cached) && cached.length > 0;
 MOVIES.length = 0;
 if (paintedFromCache) {
 cached.forEach(m => {
-if (catalogueAccepts(m)) MOVIES.push(m);
+if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
 render();
@@ -8442,7 +8467,7 @@ if (!catalogueAccepts(f)) {
 if (at !== undefined) MOVIES[at] = null;
 continue;
 }
-if (at === undefined) MOVIES.push(f); else MOVIES[at] = f;
+if (at === undefined) MOVIES.push(shelveFilm(f)); else MOVIES[at] = shelveFilm(f);
 }
 for (const gone of body.removed || []) {
 const at = byId.get(String(gone));
@@ -8489,7 +8514,7 @@ const page = body.films || [];
 collected.push(...page.filter(m => m && m.id));
 if (first) MOVIES.length = 0;
 page.forEach(m => {
-if (catalogueAccepts(m)) MOVIES.push(m);
+if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
 renderChips();
@@ -8546,7 +8571,7 @@ if (!res.ok) {
 const body = await res.json().catch(() => ({}));
 throw new Error(body.error || `HTTP ${res.status}`);
 }
-if (catalogueAccepts(record) && !MOVIES.some(m => markKey(m) === key)) MOVIES.push(record);
+if (catalogueAccepts(record) && !MOVIES.some(m => markKey(m) === key)) MOVIES.push(shelveFilm(record));
 mine.add(key);
 return res;
 }
