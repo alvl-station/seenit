@@ -3209,8 +3209,9 @@ const k = markKey(movie);
 return !!(k && set && set.has && set.has(k));
 }
 
-function poolListUrl(base, {limit: limit = CATALOGUE_PAGE, after: after = 0} = {}) {
-return `${base}/pool/list?limit=${Number(limit)}&after=${Number(after) || 0}`;
+function poolListUrl(base, {limit: limit = CATALOGUE_PAGE, after: after = 0, version: version = null} = {}) {
+const at = version === null || version === undefined || version === '' ? '' : `&v=${encodeURIComponent(version)}`;
+return `${base}/pool/list?limit=${Number(limit)}&after=${Number(after) || 0}${at}`;
 }
 
 function poolVersionUrl(base) {
@@ -8103,7 +8104,8 @@ let after = 0;
 for (let first = true; ;first = false) {
 const res = await fetch(poolListUrl(API_PROXY, {
 limit: CATALOGUE_PAGE,
-after: after
+after: after,
+version: liveVersion
 }), {
 headers: await proxyHeaders({
 accept: 'application/json'
