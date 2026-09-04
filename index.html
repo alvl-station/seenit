@@ -6444,6 +6444,8 @@ let _trailerEverPlayed = false;
 
 let _trailerHardRetries = 0;
 
+let _playerSpoke = false;
+
 function hardRestartTrailer() {
 const iframe = modalBox.querySelector('.modal-trailer iframe');
 if (!iframe || _trailerHardRetries >= 2) return;
@@ -6459,13 +6461,14 @@ unmuteTrailer();
 function nudgeTrailerToPlay({keepRetryCount: keepRetryCount = false} = {}) {
 clearTrailerWatch();
 _trailerEverPlayed = false;
+_playerSpoke = false;
 if (!keepRetryCount) _trailerHardRetries = 0;
 const box = modalBox.querySelector('.modal-trailer');
 if (!box) return;
 const iframe = box.querySelector('iframe');
 if (!iframe) return;
 const subscribe = () => {
-if (!iframe.contentWindow) return;
+if (!iframe.contentWindow || _playerSpoke) return;
 iframe.contentWindow.postMessage(JSON.stringify({
 event: 'listening',
 id: 'seenit-trailer',
@@ -6486,8 +6489,8 @@ for (const delay of [ 150, 400, 800, 1500, 2500, 4e3, 6e3, 9e3 ]) {
 _trailerTimers.push(setTimeout(wake, delay));
 }
 _trailerTimers.push(setTimeout(() => {
-if (!_trailerEverPlayed) hardRestartTrailer();
-}, 11e3));
+if (!_playerSpoke) hardRestartTrailer();
+}, 2e4));
 iframe.addEventListener('load', wake, {
 once: true
 });
@@ -6500,6 +6503,7 @@ msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
 return;
 }
 if (!msg) return;
+_playerSpoke = true;
 if (msg.event === 'infoDelivery' && msg.info && typeof msg.info.muted === 'boolean') {
 const btn = modalBox.querySelector('.film-sound');
 if (btn) btn.setAttribute('aria-pressed', msg.info.muted ? 'false' : 'true');
