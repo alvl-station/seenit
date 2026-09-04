@@ -2812,9 +2812,77 @@ if (isEmpty && existing && existing[key] !== undefined) merged[key] = existing[k
 Object.keys(merged).forEach(k => merged[k] === undefined && delete merged[k]);
 return merged;
 }
-function slugify(titleEn, titleUk, year) {
-const base = (titleEn || titleUk || 'film').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-return `${base || 'film'}-${year || 'x'}`;
+const TRANSLIT = {
+"а": 'a',
+"б": 'b',
+"в": 'v',
+"г": 'h',
+"ґ": 'g',
+"д": 'd',
+"е": 'e',
+"ж": 'zh',
+"з": 'z',
+"и": 'y',
+"і": 'i',
+"к": 'k',
+"л": 'l',
+"м": 'm',
+"н": 'n',
+"о": 'o',
+"п": 'p',
+"р": 'r',
+"с": 's',
+"т": 't',
+"у": 'u',
+"ф": 'f',
+"х": 'kh',
+"ц": 'ts',
+"ч": 'ch',
+"ш": 'sh',
+"щ": 'shch',
+"ь": '',
+"ы": 'y',
+"э": 'e',
+"ё": 'e',
+"ъ": ''
+};
+const TRANSLIT_INITIAL = {
+"є": 'ye',
+"ї": 'yi',
+"й": 'y',
+"ю": 'yu',
+"я": 'ya'
+};
+const TRANSLIT_INNER = {
+"є": 'ie',
+"ї": 'i',
+"й": 'i',
+"ю": 'iu',
+"я": 'ia'
+};
+function translit(text) {
+const src = String(text || '').toLowerCase();
+let out = '';
+for (let i = 0; i < src.length; i++) {
+const ch = src[i];
+const atWordStart = i === 0 || !/[a-zа-яіїєґёыэ']/i.test(src[i - 1]);
+if (ch === 'з' && src[i + 1] === 'г') {
+out += 'zgh';
+i++;
+continue;
+}
+if (Object.prototype.hasOwnProperty.call(TRANSLIT_INITIAL, ch)) {
+out += (atWordStart ? TRANSLIT_INITIAL : TRANSLIT_INNER)[ch];
+continue;
+}
+out += Object.prototype.hasOwnProperty.call(TRANSLIT, ch) ? TRANSLIT[ch] : ch;
+}
+return out;
+}
+const latinPart = text => String(text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function slugify(titleEn, titleUk, year, tmdbId) {
+const base = latinPart(titleEn) || latinPart(translit(titleUk)) || (Number(tmdbId) > 0 ? `t${Number(tmdbId)}` : 'film');
+return `${base}-${year || 'x'}`;
 }
 function collectionIdFrom(name, {taken: taken = [], at: at = 0} = {}) {
 const latin = String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
@@ -3233,6 +3301,17 @@ const MY_FILMS_NAME = 'Мої фільми';
 function markKey(movie) {
 const n = Number(movie && movie.tmdb_id);
 return Number.isInteger(n) && n > 0 ? String(n) : null;
+}
+
+function findFilm(list, {id: id = null, tmdbId: tmdbId = null} = {}) {
+const films = list || [];
+const n = Number(tmdbId);
+if (Number.isInteger(n) && n > 0) {
+const hit = films.find(m => m && Number(m.tmdb_id) === n);
+if (hit) return hit;
+}
+if (id === null || id === undefined || id === '') return null;
+return films.find(m => m && m.id === id) || null;
 }
 
 function isMarked(set, movie) {
@@ -5102,6 +5181,7 @@ MY_FILMS_ID: MY_FILMS_ID,
 MY_FILMS_NAME: MY_FILMS_NAME,
 markKey: markKey,
 isMarked: isMarked,
+findFilm: findFilm,
 poolListUrl: poolListUrl,
 poolVersionUrl: poolVersionUrl,
 markUrl: markUrl,
@@ -6013,7 +6093,7 @@ const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}">\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_BATCH = 200;
@@ -6705,7 +6785,7 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}">${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}">${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}">${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 overlay.classList.add('open');
 navSync();
 syncFilmCardArrows();
@@ -6999,8 +7079,11 @@ return;
 }
 const btn = e.target.closest('[data-act]');
 if (btn) {
-toggle(btn.dataset.act, btn.dataset.id);
-const m = MOVIES.find(x => x.id === btn.dataset.id);
+toggle(btn.dataset.act, btn.dataset.id, btn.dataset.tmdb);
+const m = findFilm(MOVIES, {
+id: btn.dataset.id,
+tmdbId: btn.dataset.tmdb
+});
 if (m) openModal(m);
 }
 });
@@ -7015,8 +7098,11 @@ diceSheet.close();
 settingsSheet.close();
 });
 
-async function toggle(act, id) {
-const movie = MOVIES.find(x => x.id === id);
+async function toggle(act, id, tmdbId = null) {
+const movie = findFilm(MOVIES, {
+id: id,
+tmdbId: tmdbId
+});
 const key = markKey(movie);
 if (!key) {
 toast('error', 'Цей фільм ще без TMDb-ідентифікатора — позначку нема на чому тримати.');
@@ -7159,11 +7245,14 @@ return;
 }
 if (tgl && card) {
 e.stopPropagation();
-toggle(tgl.dataset.act, card.dataset.id);
+toggle(tgl.dataset.act, card.dataset.id, card.dataset.tmdb);
 return;
 }
 if (card) {
-const m = MOVIES.find(x => x.id === card.dataset.id);
+const m = findFilm(MOVIES, {
+id: card.dataset.id,
+tmdbId: card.dataset.tmdb
+});
 if (m) {
 rememberCardWalk(card);
 openModal(m);
@@ -7825,13 +7914,17 @@ diceResultsEl.addEventListener('click', e => {
 const act = e.target.closest('[data-act]');
 if (act) {
 const card = act.closest('.card');
-toggle(act.dataset.act, card && card.dataset.id);
+toggle(act.dataset.act, card && card.dataset.id, card && card.dataset.tmdb);
 renderDiceResults(_dicePicks);
 return;
 }
 const card = e.target.closest('.card');
 if (!card) return;
-const m = MOVIES.find(x => x.id === card.dataset.id) || catalogSource().find(x => x.id === card.dataset.id);
+const where = {
+id: card.dataset.id,
+tmdbId: card.dataset.tmdb
+};
+const m = findFilm(MOVIES, where) || findFilm(catalogSource(), where);
 if (!m) return;
 diceSheet.close();
 _diceReturn = true;
@@ -8651,7 +8744,7 @@ const mergedAwards = mergeAwardSources(wikidataAwards, omdb ? parseOmdbAwardsSum
 const [awardsWon, awardsNominated] = await Promise.all([ localizeAwardCategories(mergedAwards.won, translateToUk), localizeAwardCategories(mergedAwards.nominated, translateToUk) ]);
 return {
 tmdb_id: Number(id) || undefined,
-id: slugify(titleEn, titleUk, year),
+id: slugify(titleEn, titleUk, year, id),
 canonical_title_uk: titleUk || titleEn || 'Без назви',
 canonical_title_en: titleEn || undefined,
 year: year || undefined,
