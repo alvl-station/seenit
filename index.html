@@ -11037,8 +11037,12 @@ if (!scope) {
 _cardWalk = null;
 return;
 }
-const ids = [ ...scope.querySelectorAll('.card') ].map(el => el.dataset.id);
-const i = ids.indexOf(cardEl.dataset.id);
+const cards = [ ...scope.querySelectorAll('.card') ];
+const ids = cards.map(el => ({
+id: el.dataset.id,
+tmdbId: el.dataset.tmdb || null
+}));
+const i = cards.indexOf(cardEl);
 _cardWalk = i < 0 ? null : {
 ids: ids,
 i: i,
@@ -11048,9 +11052,9 @@ from: i
 
 function revealWalkedCard() {
 if (!_cardWalk || _cardWalk.i === _cardWalk.from) return;
-const id = _cardWalk.ids[_cardWalk.i];
+const at = _cardWalk.ids[_cardWalk.i];
 _cardWalk.from = _cardWalk.i;
-const card = [ ...document.querySelectorAll('#main .card, #diceResults .card') ].find(el => el.dataset.id === id);
+const card = [ ...document.querySelectorAll('#main .card, #diceResults .card') ].find(el => at.tmdbId ? el.dataset.tmdb === at.tmdbId : el.dataset.id === at.id);
 if (!card) return;
 try {
 card.scrollIntoView({
@@ -11268,7 +11272,8 @@ const cardNextBtn = document.getElementById('cardNext');
 function syncFilmCardArrows() {
 if (!cardPrevBtn || !cardNextBtn) return;
 const walk = _cardWalk;
-const live = !!(walk && _modalMovie && walk.ids[walk.i] === _modalMovie.id);
+const at = walk && walk.ids[walk.i];
+const live = !!(at && _modalMovie && (at.tmdbId ? String(_modalMovie.tmdb_id) === at.tmdbId : at.id === _modalMovie.id));
 cardPrevBtn.hidden = !live || swipeStep(walk.ids.length, walk.i, 'right') === null;
 cardNextBtn.hidden = !live || swipeStep(walk.ids.length, walk.i, 'left') === null;
 }
@@ -11281,8 +11286,8 @@ function swipeToNeighbourFilm(dir) {
 if (!_cardWalk) return;
 const next = swipeStep(_cardWalk.ids.length, _cardWalk.i, dir);
 if (next === null) return;
-const id = _cardWalk.ids[next];
-const m = MOVIES.find(x => x.id === id) || catalogSource().find(x => x.id === id);
+const at = _cardWalk.ids[next];
+const m = findFilm(MOVIES, at) || findFilm(catalogSource(), at);
 if (!m) return;
 _cardWalk.i = next;
 _soundNeedsGesture = true;
