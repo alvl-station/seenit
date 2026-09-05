@@ -8264,6 +8264,12 @@ return _tasteStats;
 function tasteStatsChanged() {
 _tasteStats = null;
 if (typeof updatePeopleFilters === 'function') updatePeopleFilters();
+if (window.__catalogueLoaded) {
+if (typeof renderChips === 'function') renderChips();
+if (typeof render === 'function') render({
+keepDrawn: true
+});
+}
 clearTimeout(_statsSaveTimer);
 _statsSaveTimer = setTimeout(saveTasteStats, 8e3);
 }
