@@ -2039,6 +2039,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- The two hosts the first screen cannot start without: Firebase's SDK and
+     our own Worker, which is asked for the catalogue version before a single
+     film can be drawn. A preconnect spends the DNS lookup and the TLS
+     handshake while the HTML is still parsing — on a phone that is a few
+     hundred milliseconds each, paid twice, before anything begins. -->
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://seenit-proxy.seenit.workers.dev" crossorigin>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -2794,10 +2801,11 @@ const UI_DATA = {
 
   // Display order of the genre sections on the catalog page; anything not
   // listed falls into the trailing catch-all bucket.
-  // The Ukrainian shelf leads the ribbon: it is the shelf this catalogue
-  // exists to have, and a person looking for it should not scroll past
-  // twenty genres to find it. Not a genre — see shelveFilm() in logic.js.
-  GENRE_ORDER: ['Українське', 'Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Інше'],
+  // The Ukrainian shelf is not a genre (see shelveFilm() in logic.js) but it
+  // sits in this list because it is a section like any other. NOT first:
+  // owner's call — an unasked-for shelf at the top of every screen is a
+  // shelf in the way. It goes where the other non-genres go, at the end.
+  GENRE_ORDER: ['Бойовики', 'Трилери', 'Драми', 'Комедії', 'Жахи', 'Фантастика', 'Фентезі', 'Детективи', 'Кримінал', 'Пригоди', 'Мелодрами', 'Пародії', 'Аніме', 'Мультфільми', 'Сімейні', 'Історичні', 'Військові', 'Музичні', 'Стендап', 'Вестерни', 'Документальні', 'Українське', 'Інше'],
 };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -3318,6 +3326,8 @@ const {SWIPE_EDGE_PX: SWIPE_EDGE_PX, SWIPE_AXIS_PX: SWIPE_AXIS_PX, SWIPE_AXIS_RA
 const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason, ENRICHMENT_RECHECK_DAYS: ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently: enrichmentCheckedRecently} = IS_NODE ? require('./logic/maintenance.js') : LOGIC_MAINTENANCE;
 
 const CATALOGUE_PAGE = 2500;
+
+const CATALOGUE_FIRST_PAGE = 300;
 
 const MY_FILMS_ID = 'my_films';
 
@@ -5265,6 +5275,7 @@ PARODY_KEYWORD_ID: PARODY_KEYWORD_ID,
 isStandup: isStandup,
 STANDUP_KEYWORD_ID: STANDUP_KEYWORD_ID,
 CATALOGUE_PAGE: CATALOGUE_PAGE,
+CATALOGUE_FIRST_PAGE: CATALOGUE_FIRST_PAGE,
 MY_FILMS_ID: MY_FILMS_ID,
 MY_FILMS_NAME: MY_FILMS_NAME,
 markKey: markKey,
@@ -6348,7 +6359,7 @@ if (!groups.has(g)) groups.set(g, []);
 groups.get(g).push(m);
 }
 _renderQueue = [];
-for (const g of GENRE_ORDER) {
+for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
 if (!groups.has(g)) continue;
 const list = groups.get(g).slice().sort(sortFn);
 _renderQueue.push({
@@ -8637,8 +8648,9 @@ const loadStartedAt = Date.now();
 try {
 let after = 0;
 for (let first = true; ;first = false) {
+const limit = first ? CATALOGUE_FIRST_PAGE : CATALOGUE_PAGE;
 const res = await fetch(poolListUrl(API_PROXY, {
-limit: CATALOGUE_PAGE,
+limit: limit,
 after: after,
 version: liveVersion
 }), {
@@ -8660,7 +8672,7 @@ updateRecommenderFilter();
 render({
 keepDrawn: !first
 });
-if (page.length < CATALOGUE_PAGE) break;
+if (page.length < limit) break;
 const next = Number(body.next_after) || Number(page[page.length - 1] && page[page.length - 1].tmdb_id) || 0;
 if (next <= after) break;
 after = next;
@@ -9086,6 +9098,22 @@ e.preventDefault();
 runAddSearch();
 });
 });
+let _tesseractLoading = null;
+function loadTesseract() {
+if (typeof Tesseract !== 'undefined') return Promise.resolve();
+if (_tesseractLoading) return _tesseractLoading;
+_tesseractLoading = new Promise((resolve, reject) => {
+const el = document.createElement('script');
+el.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+el.onload = () => resolve();
+el.onerror = () => {
+_tesseractLoading = null;
+reject(new Error('tesseract'));
+};
+document.head.appendChild(el);
+});
+return _tesseractLoading;
+}
 addBox.querySelector('#addFile').addEventListener('change', async e => {
 const file = e.target.files[0];
 if (!file) return;
@@ -9098,6 +9126,7 @@ candEl.innerHTML = '';
 fullTextWrap.innerHTML = '';
 statusEl.textContent = 'Розпізнаю текст…';
 try {
+await loadTesseract();
 const pass1 = await Tesseract.recognize(file, 'ukr+eng');
 let combinedText = pass1.data.text || '';
 statusEl.textContent = 'Уточнюю розпізнавання…';
@@ -11462,6 +11491,10 @@ box.style.transition = '';
 });
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Tesseract is NOT loaded here any more. It is the OCR for «add a film
+     from a screenshot», which almost nobody reaches and nobody reaches on
+     the first screen — and as a blocking tag it cost every start a TLS
+     handshake to a third host before the app could run. It is fetched on
+     the first use instead (loadTesseract in 17-add-wiring.js). -->
 </body>
 </html>
