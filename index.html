@@ -2885,7 +2885,14 @@ return out;
 const latinPart = text => String(text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 function slugify(titleEn, titleUk, year, tmdbId) {
 const base = latinPart(titleEn) || latinPart(translit(titleUk)) || (Number(tmdbId) > 0 ? `t${Number(tmdbId)}` : 'film');
-return `${base}-${year || 'x'}`;
+return `${capSlug(base)}-${year || 'x'}`;
+}
+const SLUG_MAX = 60;
+function capSlug(base) {
+if (base.length <= SLUG_MAX) return base;
+const cut = base.slice(0, SLUG_MAX);
+const lastDash = cut.lastIndexOf('-');
+return (lastDash >= SLUG_MAX - 20 ? cut.slice(0, lastDash) : cut).replace(/-+$/, '');
 }
 function collectionIdFrom(name, {taken: taken = [], at: at = 0} = {}) {
 const latin = String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
