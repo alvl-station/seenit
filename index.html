@@ -6989,7 +6989,9 @@ return;
 }
 if (!detail) return;
 Object.assign(m, detail);
-if (_modalMovie === m && overlay.classList.contains('open')) openModal(m);
+if (_modalMovie !== m || !overlay.classList.contains('open')) return;
+const desc = modalBox.querySelector('.desc');
+if (desc && detail.description_uk) desc.textContent = detail.description_uk;
 }
 
 let _flightFrom = null;
