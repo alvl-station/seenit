@@ -984,11 +984,13 @@
 
   
   .film-head { position: relative; background: #000; }
-  .modal-trailer { position: relative; }
+  
+  .modal-trailer { position: relative; aspect-ratio: 16 / 9; }
   
   .modal-trailer iframe {
-    position: relative; z-index: 1;
-    width: 100%; aspect-ratio: 16 / 9; display: block; border: 0;
+    
+    position: absolute; inset: 0; z-index: 1;
+    width: 100%; height: 100%; display: block; border: 0;
   }
   
   
@@ -5255,11 +5257,10 @@ return true;
 
 function flightTransform(from, to) {
 if (!from || !to || !to.width || !to.height) return 'none';
-const scaleX = from.width / to.width;
-const scaleY = from.height / to.height;
+const scale = Math.max(from.width / to.width, from.height / to.height);
 const dx = from.left + from.width / 2 - (to.left + to.width / 2);
 const dy = from.top + from.height / 2 - (to.top + to.height / 2);
-return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`;
+return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(4)}, ${scale.toFixed(4)})`;
 }
 
 function flightKeyframes(from, to, {back: back = false} = {}) {
