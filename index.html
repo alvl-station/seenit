@@ -2451,6 +2451,21 @@
     <button class="opt" data-sort="year-old" type="button">Старіші</button>
     <button class="opt" data-sort="name" type="button">А-Я</button>
   </div>
+  <!-- Not a fifth sort option, because it is not one: it says which films
+       come first and leaves the chosen order to decide everything after.
+       Off, the shelf is exactly what it was — which is why it lives beside
+       the sort options and is not cleared by the reset button. -->
+  <div class="opts" id="awardsSortOpts">
+    <button class="opt" data-awards-first="1" type="button">Спершу з нагородами</button>
+  </div>
+  <!-- What is out now and what is not out yet. The same function decides
+       this and the badge on the card (releaseBadge in logic.js), so a card
+       wearing the badge is a card this shows. -->
+  <div class="sheet-label">Реліз</div>
+  <div class="opts" id="releaseOpts">
+    <button class="opt" data-release="new" type="button">Новинки</button>
+    <button class="opt" data-release="soon" type="button">Скоро реліз</button>
+  </div>
   <div class="sheet-label" id="recommenderLabel" style="display:none">Ким рекомендовано</div>
   <div class="opts" id="recommenderFilter" style="display:none"></div>
   <div class="sheet-label">Тип</div>
@@ -3027,7 +3042,7 @@ return far || flick;
 }
 function anyFilterSet(st) {
 if (!st) return false;
-return !!(st.query || st.showWatched || st.onlyLiked || st.onlyMust || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
+return !!(st.query || st.showWatched || st.onlyLiked || st.onlyMust || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.release && st.release !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
 }
 const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'menu', 'collection', 'addMode', 'search' ];
 function topNavSurface(open) {
@@ -4055,6 +4070,24 @@ if (!raw) return false;
 return raw.split(',').some(part => EXCLUDED_COUNTRIES.has(part.trim().toLowerCase()));
 }
 
+function collapseRepeatedTitle(title) {
+const text = String(title || '');
+const parts = text.split(/(\s*[:—–]\s+)/);
+if (parts.length < 3) return text;
+const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const MIN_REPEAT = 12;
+const seen = new Set;
+let out = '';
+for (let i = 0; i < parts.length; i += 2) {
+const segment = parts[i];
+const key = norm(segment);
+if (key.length >= MIN_REPEAT && seen.has(key)) continue;
+if (key.length >= MIN_REPEAT) seen.add(key);
+out += (out ? parts[i - 1] : '') + segment;
+}
+return out || text;
+}
+
 const UKRAINIAN_COUNTRIES = new Set([ 'україна', 'ukraine' ]);
 
 const UKRAINIAN_GROUP = 'Українське';
@@ -4074,7 +4107,13 @@ genre_group: UKRAINIAN_GROUP
 };
 }
 
-function filterCatalog(movies, {query: query, showWatched: showWatched, keepWatched: keepWatched, onlyLiked: onlyLiked, onlyMust: onlyMust, genre: genre, recommender: recommender, type: type, years: years, provider: provider, actors: actors, directors: directors, likedIds: likedIds, watchedIds: watchedIds, mustIds: mustIds}) {
+function matchesRelease(movie, want, now = Date.now()) {
+if (!want || want === 'all') return true;
+const badge = releaseBadge(movie, now);
+return !!badge && badge.kind === want;
+}
+
+function filterCatalog(movies, {query: query, showWatched: showWatched, keepWatched: keepWatched, onlyLiked: onlyLiked, onlyMust: onlyMust, genre: genre, recommender: recommender, type: type, years: years, provider: provider, actors: actors, directors: directors, release: release, likedIds: likedIds, watchedIds: watchedIds, mustIds: mustIds}) {
 const has = isMarked;
 const q = (query || '').toLowerCase();
 return (movies || []).filter(m => {
@@ -4087,6 +4126,7 @@ if (onlyMust && !has(mustIds, m)) return false;
 return false;
 }
 if (genre && genre !== 'all' && m.genre_group !== genre) return false;
+if (!matchesRelease(m, release)) return false;
 if (type && type !== 'all' && m.type !== type) return false;
 if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
 if (!matchesYearBucket(m, years)) return false;
@@ -4380,10 +4420,19 @@ on: false
 return ops;
 }
 
-function compareMovies(a, b, {sortMode: sortMode, watchedIds: watchedIds}) {
+function compareMovies(a, b, {sortMode: sortMode, watchedIds: watchedIds, awardsFirst: awardsFirst}) {
 const has = m => isMarked(watchedIds, m);
 const wa = has(a) ? 1 : 0, wb = has(b) ? 1 : 0;
 if (wa !== wb) return wa - wb;
+if (awardsFirst) {
+const tally = m => {
+const t = awardsTally(m.awards_won, m.awards_nominated);
+return t.won + t.nominated;
+};
+const ta = tally(a), tb = tally(b);
+const ha = ta > 0 ? 1 : 0, hb = tb > 0 ? 1 : 0;
+if (ha !== hb) return hb - ha;
+}
 switch (sortMode) {
 case 'rating':
 return ratingNum(b) - ratingNum(a);
@@ -5179,6 +5228,7 @@ criticBarTone: criticBarTone,
 matches: matches,
 levenshtein: levenshtein,
 compareMovies: compareMovies,
+matchesRelease: matchesRelease,
 filterCatalog: filterCatalog,
 normTitleForDup: normTitleForDup,
 findDuplicateMovie: findDuplicateMovie,
@@ -5302,6 +5352,7 @@ hasProvider: hasProvider,
 UKRAINIAN_GROUP: UKRAINIAN_GROUP,
 isUkrainianProduction: isUkrainianProduction,
 shelveFilm: shelveFilm,
+collapseRepeatedTitle: collapseRepeatedTitle,
 EXCLUDED_PROVIDER_KEYS: EXCLUDED_PROVIDER_KEYS,
 visibleProviders: visibleProviders,
 actorsInCatalogue: actorsInCatalogue,
@@ -5796,6 +5847,8 @@ hideScores: false,
 type: 'all',
 years: 'all',
 provider: 'all',
+release: 'all',
+awardsFirst: false,
 actors: [],
 directors: [],
 searchScope: 'here',
@@ -5837,6 +5890,8 @@ hideScores: state.hideScores,
 type: state.type,
 years: state.years,
 provider: state.provider,
+release: state.release,
+awardsFirst: state.awardsFirst,
 actors: state.actors,
 directors: state.directors,
 trailerSound: state.trailerSound,
@@ -5888,10 +5943,15 @@ if (typeof savedSettings.searchWatched === 'boolean') state.searchWatched = save
 
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
 
+if (savedSettings.release) state.release = savedSettings.release;
+
+if (typeof savedSettings.awardsFirst === 'boolean') state.awardsFirst = savedSettings.awardsFirst;
+
 function sortFn(a, b) {
 return compareMovies(a, b, {
 sortMode: state.sort,
-watchedIds: watched
+watchedIds: watched,
+awardsFirst: state.awardsFirst
 });
 }
 
@@ -5919,6 +5979,7 @@ years: state.years,
 provider: state.provider,
 actors: state.actors,
 directors: state.directors,
+release: state.release,
 likedIds: liked,
 watchedIds: watched,
 mustIds: must
@@ -6300,6 +6361,7 @@ state.recommender = 'all';
 state.type = 'all';
 state.years = 'all';
 state.provider = 'all';
+state.release = 'all';
 state.actors = [];
 state.directors = [];
 updatePeopleFilters();
@@ -6307,6 +6369,7 @@ syncTabs();
 renderChips();
 syncTypeOpts();
 syncYearOpts();
+syncReleaseOpts();
 updateRecommenderFilter();
 updateProviderFilter();
 updateFilterGlow();
@@ -8035,6 +8098,38 @@ render();
 saveSettings();
 });
 
+const awardsSortEl = document.getElementById('awardsSortOpts');
+
+function syncAwardsSort() {
+const b = awardsSortEl.querySelector('.opt');
+if (b) b.classList.toggle('active', !!state.awardsFirst);
+}
+
+awardsSortEl.addEventListener('click', e => {
+if (!e.target.closest('.opt')) return;
+state.awardsFirst = !state.awardsFirst;
+syncAwardsSort();
+render();
+saveSettings();
+});
+
+const releaseOptsEl = document.getElementById('releaseOpts');
+
+function syncReleaseOpts() {
+releaseOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.release === state.release));
+}
+
+releaseOptsEl.addEventListener('click', e => {
+const b = e.target.closest('.opt');
+if (!b) return;
+state.release = state.release === b.dataset.release ? 'all' : b.dataset.release;
+syncReleaseOpts();
+renderChips();
+updateFilterGlow();
+render();
+saveSettings();
+});
+
 document.getElementById('viewToggle').addEventListener('click', e => {
 const b = e.target.closest('button');
 if (!b) return;
@@ -8099,6 +8194,7 @@ recommender: state.recommender,
 type: state.type,
 years: state.years,
 provider: state.provider,
+release: state.release,
 actors: state.actors,
 directors: state.directors,
 likedIds: liked,
@@ -8377,8 +8473,10 @@ updatePeopleFilters();
 (function applySavedSettingsToDom() {
 syncTabs();
 syncSortOpts();
+syncAwardsSort();
 syncTypeOpts();
 syncYearOpts();
+syncReleaseOpts();
 applyCardLayers();
 updateFilterGlow();
 if (savedSettings.view) {
