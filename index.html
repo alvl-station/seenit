@@ -7087,8 +7087,13 @@ const run = _flightEl.animate(flightKeyframes(from.rect, to), timing);
 playFaces(_flightEl, faceKeyframes(), timing);
 run.finished.catch(() => {}).then(() => {
 endFlight();
+const nextFrame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : fn => setTimeout(fn, 16);
+nextFrame(() => {
+const iframe = modalBox.querySelector('.modal-trailer iframe');
+if (iframe) iframe.replaceWith(iframe.cloneNode(false));
 unmuteTrailer();
 nudgeTrailerToPlay();
+});
 });
 return true;
 }
