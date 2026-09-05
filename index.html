@@ -806,17 +806,22 @@
     
   }
   
-  .card-flight, .card-flight-face { transform-style: preserve-3d; }
+  .card-flight { transform-style: preserve-3d; }
+  .card-flight-face { transform-style: flat; }
+  
   .card-flight-face {
     position: absolute; inset: 0; border-radius: 2px;
-    
-    backface-visibility: hidden; -webkit-backface-visibility: hidden;
     background: var(--surface2) center/cover no-repeat;
   }
   
   .card-flight-back {
     transform: rotateY(180deg);
     background: var(--surface); box-shadow: inset 0 0 0 1px var(--border);
+    border-radius: var(--tpl-radius, 8px); overflow: hidden;
+  }
+  
+  .card-flight-back > .modal {
+    width: 100%; height: 100%; max-width: none; pointer-events: none;
   }
   
   .modal.is-flying { opacity: 0; }
@@ -5282,6 +5287,42 @@ offset: i / 2
 }));
 }
 
+function faceKeyframes({back: back = false} = {}) {
+const front = [ {
+opacity: 1,
+offset: 0
+}, {
+opacity: 1,
+offset: .49
+}, {
+opacity: 0,
+offset: .5
+}, {
+opacity: 0,
+offset: 1
+} ];
+const rear = [ {
+opacity: 0,
+offset: 0
+}, {
+opacity: 0,
+offset: .49
+}, {
+opacity: 1,
+offset: .5
+}, {
+opacity: 1,
+offset: 1
+} ];
+return back ? {
+front: rear,
+back: front
+} : {
+front: front,
+back: rear
+};
+}
+
 function midpointRect(from, to) {
 if (!from || !to) return to;
 const mix = (a, b) => a + (b - a) / 2;
@@ -5520,6 +5561,7 @@ FLIGHT_EASING: FLIGHT_EASING,
 flightAllowed: flightAllowed,
 flightTransform: flightTransform,
 flightKeyframes: flightKeyframes,
+faceKeyframes: faceKeyframes,
 midpointRect: midpointRect,
 formatDay: formatDay,
 episodeState: episodeState,
@@ -6974,16 +7016,43 @@ hardwareConcurrency: typeof navigator.hardwareConcurrency === 'number' ? navigat
 });
 }
 
-function buildFlight(rect, posterSrc) {
+function modalSnapshot() {
+const copy = modalBox.cloneNode(true);
+copy.removeAttribute('id');
+copy.removeAttribute('data-material');
+copy.classList.remove('is-flying');
+const frame = copy.querySelector('.modal-trailer iframe');
+if (frame) frame.remove();
+const close = copy.querySelector('.modal-close');
+if (close) close.remove();
+copy.setAttribute('aria-hidden', 'true');
+return copy;
+}
+
+function buildFlight(rect, posterSrc, back) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
 el.style.top = `${rect.top}px`;
 el.style.width = `${rect.width}px`;
 el.style.height = `${rect.height}px`;
-el.innerHTML = `<div class="card-flight-face card-flight-front"${posterSrc ? ` style="background-image:url('${posterSrc.replace(/'/g, "\\'")}')"` : ''}></div>\n    <div class="card-flight-face card-flight-back"></div>`;
+const front = document.createElement('div');
+front.className = 'card-flight-face card-flight-front';
+if (posterSrc) front.style.backgroundImage = `url("${posterSrc}")`;
+const backFace = document.createElement('div');
+backFace.className = 'card-flight-face card-flight-back';
+if (back) backFace.appendChild(back);
+el.appendChild(front);
+el.appendChild(backFace);
 document.body.appendChild(el);
 return el;
+}
+
+function playFaces(el, frames, timing) {
+const front = el.querySelector('.card-flight-front');
+const back = el.querySelector('.card-flight-back');
+if (front && front.animate) front.animate(frames.front, timing);
+if (back && back.animate) back.animate(frames.back, timing);
 }
 
 function endFlight() {
@@ -7005,12 +7074,14 @@ const to = modalBox.getBoundingClientRect();
 if (!to.width || !to.height) return false;
 endFlight();
 modalBox.classList.add('is-flying');
-_flightEl = buildFlight(to, from.poster);
-const run = _flightEl.animate(flightKeyframes(from.rect, to), {
+_flightEl = buildFlight(to, from.poster, modalSnapshot());
+const timing = {
 duration: FLIGHT_MS,
 easing: FLIGHT_EASING,
 fill: 'both'
-});
+};
+const run = _flightEl.animate(flightKeyframes(from.rect, to), timing);
+playFaces(_flightEl, faceKeyframes(), timing);
 run.finished.catch(() => {}).then(() => {
 endFlight();
 unmuteTrailer();
@@ -7037,14 +7108,18 @@ return;
 }
 endFlight();
 modalBox.classList.add('is-flying');
-_flightEl = buildFlight(to, card.poster);
-const run = _flightEl.animate(flightKeyframes(card.rect, to, {
-back: true
-}), {
+_flightEl = buildFlight(to, card.poster, modalSnapshot());
+const timing = {
 duration: FLIGHT_BACK_MS,
 easing: FLIGHT_EASING,
 fill: 'both'
-});
+};
+const run = _flightEl.animate(flightKeyframes(card.rect, to, {
+back: true
+}), timing);
+playFaces(_flightEl, faceKeyframes({
+back: true
+}), timing);
 run.finished.catch(() => {}).then(() => {
 endFlight();
 onDone();
