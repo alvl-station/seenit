@@ -803,7 +803,10 @@
   .card-flight {
     position: fixed; z-index: 60; pointer-events: none;
     transform-style: preserve-3d; will-change: transform;
+    
   }
+  
+  .card-flight, .card-flight-face { transform-style: preserve-3d; }
   .card-flight-face {
     position: absolute; inset: 0; border-radius: 2px;
     
@@ -811,7 +814,10 @@
     background: var(--surface2) center/cover no-repeat;
   }
   
-  .card-flight-back { transform: rotateY(180deg); background: var(--coal); }
+  .card-flight-back {
+    transform: rotateY(180deg);
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--border);
+  }
   
   .modal.is-flying { opacity: 0; }
   @media (prefers-reduced-motion: reduce) {
@@ -5227,7 +5233,13 @@ const day = formatDay(ep.d);
 return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
 }
 
-const FLIGHT_MS = 260;
+const FLIGHT_MS = 1e3;
+
+const FLIGHT_BACK_MS = 620;
+
+const FLIGHT_PERSPECTIVE = 1200;
+
+const FLIGHT_EASING = 'cubic-bezier(.45,.05,.35,1)';
 
 function flightAllowed({reducedMotion: reducedMotion = false, deviceMemory: deviceMemory = null, hardwareConcurrency: hardwareConcurrency = null} = {}) {
 if (reducedMotion) return false;
@@ -5246,16 +5258,39 @@ return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scaleX.toFix
 }
 
 function flightKeyframes(from, to, {back: back = false} = {}) {
+const p = `perspective(${FLIGHT_PERSPECTIVE}px)`;
 const at = flightTransform(from, to);
 const start = {
-transform: `${at} rotateY(0deg)`,
-opacity: 1
+transform: `${p} ${at} rotateY(0deg)`,
+opacity: 1,
+offset: 0
+};
+const mid = {
+transform: `${p} ${flightTransform(midpointRect(from, to), to)} translateZ(220px) rotateY(90deg)`,
+opacity: 1,
+offset: .5
 };
 const end = {
-transform: 'translate(0px, 0px) scale(1, 1) rotateY(180deg)',
-opacity: 1
+transform: `${p} translate(0px, 0px) scale(1, 1) rotateY(180deg)`,
+opacity: 1,
+offset: 1
 };
-return back ? [ end, start ] : [ start, end ];
+if (!back) return [ start, mid, end ];
+return [ end, mid, start ].map((frame, i) => ({
+...frame,
+offset: i / 2
+}));
+}
+
+function midpointRect(from, to) {
+if (!from || !to) return to;
+const mix = (a, b) => a + (b - a) / 2;
+return {
+left: mix(from.left, to.left),
+top: mix(from.top, to.top),
+width: mix(from.width, to.width),
+height: mix(from.height, to.height)
+};
 }
 
 function parseBatchLine(line) {
@@ -5479,9 +5514,13 @@ poolFilmUrl: poolFilmUrl,
 needsFilmDetail: needsFilmDetail,
 localSeasonsKey: localSeasonsKey,
 FLIGHT_MS: FLIGHT_MS,
+FLIGHT_BACK_MS: FLIGHT_BACK_MS,
+FLIGHT_PERSPECTIVE: FLIGHT_PERSPECTIVE,
+FLIGHT_EASING: FLIGHT_EASING,
 flightAllowed: flightAllowed,
 flightTransform: flightTransform,
 flightKeyframes: flightKeyframes,
+midpointRect: midpointRect,
 formatDay: formatDay,
 episodeState: episodeState,
 EPISODE_STATE_LABEL: EPISODE_STATE_LABEL,
@@ -6969,7 +7008,7 @@ modalBox.classList.add('is-flying');
 _flightEl = buildFlight(to, from.poster);
 const run = _flightEl.animate(flightKeyframes(from.rect, to), {
 duration: FLIGHT_MS,
-easing: 'cubic-bezier(.2,.7,.3,1)',
+easing: FLIGHT_EASING,
 fill: 'both'
 });
 run.finished.catch(() => {}).then(() => {
@@ -7002,8 +7041,8 @@ _flightEl = buildFlight(to, card.poster);
 const run = _flightEl.animate(flightKeyframes(card.rect, to, {
 back: true
 }), {
-duration: FLIGHT_MS,
-easing: 'cubic-bezier(.4,0,.6,1)',
+duration: FLIGHT_BACK_MS,
+easing: FLIGHT_EASING,
 fill: 'both'
 });
 run.finished.catch(() => {}).then(() => {
