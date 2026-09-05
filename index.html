@@ -5104,6 +5104,15 @@ const at = version === null || version === undefined || version === '' ? '' : `&
 return `${base}/pool/seasons?id=${Number(tmdbId) || 0}${at}`;
 }
 
+function poolFilmUrl(base, tmdbId, version = null) {
+const at = version === null || version === undefined || version === '' ? '' : `&v=${encodeURIComponent(version)}`;
+return `${base}/pool/films/${Number(tmdbId) || 0}?full=1${at}`;
+}
+
+function needsFilmDetail(movie) {
+return !!(movie && movie.tmdb_id && movie.description_uk === undefined);
+}
+
 function localSeasonsKey(tmdbId) {
 return `seenit_seasons_${Number(tmdbId) || 0}`;
 }
@@ -5404,6 +5413,8 @@ BADGE_SOON_DAYS: BADGE_SOON_DAYS,
 releaseDayMs: releaseDayMs,
 releaseBadge: releaseBadge,
 poolSeasonsUrl: poolSeasonsUrl,
+poolFilmUrl: poolFilmUrl,
+needsFilmDetail: needsFilmDetail,
 localSeasonsKey: localSeasonsKey,
 formatDay: formatDay,
 episodeState: episodeState,
@@ -6813,6 +6824,27 @@ if (line) line.textContent = episodeStateLine(eps[_seasonPick.episode]);
 });
 }
 
+const _detailAsked = new Set;
+
+async function wireFilmDetail(m) {
+if (!needsFilmDetail(m) || _detailAsked.has(m.tmdb_id)) return;
+_detailAsked.add(m.tmdb_id);
+let detail = null;
+try {
+const res = await fetch(poolFilmUrl(API_PROXY, m.tmdb_id, localStore.get(localCatalogueVersionKey())), {
+headers: await proxyHeaders()
+});
+if (!res.ok) return;
+const body = await res.json();
+detail = body && body.film;
+} catch (err) {
+return;
+}
+if (!detail) return;
+Object.assign(m, detail);
+if (_modalMovie === m && overlay.classList.contains('open')) openModal(m);
+}
+
 function collectionChoiceHtml() {
 const own = shelf.filter(c => c.source === 'own' && c.collection_id !== MY_FILMS_ID);
 return `<div class="collection-choice">\n    <label class="cf-label">У добірку</label>\n    <div class="opts">\n      <button class="opt active" data-cc-id="${esc(MY_FILMS_ID)}" data-cc-name="${esc(MY_FILMS_NAME)}" type="button">${esc(MY_FILMS_NAME)}</button>\n      ${own.map(c => `<button class="opt" data-cc-id="${esc(c.collection_id)}" data-cc-name="${esc(c.name)}" type="button">${esc(c.name)}</button>`).join('')}\n      <button class="opt opt--new" data-cc-new="1" type="button">${ICON.plus} Нова добірка</button>\n    </div>\n    <div class="pick-col-create" data-cc-create hidden>\n      <div class="field-clear-wrap">\n        <input id="cfNewColName" data-cc-name-input type="text" placeholder="Назва нової добірки">\n      </div>\n    </div>\n  </div>`;
@@ -6887,6 +6919,7 @@ syncFilmCardArrows();
 lockScroll(overlay);
 wireAdminEditor(m);
 wireSeasons(m);
+wireFilmDetail(m);
 unmuteTrailer();
 nudgeTrailerToPlay();
 }
