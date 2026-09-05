@@ -799,6 +799,26 @@
   .film-badges .card-badge { position: static; font-size: 11px; }
 
   
+  
+  .card-flight {
+    position: fixed; z-index: 60; pointer-events: none;
+    transform-style: preserve-3d; will-change: transform;
+  }
+  .card-flight-face {
+    position: absolute; inset: 0; border-radius: 2px;
+    
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--surface2) center/cover no-repeat;
+  }
+  
+  .card-flight-back { transform: rotateY(180deg); background: var(--coal); }
+  
+  .modal.is-flying { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .card-flight { display: none; }
+    .modal.is-flying { opacity: 1; }
+  }
+
   .film-seasons { margin: 14px 0 0; }
   .seasons-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .seasons-row select {
@@ -5207,6 +5227,37 @@ const day = formatDay(ep.d);
 return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
 }
 
+const FLIGHT_MS = 260;
+
+function flightAllowed({reducedMotion: reducedMotion = false, deviceMemory: deviceMemory = null, hardwareConcurrency: hardwareConcurrency = null} = {}) {
+if (reducedMotion) return false;
+if (typeof deviceMemory === 'number') return deviceMemory > 2;
+if (typeof hardwareConcurrency === 'number' && hardwareConcurrency > 0) return hardwareConcurrency > 2;
+return true;
+}
+
+function flightTransform(from, to) {
+if (!from || !to || !to.width || !to.height) return 'none';
+const scaleX = from.width / to.width;
+const scaleY = from.height / to.height;
+const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`;
+}
+
+function flightKeyframes(from, to, {back: back = false} = {}) {
+const at = flightTransform(from, to);
+const start = {
+transform: `${at} rotateY(0deg)`,
+opacity: 1
+};
+const end = {
+transform: 'translate(0px, 0px) scale(1, 1) rotateY(180deg)',
+opacity: 1
+};
+return back ? [ end, start ] : [ start, end ];
+}
+
 function parseBatchLine(line) {
 const m = line.match(/^(.*?)[,(]\s*(\d{4})\)?\s*$/);
 if (m) return {
@@ -5427,6 +5478,10 @@ poolSeasonsUrl: poolSeasonsUrl,
 poolFilmUrl: poolFilmUrl,
 needsFilmDetail: needsFilmDetail,
 localSeasonsKey: localSeasonsKey,
+FLIGHT_MS: FLIGHT_MS,
+flightAllowed: flightAllowed,
+flightTransform: flightTransform,
+flightKeyframes: flightKeyframes,
 formatDay: formatDay,
 episodeState: episodeState,
 EPISODE_STATE_LABEL: EPISODE_STATE_LABEL,
@@ -6856,6 +6911,119 @@ Object.assign(m, detail);
 if (_modalMovie === m && overlay.classList.contains('open')) openModal(m);
 }
 
+let _flightFrom = null;
+
+let _flightEl = null;
+
+function noteFlightSource(cardEl) {
+const poster = cardEl && cardEl.querySelector('.poster');
+_flightFrom = poster ? poster.getBoundingClientRect() : cardEl ? cardEl.getBoundingClientRect() : null;
+const img = cardEl && cardEl.querySelector('.poster img');
+_flightFrom = _flightFrom && {
+rect: _flightFrom,
+poster: img ? img.src : null
+};
+}
+
+function flightWanted() {
+if (!_flightFrom || !modalBox.animate) return false;
+const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+return flightAllowed({
+reducedMotion: reduced,
+deviceMemory: typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null,
+hardwareConcurrency: typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : null
+});
+}
+
+function buildFlight(rect, posterSrc) {
+const el = document.createElement('div');
+el.className = 'card-flight';
+el.style.left = `${rect.left}px`;
+el.style.top = `${rect.top}px`;
+el.style.width = `${rect.width}px`;
+el.style.height = `${rect.height}px`;
+el.innerHTML = `<div class="card-flight-face card-flight-front"${posterSrc ? ` style="background-image:url('${posterSrc.replace(/'/g, "\\'")}')"` : ''}></div>\n    <div class="card-flight-face card-flight-back"></div>`;
+document.body.appendChild(el);
+return el;
+}
+
+function endFlight() {
+if (_flightEl) {
+_flightEl.remove();
+_flightEl = null;
+}
+modalBox.classList.remove('is-flying');
+}
+
+function flyCardOpen() {
+if (!flightWanted()) {
+_flightFrom = null;
+return false;
+}
+const from = _flightFrom;
+_flightFrom = null;
+const to = modalBox.getBoundingClientRect();
+if (!to.width || !to.height) return false;
+endFlight();
+modalBox.classList.add('is-flying');
+_flightEl = buildFlight(to, from.poster);
+const run = _flightEl.animate(flightKeyframes(from.rect, to), {
+duration: FLIGHT_MS,
+easing: 'cubic-bezier(.2,.7,.3,1)',
+fill: 'both'
+});
+run.finished.catch(() => {}).then(() => {
+endFlight();
+unmuteTrailer();
+nudgeTrailerToPlay();
+});
+return true;
+}
+
+function flyCardClosed(onDone) {
+const card = _closingToCard;
+_closingToCard = null;
+if (!card || !modalBox.animate || !flightAllowed({
+reducedMotion: !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches),
+deviceMemory: typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null,
+hardwareConcurrency: typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : null
+})) {
+onDone();
+return;
+}
+const to = modalBox.getBoundingClientRect();
+if (!to.width || !to.height) {
+onDone();
+return;
+}
+endFlight();
+modalBox.classList.add('is-flying');
+_flightEl = buildFlight(to, card.poster);
+const run = _flightEl.animate(flightKeyframes(card.rect, to, {
+back: true
+}), {
+duration: FLIGHT_MS,
+easing: 'cubic-bezier(.4,0,.6,1)',
+fill: 'both'
+});
+run.finished.catch(() => {}).then(() => {
+endFlight();
+onDone();
+});
+}
+
+let _closingToCard = null;
+
+function noteFlightTarget(movie) {
+const el = movie && document.querySelector(movie.tmdb_id ? `.card[data-tmdb="${movie.tmdb_id}"]` : null);
+const poster = el && el.querySelector('.poster');
+const img = el && el.querySelector('.poster img');
+_closingToCard = poster ? {
+rect: poster.getBoundingClientRect(),
+poster: img ? img.src : null
+} : null;
+}
+
 function collectionChoiceHtml() {
 const own = shelf.filter(c => c.source === 'own' && c.collection_id !== MY_FILMS_ID);
 return `<div class="collection-choice">\n    <label class="cf-label">У добірку</label>\n    <div class="opts">\n      <button class="opt active" data-cc-id="${esc(MY_FILMS_ID)}" data-cc-name="${esc(MY_FILMS_NAME)}" type="button">${esc(MY_FILMS_NAME)}</button>\n      ${own.map(c => `<button class="opt" data-cc-id="${esc(c.collection_id)}" data-cc-name="${esc(c.name)}" type="button">${esc(c.name)}</button>`).join('')}\n      <button class="opt opt--new" data-cc-new="1" type="button">${ICON.plus} Нова добірка</button>\n    </div>\n    <div class="pick-col-create" data-cc-create hidden>\n      <div class="field-clear-wrap">\n        <input id="cfNewColName" data-cc-name-input type="text" placeholder="Назва нової добірки">\n      </div>\n    </div>\n  </div>`;
@@ -6931,8 +7099,10 @@ lockScroll(overlay);
 wireAdminEditor(m);
 wireSeasons(m);
 wireFilmDetail(m);
+if (!flyCardOpen()) {
 unmuteTrailer();
 nudgeTrailerToPlay();
+}
 }
 
 let _trailerTimers = [];
@@ -7076,6 +7246,11 @@ _unmuteTimers = [ 120, 500, 1200, 2500 ].map(ms => setTimeout(ask, ms));
 }
 
 function closeModal() {
+noteFlightTarget(_modalMovie);
+flyCardClosed(() => finishClosingModal());
+}
+
+function finishClosingModal() {
 overlay.classList.remove('open');
 if (_diceReturn) {
 _diceReturn = false;
@@ -11204,6 +11379,7 @@ if (!scope) {
 _cardWalk = null;
 return;
 }
+noteFlightSource(cardEl);
 const cards = [ ...scope.querySelectorAll('.card') ];
 const ids = cards.map(el => ({
 id: el.dataset.id,
