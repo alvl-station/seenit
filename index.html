@@ -185,7 +185,7 @@
   .col-plate-name { --type-size: 11px; --type-track: .14em; --type-ink: var(--paper); }
 
   
-  .tab, .add-tab {
+  .tab, .add-tab, .tabbar-tab {
     --tab-ink: var(--ash);
     --tab-ink-on: var(--paper);
     --tab-rule: 2px;
@@ -338,6 +338,62 @@
   .hicon:active { color: var(--paper); }
   
   .topbar-icons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+  
+  :root { --tabbar-h: 58px; }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--tpl-ground);
+    border-top: 1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+  }
+  .tabbar-scroll {
+    display: flex; align-items: stretch;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    max-width: 1280px; margin: 0 auto; padding: 0 6px;
+  }
+  .tabbar-scroll::-webkit-scrollbar { display: none; }
+  
+  .tabbar-tab {
+    flex: 0 0 auto; min-width: 64px; height: var(--tabbar-h);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    background: none; border: none; padding: 0 10px; cursor: pointer;
+    border-top: var(--tab-rule) solid transparent; margin-top: -1px;
+    color: var(--tab-ink);
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+    white-space: nowrap;
+    scroll-snap-align: start;
+    transition: color .15s, border-color .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tabbar-tab svg { width: 22px; height: 22px; display: block; }
+  .tabbar-tab.active { color: var(--tab-ink-on); border-top-color: var(--tab-rule-on); }
+  .tabbar-tab:active { color: var(--paper); }
+  
+  .tabbar-tab--arrange { margin-left: auto; }
+
+  
+  .tabbar-rows { display: flex; flex-direction: column; }
+  .tabbar-row {
+    display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid var(--border); padding: 4px 0;
+  }
+  .tabbar-row:first-child { border-top: none; }
+  .tabbar-row-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--dust); display: flex; align-items: center; }
+  .tabbar-row-icon svg { width: 22px; height: 22px; }
+  .tabbar-row-name {
+    flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere;
+    font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em;
+    font-size: 12px; color: var(--dust);
+  }
+  
+  .tabbar-row.is-off .tabbar-row-icon, .tabbar-row.is-off .tabbar-row-name { color: var(--steel); }
+  .tabbar-row .hicon:disabled { color: var(--steel); cursor: default; }
+  
+  .tabbar-row .opt { width: var(--control-h); min-height: var(--control-h); padding: 0; }
 
   
   .field-clear-wrap { position: relative; flex: 1; min-width: 0; }
@@ -1758,7 +1814,8 @@
   
   .to-top {
     position: fixed; z-index: 40;
-    right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    
+    right: 18px; bottom: calc(18px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     
     
     width: 72px; height: 72px;
@@ -1826,7 +1883,7 @@
 
   
   .toast {
-    position: fixed; left: 50%; bottom: calc(24px + var(--safe-bottom)); transform: translate(-50%, 16px);
+    position: fixed; left: 50%; bottom: calc(24px + var(--tabbar-h) + var(--safe-bottom)); transform: translate(-50%, 16px);
     max-width: calc(100% - 32px); z-index: 1000;
     background: var(--surface); border: 1px solid var(--border); color: var(--text);
     padding: 12px 18px; border-radius: 6px; font-size: 14px;
@@ -1930,7 +1987,7 @@
     body.sheet-nav .modal-overlay > .modal { animation: sheet-up .22s ease-out; }
 
     
-    #filterSheet, #trashSheet, #adminSheet, #colEditSheet {
+    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet {
       top: 0; height: 100%; max-height: none;
       border-radius: 0; padding-bottom: 38vh;
       overscroll-behavior: contain;
@@ -2476,6 +2533,23 @@
   </div>
 </div>
 
+<!-- Arranging the tab strip: what is on it, in what order. A sheet of its
+     own rather than a section of «Settings», because it is opened from the
+     strip's own last tab and closing it should land you back on the strip
+     you were arranging, not in the middle of another screen. -->
+<div class="sheet-backdrop" id="tabbarBackdrop" hidden></div>
+<div class="sheet" id="tabbarSheet" data-surface="window" data-material="glass" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="sheet-title">Меню плашки</div>
+    <button class="hicon" id="tabbarCloseBtn" type="button" title="Закрити" aria-label="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="sheet-label">Вкладки</div>
+  <div class="tabbar-rows" id="tabbarRows"></div>
+  <button class="sheet-row" id="tabbarResetBtn" type="button">Як було спочатку</button>
+</div>
+
 <!-- The trash: what was removed from a collection lies here for 24 hours
      before the removal becomes real; until then it can be put back. -->
 <div class="sheet-backdrop" id="trashBackdrop" hidden></div>
@@ -2587,6 +2661,15 @@
      display:none subtree — which flattened the stack to a plain silhouette. -->
 <div id="markTemplate" class="svg-stash" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="m3d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#F2F3F6"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M101.10,52.00 A34.10,33.90 0 1 0 67.00,85.90 L67.00,69.59 A13.90,14.10 0 1 1 79.96,52.00 L101.10,52.00 Z"/><path d="M100.10,34.00 A47.10,45.90 0 1 0 53.00,79.90 L53.00,63.60 A26.90,26.10 0 1 1 79.16,34.00 L100.10,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M97.06,52.00 A30.06,29.94 0 1 0 67.00,81.94 L67.00,73.55 A17.94,18.06 0 1 1 84.10,52.00 L97.06,52.00 Z"/><path d="M96.06,34.00 A43.06,41.94 0 1 0 53.00,75.94 L53.00,67.56 A30.94,30.06 0 1 1 83.23,34.00 L96.06,34.00 Z" transform="rotate(180 60 60)"/></g></g><g filter="url(#m3d)"><g fill="#F2F3F6"><path d="M93.02,52.00 A26.02,25.98 0 1 0 67.00,77.98 L67.00,77.51 A21.98,22.02 0 1 1 88.20,52.00 L93.02,52.00 Z"/><path d="M92.02,34.00 A39.02,37.98 0 1 0 53.00,71.98 L53.00,71.52 A34.98,34.02 0 1 1 87.29,34.00 L92.02,34.00 Z" transform="rotate(180 60 60)"/></g></g></g></svg></div>
 <main id="main"></main>
+<!-- THE TAB STRIP (owner's ask, 2026-09-06): every place the menu could take
+     you, as a row of icons along the bottom edge, where a thumb already is.
+     Built by the app (src/app/24-tabbar.js) from the arrangement the person
+     keeps, so the markup here is the frame and nothing else. It scrolls
+     sideways when the tabs outrun the screen, and its last tab is its own
+     control — the one that opens the sheet where the strip is arranged. -->
+<nav class="tabbar" id="tabbar" data-surface="bar" aria-label="Розділи">
+  <div class="tabbar-scroll" id="tabbarScroll"></div>
+</nav>
 <!-- Back to the top of the shelf. Hidden until there is a way back TO go:
      on the first screen it would be a button that does nothing, and one of
      those on every screen is how a corner fills up with furniture. -->
@@ -2860,6 +2943,40 @@ const UI_DATA = {
   // you to where you were. Inside a collection the difference is the whole
   // point — the way out is the screen you opened it from, not the catalogue.
   back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+
+  // ---- the tab strip's own drawings (owner's ask: drawn here, in the
+  // app's hand — the 24-unit grid, a 2-unit stroke, round caps, no fill —
+  // not taken from a set). Each is one idea in as few strokes as it takes,
+  // because at 22px a second idea is noise. ----
+  // The shelf: three spines of different heights standing on one line.
+  shelf: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4.5" height="13" rx="1"/><rect x="9.75" y="7" width="4.5" height="10" rx="1"/><rect x="16.5" y="5" width="4.5" height="12" rx="1"/><line x1="2.5" y1="20.5" x2="21.5" y2="20.5"/></svg>',
+  // The same glass the header carries, so «search» is one shape everywhere.
+  find: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  // A spinning top (dzyga), which is what the random pick is called now
+  // (owner's word; the sheet it opens says so). A rim, a cone down to a
+  // point, a stem to spin it by.
+  top: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5c0-1.9 3.4-3.5 7.5-3.5s7.5 1.6 7.5 3.5"/><path d="M4.5 9.5l6 9.3a1.8 1.8 0 0 0 3 0l6-9.3"/><line x1="12" y1="6" x2="12" y2="2.5"/><line x1="12" y1="19.6" x2="12" y2="21.5"/></svg>',
+  // Sliders, each knob somewhere else: a filter is settings you slide.
+  sliders: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="7.5" y2="6"/><circle cx="10" cy="6" r="2.2"/><line x1="12.5" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="12.5" y2="12"/><circle cx="15" cy="12" r="2.2"/><line x1="17.5" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="5.5" y2="18"/><circle cx="8" cy="18" r="2.2"/><line x1="10.5" y1="18" x2="20" y2="18"/></svg>',
+  // Two cards, one behind the other: a collection is films kept together.
+  stack: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="14" height="14" rx="1.5"/><path d="M7 7V4.5A1.5 1.5 0 0 1 8.5 3h11A1.5 1.5 0 0 1 21 4.5v11a1.5 1.5 0 0 1-1.5 1.5H17"/></svg>',
+  // Two people, the second half a step behind.
+  people: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c3.3.2 6 2.5 6 5.8"/></svg>',
+  // One person, head and shoulders.
+  person: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c0-4 3.4-6.8 7.5-6.8s7.5 2.8 7.5 6.8"/></svg>',
+  // A gear: a ring with eight teeth, the hub open.
+  gear: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><line x1="12" y1="2.5" x2="12" y2="5.5"/><line x1="12" y1="18.5" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5.5" y2="12"/><line x1="18.5" y1="12" x2="21.5" y2="12"/><line x1="5.3" y1="5.3" x2="7.4" y2="7.4"/><line x1="16.6" y1="16.6" x2="18.7" y2="18.7"/><line x1="5.3" y1="18.7" x2="7.4" y2="16.6"/><line x1="16.6" y1="7.4" x2="18.7" y2="5.3"/></svg>',
+  // A shield with a tick: the tools that act on everybody's catalogue.
+  shield: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-3 8.1-7 9.5-4-1.4-7-5.2-7-9.5V6l7-3z"/><polyline points="9 12 11.2 14.2 15.5 9.8"/></svg>',
+  // A bin: lid, handle, body, two grooves.
+  bin: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  // Three tiles and an arrow under them both ways: the strip, rearranged.
+  arrange: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="4" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="4" width="4.5" height="4.5" rx="1"/><path d="M3.5 17h17M6 14.5L3.5 17 6 19.5M18 14.5L20.5 17 18 19.5"/></svg>',
+  // And «add», at the strip's size.
+  plusBig: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  // A step up and a step down, for the arrangement's own rows.
+  up: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>',
+  down: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>',
   },
 
   // Per-ceremony award icons (see matchAward() in src/logic.js for the name/
@@ -3133,7 +3250,7 @@ function anyFilterSet(st) {
 if (!st) return false;
 return !!(st.query || st.showWatched || st.onlyLiked || st.onlyMust || st.genre && st.genre !== 'all' || st.recommender && st.recommender !== 'all' || st.type && st.type !== 'all' || st.years && st.years !== 'all' || st.release && st.release !== 'all' || st.provider && st.provider !== 'all' || st.actors && st.actors.length || st.directors && st.directors.length);
 }
-const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'menu', 'collection', 'addMode', 'search' ];
+const NAV_SURFACES = [ 'confirm', 'filmCard', 'colEdit', 'addModal', 'account', 'recs', 'friends', 'dice', 'filter', 'settings', 'trash', 'admin', 'tabbar', 'menu', 'collection', 'addMode', 'search' ];
 function topNavSurface(open) {
 if (!open) return null;
 for (const key of NAV_SURFACES) if (open[key]) return key;
@@ -3378,6 +3495,107 @@ matchesYearBucket: matchesYearBucket
 
 if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_SEARCH;
 
+const LOGIC_TABBAR = function() {
+const TABBAR_TABS = [ {
+id: 'shelf',
+label: 'Полиця'
+}, {
+id: 'search',
+label: 'Пошук'
+}, {
+id: 'dice',
+label: 'Дзиґа'
+}, {
+id: 'filter',
+label: 'Фільтр'
+}, {
+id: 'recs',
+label: 'Добірки'
+}, {
+id: 'friends',
+label: 'Друзі'
+}, {
+id: 'account',
+label: 'Акаунт'
+}, {
+id: 'add',
+label: 'Додати'
+}, {
+id: 'settings',
+label: 'Налаштування'
+}, {
+id: 'trash',
+label: 'Кошик'
+}, {
+id: 'admin',
+label: 'Адмін'
+} ];
+const TABBAR_IDS = TABBAR_TABS.map(t => t.id);
+const TABBAR_HIDDEN_BY_DEFAULT = [];
+function normalizeTabbar(saved) {
+const src = saved && typeof saved === 'object' ? saved : {};
+const seen = new Set;
+const order = [];
+for (const id of Array.isArray(src.order) ? src.order : []) {
+if (TABBAR_IDS.includes(id) && !seen.has(id)) {
+seen.add(id);
+order.push(id);
+}
+}
+for (const id of TABBAR_IDS) if (!seen.has(id)) order.push(id);
+const hiddenSrc = Array.isArray(src.hidden) ? src.hidden : TABBAR_HIDDEN_BY_DEFAULT;
+const hidden = TABBAR_IDS.filter(id => hiddenSrc.includes(id));
+return {
+order: order,
+hidden: hidden
+};
+}
+function tabbarLayout(saved, available) {
+const {order: order, hidden: hidden} = normalizeTabbar(saved);
+const may = typeof available === 'function' ? available : () => true;
+return order.filter(id => !hidden.includes(id) && may(id)).map(id => TABBAR_TABS.find(t => t.id === id));
+}
+function moveTab(saved, id, dir, among) {
+const arr = normalizeTabbar(saved);
+const shown = Array.isArray(among) ? arr.order.filter(x => among.includes(x)) : arr.order;
+const k = shown.indexOf(id);
+const other = shown[k + (dir < 0 ? -1 : 1)];
+if (k < 0 || !other) return arr;
+const order = arr.order.slice();
+const i = order.indexOf(id), j = order.indexOf(other);
+[order[i], order[j]] = [ order[j], order[i] ];
+return {
+order: order,
+hidden: arr.hidden
+};
+}
+function toggleTab(saved, id, show) {
+const arr = normalizeTabbar(saved);
+if (!TABBAR_IDS.includes(id)) return arr;
+const hidden = show ? arr.hidden.filter(x => x !== id) : [ ...new Set([ ...arr.hidden, id ]) ];
+return {
+order: arr.order,
+hidden: TABBAR_IDS.filter(x => hidden.includes(x))
+};
+}
+function tabbarIsDefault(saved) {
+const arr = normalizeTabbar(saved);
+return arr.order.join() === TABBAR_IDS.join() && arr.hidden.join() === TABBAR_HIDDEN_BY_DEFAULT.join();
+}
+return {
+TABBAR_TABS: TABBAR_TABS,
+TABBAR_IDS: TABBAR_IDS,
+TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT,
+normalizeTabbar: normalizeTabbar,
+tabbarLayout: tabbarLayout,
+moveTab: moveTab,
+toggleTab: toggleTab,
+tabbarIsDefault: tabbarIsDefault
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_TABBAR;
+
 const IS_NODE = typeof module !== 'undefined' && !!module.exports;
 
 const AWARDS = IS_NODE ? require('./data/awards.js') : AWARDS_DATA;
@@ -3405,6 +3623,8 @@ const {uniqueMovieId: uniqueMovieId, mergeRefreshedMovie: mergeRefreshedMovie, s
 const {SWIPE_EDGE_PX: SWIPE_EDGE_PX, SWIPE_AXIS_PX: SWIPE_AXIS_PX, SWIPE_AXIS_RATIO: SWIPE_AXIS_RATIO, SWIPE_TRIGGER_RATIO: SWIPE_TRIGGER_RATIO, SWIPE_TRIGGER_MIN_PX: SWIPE_TRIGGER_MIN_PX, SWIPE_FLICK_SPEED: SWIPE_FLICK_SPEED, SWIPE_FLICK_MIN_PX: SWIPE_FLICK_MIN_PX, SWIPE_FLICK_MIN_MS: SWIPE_FLICK_MIN_MS, swipeStartAllowed: swipeStartAllowed, swipeAxis: swipeAxis, swipeVerdict: swipeVerdict, swipeStep: swipeStep, SWIPE_DISMISS_RATIO: SWIPE_DISMISS_RATIO, swipeDismisses: swipeDismisses, anyFilterSet: anyFilterSet, NAV_SURFACES: NAV_SURFACES, topNavSurface: topNavSurface} = IS_NODE ? require('./logic/gestures.js') : LOGIC_GESTURES;
 
 const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason, ENRICHMENT_RECHECK_DAYS: ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently: enrichmentCheckedRecently} = IS_NODE ? require('./logic/maintenance.js') : LOGIC_MAINTENANCE;
+
+const {TABBAR_TABS: TABBAR_TABS, TABBAR_IDS: TABBAR_IDS, TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT, normalizeTabbar: normalizeTabbar, tabbarLayout: tabbarLayout, moveTab: moveTab, toggleTab: toggleTab, tabbarIsDefault: tabbarIsDefault} = IS_NODE ? require('./logic/tabbar.js') : LOGIC_TABBAR;
 
 const CATALOGUE_PAGE = 2500;
 
@@ -5629,6 +5849,14 @@ poolSeasonsUrl: poolSeasonsUrl,
 poolFilmUrl: poolFilmUrl,
 needsFilmDetail: needsFilmDetail,
 localSeasonsKey: localSeasonsKey,
+TABBAR_TABS: TABBAR_TABS,
+TABBAR_IDS: TABBAR_IDS,
+TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT,
+normalizeTabbar: normalizeTabbar,
+tabbarLayout: tabbarLayout,
+moveTab: moveTab,
+toggleTab: toggleTab,
+tabbarIsDefault: tabbarIsDefault,
 FLIGHT_MS: FLIGHT_MS,
 FLIGHT_BACK_MS: FLIGHT_BACK_MS,
 FLIGHT_TURN_MS: FLIGHT_TURN_MS,
@@ -6088,7 +6316,8 @@ awardsFirst: false,
 actors: [],
 directors: [],
 searchScope: 'here',
-trailerSound: false
+trailerSound: false,
+tabbar: null
 };
 
 let openCatalogCollection = null;
@@ -6131,6 +6360,7 @@ awardsFirst: state.awardsFirst,
 actors: state.actors,
 directors: state.directors,
 trailerSound: state.trailerSound,
+tabbar: state.tabbar,
 view: document.body.dataset.view,
 genres: document.body.dataset.genres
 }));
@@ -6178,6 +6408,8 @@ if (typeof savedSettings.onlyMust === 'boolean') state.onlyMust = savedSettings.
 if (typeof savedSettings.searchWatched === 'boolean') state.searchWatched = savedSettings.searchWatched;
 
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
+
+if (savedSettings.tabbar && typeof savedSettings.tabbar === 'object') state.tabbar = savedSettings.tabbar;
 
 if (savedSettings.release) state.release = savedSettings.release;
 
@@ -8077,7 +8309,7 @@ function sheetIsMenuScreen(id) {
 return MENU_SHEET_IDS.includes(id);
 }
 
-const BAND_SHEET_IDS = [ ...MENU_SHEET_IDS, 'filterSheet' ];
+const BAND_SHEET_IDS = [ ...MENU_SHEET_IDS, 'filterSheet', 'tabbarSheet' ];
 
 const BAND_OVERLAY_IDS = [ 'recsOverlay', 'friendsOverlay', 'accountOverlay' ];
 
@@ -8151,8 +8383,28 @@ if (dy > 0 && !canScrollUp || dy < 0 && !canScrollDown) e.preventDefault();
 passive: false
 });
 
+let _screenDoor = 'menu';
+
+function screenDoorIs(door) {
+_screenDoor = door;
+}
+
+document.getElementById('menuBtn').addEventListener('click', () => screenDoorIs('menu'), true);
+
+function paintCloseControl(btn) {
+if (!btn) return;
+btn.innerHTML = ICON.close;
+btn.classList.remove('is-back');
+btn.title = 'Закрити';
+btn.setAttribute('aria-label', btn.title);
+}
+
 function paintExitControl(btn) {
 if (!btn) return;
+if (_screenDoor !== 'menu') {
+paintCloseControl(btn);
+return;
+}
 btn.innerHTML = ICON.back;
 btn.classList.add('is-back');
 btn.title = 'Назад до меню';
@@ -8173,7 +8425,7 @@ if (!btn.contains(e.target)) btn.click();
 
 function exitScreen(closeFn) {
 closeFn();
-menuSheet.open();
+if (_screenDoor === 'menu') menuSheet.open();
 }
 
 const filterSheet = wireSheet('filterSheet', 'filterBackdrop');
@@ -11623,6 +11875,10 @@ admin: {
 open: () => elIsOpen('adminSheet'),
 close: () => exitScreen(adminSheet.close)
 },
+tabbar: {
+open: () => elIsOpen('tabbarSheet'),
+close: () => tabbarSheet.close()
+},
 menu: {
 open: () => elIsOpen('menuSheet'),
 close: () => menuSheet.close()
@@ -11663,6 +11919,7 @@ let _navGuard = false;
 let _navExpectPop = false;
 
 function navSync() {
+if (typeof syncTabbar === 'function') syncTabbar();
 const showing = !!topNavSurface(navOpenNow());
 if (showing === _navGuard) return;
 if (showing) {
@@ -12032,6 +12289,185 @@ box.style.transition = '';
 }, 220);
 });
 }
+
+const tabbarEl = document.getElementById('tabbar');
+
+const tabbarScroll = document.getElementById('tabbarScroll');
+
+const tabbarRows = document.getElementById('tabbarRows');
+
+const tabbarSheet = wireSheet('tabbarSheet', 'tabbarBackdrop');
+
+document.getElementById('tabbarCloseBtn').addEventListener('click', tabbarSheet.close);
+
+const TABBAR_ICON = {
+shelf: 'shelf',
+search: 'find',
+dice: 'top',
+filter: 'sliders',
+recs: 'stack',
+friends: 'people',
+account: 'person',
+add: 'plusBig',
+settings: 'gear',
+trash: 'bin',
+admin: 'shield'
+};
+
+const TABBAR_CONTROL = {
+search: 'searchOpenBtn',
+dice: 'diceBtn',
+filter: 'filterBtn',
+recs: 'recsBtn',
+friends: 'friendsBtn',
+account: 'accountBtn',
+add: 'addMovieBtn',
+settings: 'settingsBtn',
+trash: 'trashBtn',
+admin: 'adminBtn'
+};
+
+const TABBAR_SURFACE = {
+search: 'search',
+dice: 'dice',
+filter: 'filter',
+recs: 'recs',
+friends: 'friends',
+account: 'account',
+add: 'addModal',
+settings: 'settings',
+trash: 'trash',
+admin: 'admin'
+};
+
+const TABBAR_MENU_SCREENS = new Set([ 'recs', 'friends', 'account', 'settings', 'trash', 'admin' ]);
+
+function tabAvailable(id) {
+const ctl = TABBAR_CONTROL[id] && document.getElementById(TABBAR_CONTROL[id]);
+if (!ctl) return id === 'shelf';
+if (ctl.hidden) return false;
+return ctl.style.display !== 'none';
+}
+
+function goToShelf() {
+screenDoorIs('tabbar');
+for (let i = 0; i < 12; i++) {
+const key = topNavSurface(navOpenNow());
+if (!key) break;
+try {
+NAV_CLOSERS[key].close();
+} catch (err) {
+break;
+}
+}
+try {
+window.scrollTo({
+top: 0,
+behavior: 'smooth'
+});
+} catch (err) {
+window.scrollTo(0, 0);
+}
+}
+
+function pressTab(id) {
+if (id === 'shelf') {
+goToShelf();
+return;
+}
+if (id === 'arrange') {
+closeMenuScreens();
+renderTabbarRows();
+tabbarSheet.open();
+return;
+}
+const ctl = TABBAR_CONTROL[id] && document.getElementById(TABBAR_CONTROL[id]);
+if (!ctl) return;
+if (TABBAR_MENU_SCREENS.has(id)) screenDoorIs('tabbar');
+if (TABBAR_MENU_SCREENS.has(id) || id === 'filter') closeMenuScreens();
+ctl.click();
+}
+
+function tabHtml(tab, iconName) {
+return `<button class="tabbar-tab" type="button" data-tab="${tab.id}" title="${esc(tab.label)}" aria-label="${esc(tab.label)}">` + `${ICON[iconName] || ''}<span class="tabbar-tab-label">${esc(tab.label)}</span></button>`;
+}
+
+function renderTabbar() {
+if (!tabbarScroll) return;
+const left = tabbarScroll.scrollLeft;
+const tabs = tabbarLayout(state.tabbar, tabAvailable);
+tabbarScroll.innerHTML = tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
+tabbarScroll.scrollLeft = left;
+syncTabbar();
+}
+
+function syncTabbar() {
+if (!tabbarScroll) return;
+let open = null;
+try {
+open = navOpenNow();
+} catch (err) {
+open = null;
+}
+const top = open ? topNavSurface(open) : null;
+for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
+const id = btn.dataset.tab;
+const lit = id === 'shelf' ? !top : id === 'arrange' ? top === 'tabbar' : TABBAR_SURFACE[id] === top;
+btn.classList.toggle('active', lit);
+}
+}
+
+tabbarScroll.addEventListener('click', e => {
+const btn = e.target.closest('.tabbar-tab');
+if (btn) pressTab(btn.dataset.tab);
+});
+
+if (typeof MutationObserver === 'function') {
+const watched = new MutationObserver(() => renderTabbar());
+for (const id of Object.values(TABBAR_CONTROL)) {
+const el = document.getElementById(id);
+if (el) watched.observe(el, {
+attributes: true,
+attributeFilter: [ 'style', 'hidden' ]
+});
+}
+}
+
+function renderTabbarRows() {
+if (!tabbarRows) return;
+const arr = normalizeTabbar(state.tabbar);
+const rows = arr.order.filter(id => tabAvailable(id));
+tabbarRows.innerHTML = rows.map((id, i) => {
+const tab = TABBAR_TABS.find(t => t.id === id);
+const off = arr.hidden.includes(id);
+return `<div class="tabbar-row${off ? ' is-off' : ''}" data-tab="${id}">` + `<span class="tabbar-row-icon">${ICON[TABBAR_ICON[id]] || ''}</span>` + `<span class="tabbar-row-name">${esc(tab.label)}</span>` + `<button class="hicon" type="button" data-move="-1" title="Вище" aria-label="Вище"${i === 0 ? ' disabled' : ''}>${ICON.up}</button>` + `<button class="hicon" type="button" data-move="1" title="Нижче" aria-label="Нижче"${i === rows.length - 1 ? ' disabled' : ''}>${ICON.down}</button>` + `<button class="opt${off ? '' : ' active'}" type="button" data-show aria-pressed="${off ? 'false' : 'true'}" title="${off ? 'Показувати' : 'Сховати'}" aria-label="${off ? 'Показувати' : 'Сховати'}">${ICON.eye}</button>` + '</div>';
+}).join('');
+}
+
+function setTabbar(next) {
+state.tabbar = tabbarIsDefault(next) ? null : next;
+saveSettings();
+renderTabbar();
+renderTabbarRows();
+}
+
+tabbarRows.addEventListener('click', e => {
+const row = e.target.closest('.tabbar-row');
+if (!row) return;
+const id = row.dataset.tab;
+const move = e.target.closest('[data-move]');
+if (move && !move.disabled) {
+const among = [ ...tabbarRows.querySelectorAll('.tabbar-row') ].map(r => r.dataset.tab);
+setTabbar(moveTab(state.tabbar, id, Number(move.dataset.move), among));
+return;
+}
+const show = e.target.closest('[data-show]');
+if (show) setTabbar(toggleTab(state.tabbar, id, show.getAttribute('aria-pressed') !== 'true'));
+});
+
+document.getElementById('tabbarResetBtn').addEventListener('click', () => setTabbar(null));
+
+renderTabbar();
 </script>
 <!-- Tesseract is NOT loaded here any more. It is the OCR for «add a film
      from a screenshot», which almost nobody reaches and nobody reaches on
