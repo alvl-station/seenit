@@ -811,17 +811,24 @@
   
   .card-flight-face {
     position: absolute; inset: 0; border-radius: 2px;
-    background: var(--surface2) center/cover no-repeat;
+    
+    background: center/cover no-repeat;
     
     transform: translateZ(calc(var(--flight-thickness, 7px) / 2));
+    
+    will-change: transform, opacity;
   }
   
   .card-flight-edge {
     position: absolute; top: 0; bottom: 0; left: 50%;
-    width: var(--flight-thickness, 7px);
-    margin-left: calc(var(--flight-thickness, 7px) / -2);
-    background: var(--flash); border-radius: 1px;
+    width: var(--flight-thickness, 8px);
+    margin-left: calc(var(--flight-thickness, 8px) / -2);
+    
+    background: var(--blood);
+    box-shadow: inset 1px 0 0 var(--flash), inset -1px 0 0 rgba(var(--coal-rgb), .6);
+    border-radius: 1px;
     backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    will-change: transform;
   }
   .card-flight-edge--right { transform: rotateY(90deg) translateZ(var(--flight-half, 0px)); }
   .card-flight-edge--left { transform: rotateY(-90deg) translateZ(var(--flight-half, 0px)); }
@@ -5252,9 +5259,9 @@ const day = formatDay(ep.d);
 return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
 }
 
-const FLIGHT_MS = 1e3;
+const FLIGHT_MS = 2e3;
 
-const FLIGHT_BACK_MS = 620;
+const FLIGHT_BACK_MS = 1200;
 
 const FLIGHT_PERSPECTIVE = 1200;
 
@@ -5278,27 +5285,52 @@ return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixe
 function flightKeyframes(from, to, {back: back = false, suffix: suffix = ''} = {}) {
 const p = `perspective(${FLIGHT_PERSPECTIVE}px)`;
 const tail = suffix ? ` ${suffix}` : '';
-const at = flightTransform(from, to);
-const start = {
-transform: `${p} ${at} rotateY(0deg)${tail}`,
-opacity: 1,
-offset: 0
-};
-const mid = {
-transform: `${p} ${flightTransform(midpointRect(from, to), to)} translateZ(220px) rotateY(90deg)${tail}`,
-opacity: 1,
-offset: .5
-};
-const end = {
-transform: `${p} translate(0px, 0px) scale(1, 1) rotateY(180deg)${tail}`,
-opacity: 1,
-offset: 1
-};
-if (!back) return [ start, mid, end ];
-return [ end, mid, start ].map((frame, i) => ({
-...frame,
-offset: i / 2
+const frames = FLIGHT_STOPS.map(t => ({
+transform: `${p} ${flightTransform(rectAt(from, to, t), to)} translateZ(${flightLift(t)}px) rotateY(${(180 * t).toFixed(2)}deg)${tail}`,
+offset: t
 }));
+if (!back) return frames;
+return frames.reverse().map((frame, i) => ({
+...frame,
+offset: i / (frames.length - 1)
+}));
+}
+
+const FLIGHT_STOPS = [ 0, .25, .5, .75, 1 ];
+
+function flightLift(t) {
+return Math.round(220 * Math.sin(Math.PI * t));
+}
+
+function edgeKeyframes() {
+return [ {
+opacity: 0,
+offset: 0
+}, {
+opacity: 1,
+offset: .18
+}, {
+opacity: 1,
+offset: .82
+}, {
+opacity: 0,
+offset: 1
+} ];
+}
+
+function rectAt(from, to, t) {
+if (!from || !to) return to;
+const mix = (a, b) => a + (b - a) * t;
+return {
+left: mix(from.left, to.left),
+top: mix(from.top, to.top),
+width: mix(from.width, to.width),
+height: mix(from.height, to.height)
+};
+}
+
+function midpointRect(from, to) {
+return rectAt(from, to, .5);
 }
 
 function faceKeyframes({back: back = false} = {}) {
@@ -5334,17 +5366,6 @@ back: front
 } : {
 front: front,
 back: rear
-};
-}
-
-function midpointRect(from, to) {
-if (!from || !to) return to;
-const mix = (a, b) => a + (b - a) / 2;
-return {
-left: mix(from.left, to.left),
-top: mix(from.top, to.top),
-width: mix(from.width, to.width),
-height: mix(from.height, to.height)
 };
 }
 
@@ -5576,6 +5597,7 @@ flightAllowed: flightAllowed,
 flightTransform: flightTransform,
 flightKeyframes: flightKeyframes,
 faceKeyframes: faceKeyframes,
+edgeKeyframes: edgeKeyframes,
 midpointRect: midpointRect,
 formatDay: formatDay,
 episodeState: episodeState,
@@ -7075,6 +7097,9 @@ const front = el.querySelector('.card-flight-front');
 const back = el.querySelector('.card-flight-back');
 if (front && front.animate) front.animate(frames.front, timing);
 if (back && back.animate) back.animate(frames.back, timing);
+for (const edge of el.querySelectorAll('.card-flight-edge')) {
+if (edge.animate) edge.animate(edgeKeyframes(), timing);
+}
 }
 
 function flightParts(el) {
