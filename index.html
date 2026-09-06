@@ -812,10 +812,22 @@
   .card-flight-face {
     position: absolute; inset: 0; border-radius: 2px;
     background: var(--surface2) center/cover no-repeat;
+    
+    transform: translateZ(calc(var(--flight-thickness, 7px) / 2));
   }
   
+  .card-flight-edge {
+    position: absolute; top: 0; bottom: 0; left: 50%;
+    width: var(--flight-thickness, 7px);
+    margin-left: calc(var(--flight-thickness, 7px) / -2);
+    background: var(--flash); border-radius: 1px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  }
+  .card-flight-edge--right { transform: rotateY(90deg) translateZ(var(--flight-half, 0px)); }
+  .card-flight-edge--left { transform: rotateY(-90deg) translateZ(var(--flight-half, 0px)); }
+  
   .card-flight-back {
-    transform: rotateY(180deg);
+    transform: rotateY(180deg) translateZ(calc(var(--flight-thickness, 7px) / 2));
     background: var(--surface); box-shadow: inset 0 0 0 1px var(--border);
     border-radius: var(--tpl-radius, 8px); overflow: hidden;
   }
@@ -5263,21 +5275,22 @@ const dy = from.top + from.height / 2 - (to.top + to.height / 2);
 return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(4)}, ${scale.toFixed(4)})`;
 }
 
-function flightKeyframes(from, to, {back: back = false} = {}) {
+function flightKeyframes(from, to, {back: back = false, suffix: suffix = ''} = {}) {
 const p = `perspective(${FLIGHT_PERSPECTIVE}px)`;
+const tail = suffix ? ` ${suffix}` : '';
 const at = flightTransform(from, to);
 const start = {
-transform: `${p} ${at} rotateY(0deg)`,
+transform: `${p} ${at} rotateY(0deg)${tail}`,
 opacity: 1,
 offset: 0
 };
 const mid = {
-transform: `${p} ${flightTransform(midpointRect(from, to), to)} translateZ(220px) rotateY(90deg)`,
+transform: `${p} ${flightTransform(midpointRect(from, to), to)} translateZ(220px) rotateY(90deg)${tail}`,
 opacity: 1,
 offset: .5
 };
 const end = {
-transform: `${p} translate(0px, 0px) scale(1, 1) rotateY(180deg)`,
+transform: `${p} translate(0px, 0px) scale(1, 1) rotateY(180deg)${tail}`,
 opacity: 1,
 offset: 1
 };
@@ -7047,6 +7060,12 @@ backFace.className = 'card-flight-face card-flight-back';
 if (back) backFace.appendChild(back);
 el.appendChild(front);
 el.appendChild(backFace);
+el.style.setProperty('--flight-half', `${Math.round(rect.width / 2)}px`);
+for (const side of [ 'right', 'left' ]) {
+const edge = document.createElement('div');
+edge.className = `card-flight-edge card-flight-edge--${side}`;
+el.appendChild(edge);
+}
 document.body.appendChild(el);
 return el;
 }
@@ -7056,6 +7075,23 @@ const front = el.querySelector('.card-flight-front');
 const back = el.querySelector('.card-flight-back');
 if (front && front.animate) front.animate(frames.front, timing);
 if (back && back.animate) back.animate(frames.back, timing);
+}
+
+function flightParts(el) {
+const half = el.style.getPropertyValue('--flight-half') || '0px';
+const t = 'calc(var(--flight-thickness, 7px) / 2)';
+return [ [ '.card-flight-front', `translateZ(${t})` ], [ '.card-flight-back', `rotateY(180deg) translateZ(${t})` ], [ '.card-flight-edge--right', `rotateY(90deg) translateZ(${half})` ], [ '.card-flight-edge--left', `rotateY(-90deg) translateZ(${half})` ] ].map(([sel, suffix]) => [ el.querySelector(sel), suffix ]).filter(([node]) => node && node.animate);
+}
+
+function playFlight(el, from, to, timing, {back: back = false} = {}) {
+let last = null;
+for (const [node, suffix] of flightParts(el)) {
+last = node.animate(flightKeyframes(from, to, {
+back: back,
+suffix: suffix
+}), timing);
+}
+return last;
 }
 
 function endFlight() {
@@ -7083,7 +7119,9 @@ duration: FLIGHT_MS,
 easing: FLIGHT_EASING,
 fill: 'both'
 };
-const run = _flightEl.animate(flightKeyframes(from.rect, to), timing);
+const run = playFlight(_flightEl, from.rect, to, timing) || _flightEl.animate([ {
+opacity: 1
+} ], timing);
 playFaces(_flightEl, faceKeyframes(), timing);
 run.finished.catch(() => {}).then(() => {
 endFlight();
@@ -7122,9 +7160,11 @@ duration: FLIGHT_BACK_MS,
 easing: FLIGHT_EASING,
 fill: 'both'
 };
-const run = _flightEl.animate(flightKeyframes(card.rect, to, {
+const run = playFlight(_flightEl, card.rect, to, timing, {
 back: true
-}), timing);
+}) || _flightEl.animate([ {
+opacity: 1
+} ], timing);
 playFaces(_flightEl, faceKeyframes({
 back: true
 }), timing);
