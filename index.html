@@ -851,7 +851,11 @@
     border-radius: var(--radius-overlay); overflow: hidden;
   }
   
-  .card-flight--turn .card-flight-poster { border-radius: var(--radius-overlay); }
+  .card-flight--turn .card-flight-poster {
+    border-radius: var(--radius-overlay);
+    
+    background-size: contain;
+  }
   
   .card-flight-card > .modal {
     width: 100%; height: 100%; max-width: none; pointer-events: none;
@@ -5284,9 +5288,9 @@ const day = formatDay(ep.d);
 return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
 }
 
-const FLIGHT_MS = 2e3;
+const FLIGHT_MS = 1500;
 
-const FLIGHT_BACK_MS = 1200;
+const FLIGHT_BACK_MS = 1e3;
 
 const FLIGHT_TURN_MS = 900;
 
@@ -5309,19 +5313,26 @@ const dy = from.top + from.height / 2 - (to.top + to.height / 2);
 return `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(4)}, ${scale.toFixed(4)})`;
 }
 
-function flightKeyframes(from, to, {back: back = false, suffix: suffix = ''} = {}) {
+function flightKeyframes(from, to, {back: back = false, suffix: suffix = '', spin: spin = true} = {}) {
 const p = `perspective(${FLIGHT_PERSPECTIVE}px)`;
 const tail = suffix ? ` ${suffix}` : '';
-const frames = FLIGHT_STOPS.map(t => ({
-transform: `${p} ${flightTransform(rectAt(from, to, t), to)} translateZ(${flightLift(t)}px) rotateY(${(180 * t).toFixed(2)}deg)${tail}`,
-offset: t
-}));
-if (!back) return frames;
-return frames.reverse().map((frame, i) => ({
-...frame,
-offset: i / (frames.length - 1)
-}));
+return FLIGHT_STOPS.map(q => {
+const at = back ? 1 - q : q;
+const turn = back ? 1 - spinAt(q) : spinAt(q);
+return {
+transform: `${p} ${flightTransform(rectAt(from, to, at), to)} translateZ(${flightLift(at)}px) rotateY(${(spin ? 180 * turn : 0).toFixed(2)}deg)${tail}`,
+offset: q
+};
+});
 }
+
+const FLIGHT_SPIN = 2;
+
+function spinAt(q) {
+return 1 - Math.pow(1 - q, FLIGHT_SPIN);
+}
+
+const FLIGHT_HALF_TURN = Number((1 - Math.pow(.5, 1 / FLIGHT_SPIN)).toFixed(4));
 
 const FLIGHT_STOPS = [ 0, .25, .5, .75, 1 ];
 
@@ -5361,15 +5372,17 @@ return rectAt(from, to, .5);
 }
 
 function faceKeyframes({back: back = false} = {}) {
+const edgeOn = FLIGHT_HALF_TURN;
+const justBefore = Number((edgeOn - .01).toFixed(4));
 const front = [ {
 opacity: 1,
 offset: 0
 }, {
 opacity: 1,
-offset: .49
+offset: justBefore
 }, {
 opacity: 0,
-offset: .5
+offset: edgeOn
 }, {
 opacity: 0,
 offset: 1
@@ -5379,10 +5392,10 @@ opacity: 0,
 offset: 0
 }, {
 opacity: 0,
-offset: .49
+offset: justBefore
 }, {
 opacity: 1,
-offset: .5
+offset: edgeOn
 }, {
 opacity: 1,
 offset: 1
@@ -5619,6 +5632,7 @@ localSeasonsKey: localSeasonsKey,
 FLIGHT_MS: FLIGHT_MS,
 FLIGHT_BACK_MS: FLIGHT_BACK_MS,
 FLIGHT_TURN_MS: FLIGHT_TURN_MS,
+FLIGHT_HALF_TURN: FLIGHT_HALF_TURN,
 FLIGHT_PERSPECTIVE: FLIGHT_PERSPECTIVE,
 FLIGHT_EASING: FLIGHT_EASING,
 flightAllowed: flightAllowed,
@@ -7095,7 +7109,7 @@ copy.setAttribute('aria-hidden', 'true');
 return copy;
 }
 
-function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false} = {}) {
+function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true} = {}) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
@@ -7110,10 +7124,29 @@ const posterFace = posterOnBack ? backFace : front;
 const cardFace = posterOnBack ? front : backFace;
 if (posterSrc) posterFace.style.backgroundImage = `url("${posterSrc}")`;
 if (back) cardFace.appendChild(back);
+if (from && from.width && from.height && rect.width && rect.height) {
+const scale = Math.max(from.width / rect.width, from.height / rect.height);
+const w = from.width / scale;
+const h = from.height / scale;
+Object.assign(posterFace.style, {
+left: '50%',
+top: '50%',
+right: 'auto',
+bottom: 'auto',
+width: `${w}px`,
+height: `${h}px`,
+marginLeft: `${-w / 2}px`,
+marginTop: `${-h / 2}px`
+});
+}
+if (spin) {
 el.appendChild(front);
 el.appendChild(backFace);
+} else {
+el.appendChild(posterFace);
+}
 el.style.setProperty('--flight-half', `${Math.round(rect.width / 2)}px`);
-for (const side of [ 'right', 'left' ]) {
+for (const side of spin ? [ 'right', 'left' ] : []) {
 const edge = document.createElement('div');
 edge.className = `card-flight-edge card-flight-edge--${side}`;
 el.appendChild(edge);
@@ -7139,12 +7172,13 @@ const t = 'calc(var(--flight-thickness) / 2)';
 return [ [ '.card-flight-front', `translateZ(${t})` ], [ '.card-flight-back', `rotateY(180deg) translateZ(${t})` ], [ '.card-flight-edge--right', `rotateY(90deg) translateZ(${half})` ], [ '.card-flight-edge--left', `rotateY(-90deg) translateZ(${half})` ] ].map(([sel, suffix]) => [ el.querySelector(sel), suffix ]).filter(([node]) => node && node.animate);
 }
 
-function playFlight(el, from, to, timing, {back: back = false} = {}) {
+function playFlight(el, from, to, timing, {back: back = false, spin: spin = true} = {}) {
 let last = null;
 for (const [node, suffix] of flightParts(el)) {
 last = node.animate(flightKeyframes(from, to, {
 back: back,
-suffix: suffix
+suffix: suffix,
+spin: spin
 }), timing);
 }
 return last;
@@ -7169,7 +7203,9 @@ const to = modalBox.getBoundingClientRect();
 if (!to.width || !to.height) return false;
 endFlight();
 modalBox.classList.add('is-flying');
-_flightEl = buildFlight(to, from.poster, modalSnapshot());
+_flightEl = buildFlight(to, from.poster, modalSnapshot(), {
+from: from.rect
+});
 const timing = {
 duration: FLIGHT_MS,
 easing: FLIGHT_EASING,
@@ -7192,7 +7228,7 @@ nudgeTrailerToPlay();
 return true;
 }
 
-function flyCardClosed(onDone) {
+function flyCardClosed(onDone, {faceDown: faceDown = false} = {}) {
 const card = _closingToCard;
 _closingToCard = null;
 if (!card || !modalBox.animate || !flightAllowed({
@@ -7210,18 +7246,22 @@ return;
 }
 endFlight();
 modalBox.classList.add('is-flying');
-_flightEl = buildFlight(to, card.poster, modalSnapshot());
+_flightEl = buildFlight(to, card.poster, faceDown ? null : modalSnapshot(), {
+from: card.rect,
+spin: !faceDown
+});
 const timing = {
 duration: FLIGHT_BACK_MS,
 easing: FLIGHT_EASING,
 fill: 'both'
 };
 const run = playFlight(_flightEl, card.rect, to, timing, {
-back: true
+back: true,
+spin: !faceDown
 }) || _flightEl.animate([ {
 opacity: 1
 } ], timing);
-playFaces(_flightEl, faceKeyframes({
+if (!faceDown) playFaces(_flightEl, faceKeyframes({
 back: true
 }), timing);
 run.finished.catch(() => {}).then(() => {
@@ -7310,11 +7350,13 @@ if (run && run.finished) run.finished.catch(() => {}).then(settle); else settle(
 }
 
 function resetTurn() {
-if (!_turned && !_turning) return;
+if (!_turned && !_turning) return false;
+const wasTurned = _turned;
 _turned = false;
 _turning = false;
 _turnTrailer = null;
 endFlight();
+return wasTurned;
 }
 
 window.addEventListener('resize', resetTurn);
@@ -7554,9 +7596,11 @@ _unmuteTimers = [ 120, 500, 1200, 2500 ].map(ms => setTimeout(ask, ms));
 }
 
 function closeModal() {
-resetTurn();
+const faceDown = resetTurn();
 noteFlightTarget(_modalMovie);
-flyCardClosed(() => finishClosingModal());
+flyCardClosed(() => finishClosingModal(), {
+faceDown: faceDown
+});
 }
 
 function finishClosingModal() {
