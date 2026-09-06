@@ -340,6 +340,11 @@
   .topbar-icons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
   
+  #addMovieBtn, #menuBtn, #filterBtn, #searchOpenBtn { display: none; }
+
+  .topbar-search.open #searchOpenBtn { display: flex; }
+
+  
   :root { --tabbar-h: 58px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
@@ -542,10 +547,7 @@
   .sheet-row--danger { color: var(--flash); }
 
   
-  .nav-row {
-    display: flex; align-items: stretch; justify-content: space-between;
-    gap: 16px; margin-top: 10px; border-bottom: 1px solid var(--border);
-  }
+  .nav-row { display: none; }
   
   .filter-word { color: var(--flash); }
   .tabs { display: flex; gap: 18px; }
@@ -884,7 +886,9 @@
   }
   
   .card-flight-edge {
-    position: absolute; top: 0; bottom: 0; left: 50%;
+    
+    position: absolute; left: 50%; top: 50%;
+    height: var(--edge-h); margin-top: calc(var(--edge-h) / -2);
     width: var(--flight-thickness);
     margin-left: calc(var(--flight-thickness) / -2);
     
@@ -894,8 +898,8 @@
     backface-visibility: hidden; -webkit-backface-visibility: hidden;
     will-change: transform;
   }
-  .card-flight-edge--right { transform: rotateY(90deg) translateZ(var(--flight-half, 0px)); }
-  .card-flight-edge--left { transform: rotateY(-90deg) translateZ(var(--flight-half, 0px)); }
+  .card-flight-edge--right { transform: rotateY(90deg) translateZ(var(--edge-half, 0px)); }
+  .card-flight-edge--left { transform: rotateY(-90deg) translateZ(var(--edge-half, 0px)); }
   
   .card-flight-back {
     transform: rotateY(180deg) translateZ(calc(var(--flight-thickness) / 2));
@@ -910,7 +914,6 @@
   .card-flight--turn .card-flight-poster {
     border-radius: var(--radius-overlay);
     
-    background-size: contain;
   }
   
   .card-flight-card > .modal {
@@ -924,6 +927,13 @@
   .card-flight.is-parked .card-flight-back { opacity: 1; }
   
   .modal.is-flying { opacity: 0; }
+  
+  .modal.is-turned { pointer-events: none; }
+  
+  .modal-overlay.is-turned {
+    background: rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
   @media (prefers-reduced-motion: reduce) {
     .card-flight { display: none; }
     .modal.is-flying { opacity: 1; }
@@ -1072,6 +1082,8 @@
     position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50;
     display: none; align-items: flex-start; justify-content: center;
     padding: 40px 16px; overflow-y: auto; backdrop-filter: blur(3px);
+    
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom));
   }
   .modal-overlay.open { display: flex; }
   
@@ -1987,30 +1999,41 @@
     body.sheet-nav .modal-overlay > .modal { animation: sheet-up .22s ease-out; }
 
     
-    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet {
-      top: 0; height: 100%; max-height: none;
+    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet,
+    #settingsSheet, #menuSheet, #diceSheet {
+      top: var(--header-h, 0px);
+      bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+      height: auto; max-height: none;
       border-radius: 0; padding-bottom: 38vh;
       overscroll-behavior: contain;
     }
-
     
-    #menuSheet { max-height: 80vh; overscroll-behavior: contain; }
-
-    
-    #settingsSheet {
-      max-height: 58vh;
-      overscroll-behavior: contain;
-    }
     #settingsBackdrop { background: none; pointer-events: none; }
 
     
-    .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
+    #recsOverlay, #friendsOverlay, #accountOverlay, #addMovieOverlay {
+      top: var(--header-h, 0px);
+      bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+    }
+    #recsOverlay > .modal, #friendsOverlay > .modal,
+    #accountOverlay > .modal, #addMovieOverlay > .modal {
+      animation: sheet-up .22s ease-out;
+      border-radius: 0;
+    }
 
     
-    #filterSheet, #trashSheet, #adminSheet, #colEditSheet {
-      --tpl-pad-y: calc(18px + var(--safe-top));
+    .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
+    #recsOverlay > .modal > .modal-close, #friendsOverlay > .modal > .modal-close,
+    #accountOverlay > .modal > .modal-close, #addMovieOverlay > .modal > .modal-close { top: 16px; }
+
+    
+    
+    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet, #settingsSheet {
+      --tpl-pad-y: 18px;
     }
-    [data-surface="screen"] { --tpl-pad-y: calc(20px + var(--safe-top)); }
+    [data-surface="screen"] { --tpl-pad-y: 20px; }
+    
+    #onboardBox { --tpl-pad-y: calc(20px + var(--safe-top)); }
   }
 
   @media (max-width: 400px) {
@@ -2974,6 +2997,11 @@ const UI_DATA = {
   arrange: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="4" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="4" width="4.5" height="4.5" rx="1"/><path d="M3.5 17h17M6 14.5L3.5 17 6 19.5M18 14.5L20.5 17 18 19.5"/></svg>',
   // And «add», at the strip's size.
   plusBig: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  // «Watched»: the eye the cards already carry, with a tick beside it. The
+  // eye alone would have been a second meaning for a drawing that already
+  // means «mark this film watched»; the tick is what turns it from an act
+  // into a place — the shelf of what is already seen.
+  seen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 11.5s3.7-6.4 10-6.4c1.6 0 3 .4 4.2 1"/><path d="M20.6 8.4c1.2 1.3 1.9 2.6 1.9 2.6s-3.7 6.4-10 6.4c-2.7 0-5-1.2-6.7-2.5"/><circle cx="11.5" cy="11.5" r="2.6"/><polyline points="15.5 19.5 17.6 21.6 22 17"/></svg>',
   // A step up and a step down, for the arrangement's own rows.
   up: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>',
   down: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>',
@@ -3499,6 +3527,9 @@ const LOGIC_TABBAR = function() {
 const TABBAR_TABS = [ {
 id: 'shelf',
 label: 'Полиця'
+}, {
+id: 'seen',
+label: 'Переглянуто'
 }, {
 id: 'search',
 label: 'Пошук'
@@ -5560,16 +5591,35 @@ function flightLift(t) {
 return Math.round(220 * Math.sin(Math.PI * t));
 }
 
-function edgeKeyframes() {
-return [ {
+function edgeKeyframes({second: second = false} = {}) {
+const edgeOn = FLIGHT_HALF_TURN;
+return second ? [ {
+opacity: 0,
+offset: 0
+}, {
+opacity: 0,
+offset: Number((edgeOn - .01).toFixed(4))
+}, {
+opacity: 1,
+offset: edgeOn
+}, {
+opacity: 1,
+offset: .82
+}, {
+opacity: 0,
+offset: 1
+} ] : [ {
 opacity: 0,
 offset: 0
 }, {
 opacity: 1,
-offset: .18
+offset: Number((edgeOn * .6).toFixed(4))
 }, {
 opacity: 1,
-offset: .82
+offset: Number((edgeOn - .01).toFixed(4))
+}, {
+opacity: 0,
+offset: edgeOn
 }, {
 opacity: 0,
 offset: 1
@@ -7341,7 +7391,7 @@ copy.setAttribute('aria-hidden', 'true');
 return copy;
 }
 
-function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true} = {}) {
+function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null} = {}) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
@@ -7356,10 +7406,15 @@ const posterFace = posterOnBack ? backFace : front;
 const cardFace = posterOnBack ? front : backFace;
 if (posterSrc) posterFace.style.backgroundImage = `url("${posterSrc}")`;
 if (back) cardFace.appendChild(back);
+let posterBox = null;
 if (from && from.width && from.height && rect.width && rect.height) {
 const scale = Math.max(from.width / rect.width, from.height / rect.height);
 const w = from.width / scale;
 const h = from.height / scale;
+posterBox = {
+width: w,
+height: h
+};
 Object.assign(posterFace.style, {
 left: '50%',
 top: '50%',
@@ -7371,17 +7426,33 @@ marginLeft: `${-w / 2}px`,
 marginTop: `${-h / 2}px`
 });
 }
+if (cardBox && cardBox.width && cardBox.height) {
+Object.assign(cardFace.style, {
+left: '50%',
+top: '50%',
+right: 'auto',
+bottom: 'auto',
+width: `${cardBox.width}px`,
+height: `${cardBox.height}px`,
+marginLeft: `${-cardBox.width / 2}px`,
+marginTop: `${-cardBox.height / 2}px`
+});
+}
 if (spin) {
 el.appendChild(front);
 el.appendChild(backFace);
 } else {
 el.appendChild(posterFace);
 }
-el.style.setProperty('--flight-half', `${Math.round(rect.width / 2)}px`);
-for (const side of spin ? [ 'right', 'left' ] : []) {
+const faces = spin ? [ [ 'poster', posterFace, posterBox || rect ], [ 'card', cardFace, cardBox || rect ] ] : [];
+for (const [which, , box] of faces) {
+for (const side of [ 'right', 'left' ]) {
 const edge = document.createElement('div');
-edge.className = `card-flight-edge card-flight-edge--${side}`;
+edge.className = `card-flight-edge card-flight-edge--${side} card-flight-edge--${which}`;
+edge.style.setProperty('--edge-h', `${Math.round(box.height)}px`);
+edge.style.setProperty('--edge-half', `${Math.round(box.width / 2)}px`);
 el.appendChild(edge);
+}
 }
 document.body.appendChild(el);
 if (back && back.scrollTop !== modalBox.scrollTop) back.scrollTop = modalBox.scrollTop;
@@ -7393,15 +7464,24 @@ const front = el.querySelector('.card-flight-front');
 const back = el.querySelector('.card-flight-back');
 if (front && front.animate) front.animate(frames.front, timing);
 if (back && back.animate) back.animate(frames.back, timing);
+const posterFirst = frames.front[0].opacity === 1;
 for (const edge of el.querySelectorAll('.card-flight-edge')) {
-if (edge.animate) edge.animate(edgeKeyframes(), timing);
+if (!edge.animate) continue;
+const isPoster = edge.classList.contains('card-flight-edge--poster');
+edge.animate(edgeKeyframes({
+second: isPoster !== posterFirst
+}), timing);
 }
 }
 
 function flightParts(el) {
-const half = el.style.getPropertyValue('--flight-half') || '0px';
 const t = 'calc(var(--flight-thickness) / 2)';
-return [ [ '.card-flight-front', `translateZ(${t})` ], [ '.card-flight-back', `rotateY(180deg) translateZ(${t})` ], [ '.card-flight-edge--right', `rotateY(90deg) translateZ(${half})` ], [ '.card-flight-edge--left', `rotateY(-90deg) translateZ(${half})` ] ].map(([sel, suffix]) => [ el.querySelector(sel), suffix ]).filter(([node]) => node && node.animate);
+const parts = [ [ '.card-flight-front', `translateZ(${t})` ], [ '.card-flight-back', `rotateY(180deg) translateZ(${t})` ] ].map(([sel, suffix]) => [ el.querySelector(sel), suffix ]);
+for (const edge of el.querySelectorAll('.card-flight-edge')) {
+const deg = edge.classList.contains('card-flight-edge--left') ? -90 : 90;
+parts.push([ edge, `rotateY(${deg}deg) translateZ(var(--edge-half))` ]);
+}
+return parts.filter(([node]) => node && node.animate);
 }
 
 function playFlight(el, from, to, timing, {back: back = false, spin: spin = true} = {}) {
@@ -7422,6 +7502,8 @@ _flightEl.remove();
 _flightEl = null;
 }
 modalBox.classList.remove('is-flying');
+modalBox.classList.remove('is-turned');
+overlay.classList.remove('is-turned');
 }
 
 function flyCardOpen() {
@@ -7471,11 +7553,12 @@ hardwareConcurrency: typeof navigator.hardwareConcurrency === 'number' ? navigat
 onDone();
 return;
 }
-const to = modalBox.getBoundingClientRect();
-if (!to.width || !to.height) {
+const box = modalBox.getBoundingClientRect();
+if (!box.width || !box.height) {
 onDone();
 return;
 }
+const to = faceDown ? posterBoxIn(box) : box;
 endFlight();
 modalBox.classList.add('is-flying');
 _flightEl = buildFlight(to, card.poster, faceDown ? null : modalSnapshot(), {
@@ -7508,6 +7591,17 @@ let _turning = false;
 
 let _turnTrailer = null;
 
+function posterBoxIn(rect) {
+const width = Math.min(rect.width, rect.height * 2 / 3);
+const height = width * 3 / 2;
+return {
+width: width,
+height: height,
+left: rect.left + (rect.width - width) / 2,
+top: rect.top + (rect.height - height) / 2
+};
+}
+
 function openCardPoster() {
 if (_modalMovie && _modalMovie.poster_url) return _modalMovie.poster_url;
 const img = modalBox.querySelector('.modal-poster img');
@@ -7535,6 +7629,8 @@ cancelFlightAnimations(el);
 el.style.transform = `perspective(${FLIGHT_PERSPECTIVE}px) rotateY(180deg)`;
 el.classList.add('is-parked');
 el.addEventListener('click', turnOpenCard);
+modalBox.classList.add('is-turned');
+overlay.classList.add('is-turned');
 }
 
 function cancelFlightAnimations(el) {
@@ -7548,15 +7644,20 @@ function turnOpenCard() {
 if (_turning) return;
 const poster = openCardPoster();
 if (!poster) return;
-const rect = modalBox.getBoundingClientRect();
-if (!rect.width || !rect.height) return;
+const card = modalBox.getBoundingClientRect();
+if (!card.width || !card.height) return;
+const rect = posterBoxIn(card);
 const back = _turned;
 if (!back) stopTrailerForTurn();
 _turning = true;
 endFlight();
 modalBox.classList.add('is-flying');
 _flightEl = buildFlight(rect, poster, modalSnapshot(), {
-posterOnBack: true
+posterOnBack: true,
+cardBox: {
+width: card.width,
+height: card.height
+}
 });
 _flightEl.classList.add('card-flight--turn');
 const timing = {
@@ -12302,6 +12403,7 @@ document.getElementById('tabbarCloseBtn').addEventListener('click', tabbarSheet.
 
 const TABBAR_ICON = {
 shelf: 'shelf',
+seen: 'seen',
 search: 'find',
 dice: 'top',
 filter: 'sliders',
@@ -12315,6 +12417,7 @@ admin: 'shield'
 };
 
 const TABBAR_CONTROL = {
+seen: 'watchedToggle',
 search: 'searchOpenBtn',
 dice: 'diceBtn',
 filter: 'filterBtn',
@@ -12386,6 +12489,7 @@ if (!ctl) return;
 if (TABBAR_MENU_SCREENS.has(id)) screenDoorIs('tabbar');
 if (TABBAR_MENU_SCREENS.has(id) || id === 'filter') closeMenuScreens();
 ctl.click();
+if (id === 'seen') syncTabbar();
 }
 
 function tabHtml(tab, iconName) {
@@ -12412,7 +12516,8 @@ open = null;
 const top = open ? topNavSurface(open) : null;
 for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
 const id = btn.dataset.tab;
-const lit = id === 'shelf' ? !top : id === 'arrange' ? top === 'tabbar' : TABBAR_SURFACE[id] === top;
+let lit;
+if (id === 'seen') lit = !!state.showWatched; else if (id === 'shelf') lit = !top; else if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
 btn.classList.toggle('active', lit);
 }
 }
