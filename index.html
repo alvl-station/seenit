@@ -106,6 +106,10 @@
   [data-surface="bar"] {
     --tpl-ground: var(--coal);
     --tpl-head-ground: var(--coal);
+    
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='106' height='106'%3E%3Crect width='106' height='106' fill='%2315161A'/%3E%3Cpath fill='%2324262C' opacity='0.10' d='M0 0h8v8h-8z'/%3E%3Cpath fill='%2324262C' opacity='0.15' d='M14 0.5h7v7h-7zM92 0.5h7v7h-7zM0.5 14h7v7h-7zM14 14h7v7h-7zM92 14h7v7h-7zM0.5 92h7v7h-7zM14 92h7v7h-7zM92 92h7v7h-7z'/%3E%3Cpath fill='%2324262C' opacity='0.20' d='M28 1h6v6h-6zM79 1h6v6h-6zM28 14.5h6v6h-6zM79 14.5h6v6h-6zM1 28h6v6h-6zM14.5 28h6v6h-6zM28 28h6v6h-6zM79 28h6v6h-6zM92.5 28h6v6h-6zM1 79h6v6h-6zM14.5 79h6v6h-6zM28 79h6v6h-6zM79 79h6v6h-6zM92.5 79h6v6h-6zM28 92.5h6v6h-6zM79 92.5h6v6h-6z'/%3E%3Cpath fill='%2324262C' opacity='0.25' d='M41 1.5h5v5h-5zM66 1.5h5v5h-5zM41 15h5v5h-5zM66 15h5v5h-5zM41 28.5h5v5h-5zM66 28.5h5v5h-5zM1.5 41h5v5h-5zM15 41h5v5h-5zM28.5 41h5v5h-5zM41 41h5v5h-5zM66 41h5v5h-5zM79.5 41h5v5h-5zM93 41h5v5h-5zM1.5 66h5v5h-5zM15 66h5v5h-5zM28.5 66h5v5h-5zM41 66h5v5h-5zM66 66h5v5h-5zM79.5 66h5v5h-5zM93 66h5v5h-5zM41 79.5h5v5h-5zM66 79.5h5v5h-5zM41 93h5v5h-5zM66 93h5v5h-5z'/%3E%3Cpath fill='%2324262C' opacity='0.30' d='M54 2h4v4h-4zM54 15.5h4v4h-4zM54 29h4v4h-4zM54 41.5h4v4h-4zM2 54h4v4h-4zM15.5 54h4v4h-4zM29 54h4v4h-4zM41.5 54h4v4h-4zM54 54h4v4h-4zM66.5 54h4v4h-4zM80 54h4v4h-4zM93.5 54h4v4h-4zM54 66.5h4v4h-4zM54 80h4v4h-4zM54 93.5h4v4h-4z'/%3E%3C/svg%3E");
+    background-size: 106px 106px;
+    background-repeat: repeat;
   }
 
   
@@ -299,7 +303,8 @@
     
     padding: calc(8px + var(--safe-top)) 24px 10px; max-width: 1280px; margin: 0 auto;
     position: sticky; top: 0; z-index: 46;
-    background: var(--tpl-ground);
+    
+    background-color: var(--tpl-ground);
   }
   
   header::after {
@@ -348,7 +353,8 @@
   :root { --tabbar-h: 58px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-    background: var(--tpl-ground);
+    
+    background-color: var(--tpl-ground);
     border-top: 1px solid var(--border);
     padding-bottom: var(--safe-bottom);
   }
@@ -6707,9 +6713,11 @@ const sel = picking && chosen.has(m.id);
 return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
-const RENDER_BATCH = 200;
+const RENDER_FIRST = 50;
 
-let _drawnTarget = RENDER_BATCH;
+const RENDER_MORE = 20;
+
+let _drawnTarget = RENDER_FIRST;
 
 let _renderQueue = [];
 
@@ -6759,12 +6767,13 @@ if (!_batchObserver) {
 _batchObserver = new IntersectionObserver(entries => {
 if (!entries.some(e => e.isIntersecting)) return;
 const el = document.getElementById('main');
-_drawnTarget += RENDER_BATCH;
-drawQueuedCards(el, RENDER_BATCH);
+_drawnTarget += RENDER_MORE;
+drawQueuedCards(el, RENDER_MORE);
 }, {
 rootMargin: '800px'
 });
 }
+_batchObserver.unobserve(sentinel);
 _batchObserver.observe(sentinel);
 }
 
@@ -6795,7 +6804,7 @@ syncSearchWatched();
 const items = visibleMovies();
 syncDice();
 _cardAwardMovies = [];
-if (!opts.keepDrawn) _drawnTarget = RENDER_BATCH;
+if (!opts.keepDrawn) _drawnTarget = RENDER_FIRST;
 if (!items.length) {
 _renderQueue = [];
 const markEl = document.getElementById('markTemplate');
