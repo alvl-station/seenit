@@ -12015,6 +12015,10 @@ open[key] = false;
 return open;
 }
 
+try {
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+} catch (err) {}
+
 let _navGuard = false;
 
 let _navExpectPop = false;
@@ -12454,15 +12458,18 @@ return ctl.style.display !== 'none';
 
 function goToShelf() {
 screenDoorIs('tabbar');
+let closed = false;
 for (let i = 0; i < 12; i++) {
 const key = topNavSurface(navOpenNow());
 if (!key) break;
 try {
 NAV_CLOSERS[key].close();
+closed = true;
 } catch (err) {
 break;
 }
 }
+if (closed) return;
 try {
 window.scrollTo({
 top: 0,
