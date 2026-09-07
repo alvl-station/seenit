@@ -725,7 +725,11 @@
 
   
   
-  .sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.3); }
+  
+  .sheet-backdrop {
+    position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.3);
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+  }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 81;
     background: var(--tpl-ground); border-radius: var(--tpl-radius);
@@ -1312,24 +1316,6 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 2; -webkit-tap-highlight-color: transparent;
   }
-  
-  .modal-close.is-back, .hicon.is-back { background: none; color: var(--flash); }
-  .modal-close.is-back:active, .hicon.is-back:active { color: var(--blood); }
-  
-  .modal-close.is-back-inline {
-    
-    position: relative; display: inline-flex; vertical-align: middle;
-    width: auto; height: auto; padding: 0;
-    margin: 0 auto 0 0; border-radius: 0; flex: none;
-  }
-  .modal-close.is-back-inline::after { content: ''; position: absolute; inset: -14px; }
-  
-  
-  .sheet-title--back {
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
-  }
-  @media (hover: hover) { .sheet-title--back:hover { color: var(--paper); } }
   .warn-note { font-size: 12px; color: var(--flash); margin-top: 10px; }
 
   .empty-msg { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 15px; }
@@ -1635,15 +1621,9 @@
 
   
   
-  #recsBox > .modal-close, #friendsBox > .modal-close,
-  #accountBox > .modal-close, #onboardBox > .modal-close {
+  #onboardBox > .modal-close {
     position: sticky; float: right; top: 4px; right: auto;
     margin: 0 -8px -44px 0; z-index: 4;
-  }
-  
-  #recsBox .modal-close.is-back-inline, #friendsBox .modal-close.is-back-inline,
-  #accountBox .modal-close.is-back-inline, #onboardBox .modal-close.is-back-inline {
-    position: relative; float: none; top: auto; margin: 0; z-index: auto;
   }
 
   
@@ -2014,11 +1994,13 @@
       overscroll-behavior: contain;
     }
     
-    #settingsBackdrop { background: none; pointer-events: none; }
+    .sheet-backdrop { background: none; }
 
     
+    
     #recsOverlay, #friendsOverlay, #accountOverlay, #addMovieOverlay {
-      top: var(--header-h, 0px);
+      top: 0;
+      padding-top: var(--header-h, 0px);
       bottom: calc(var(--tabbar-h) + var(--safe-bottom));
     }
     #recsOverlay > .modal, #friendsOverlay > .modal,
@@ -2029,8 +2011,6 @@
 
     
     .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
-    #recsOverlay > .modal > .modal-close, #friendsOverlay > .modal > .modal-close,
-    #accountOverlay > .modal > .modal-close, #addMovieOverlay > .modal > .modal-close { top: 16px; }
 
     
     
@@ -2521,9 +2501,6 @@
 <div class="sheet" id="adminSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Адмін</div>
-    <button class="hicon" id="adminCloseBtn" type="button" title="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <div class="sheet-label">Дублікати</div>
   <div class="acc-hint">Той самий фільм двома записами. Позначки й добірки розходяться між ними, а на полиці він виглядає як два однакові.</div>
@@ -2540,9 +2517,6 @@
 <div class="sheet" id="settingsSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Налаштування</div>
-    <button class="hicon" id="settingsCloseBtn" type="button" title="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <div class="sheet-label">Картка</div>
   <div class="opts">
@@ -2570,9 +2544,6 @@
 <div class="sheet" id="tabbarSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Меню плашки</div>
-    <button class="hicon" id="tabbarCloseBtn" type="button" title="Закрити" aria-label="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <div class="sheet-label">Вкладки</div>
   <div class="tabbar-rows" id="tabbarRows"></div>
@@ -2585,9 +2556,6 @@
 <div class="sheet" id="trashSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Кошик</div>
-    <button class="hicon" id="trashCloseBtn" type="button" title="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <div id="trashList"></div>
 </div>
@@ -2604,24 +2572,14 @@
 <div class="sheet" id="diceSheet" data-surface="window" data-material="glass" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Дзиґа радить</div>
-    <button class="hicon" id="diceCloseBtn" type="button" title="Закрити" aria-label="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <div class="dice-results" id="diceResults"></div>
   <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Ще раз</button></div>
 </div>
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
 <div class="sheet" id="filterSheet" data-surface="window" data-material="glass" aria-hidden="true">
-  <!-- Its own cross, for the same reason the menu grew one: on a phone the
-       backdrop lets touches through to the catalogue, so it is no longer a
-       way out. A cross and not an arrow — FILTER belongs to the catalogue
-       and is reached from the header, so there is no menu behind it. -->
   <div class="sheet-head">
     <div class="sheet-title">Фільтр</div>
-    <button class="hicon" id="filterCloseBtn" type="button" title="Закрити" aria-label="Закрити">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-    </button>
   </div>
   <!-- One tap back to the whole catalogue (owner's ask). It sits ABOVE the
        sections it undoes, where the eye lands on opening the sheet, and it
@@ -8393,9 +8351,6 @@ sheet.classList.add('open');
 sheet.setAttribute('aria-hidden', 'false');
 if (!menuIsNav() || !sheetKeepsCatalogueLive(sheetId)) lockScroll(sheet);
 if (sheetIsBand(sheetId)) syncSheetNav();
-if (sheetIsMenuScreen(sheetId)) {
-paintExitControl(document.getElementById(`${sheetId.replace(/Sheet$/, '')}CloseBtn`));
-}
 navSync();
 };
 const close = () => {
@@ -8406,7 +8361,9 @@ unlockScroll(sheet);
 if (sheetIsBand(sheetId)) syncSheetNav();
 navSync();
 };
-backdrop.addEventListener('click', close);
+backdrop.addEventListener('click', () => {
+if (MENU_SHEET_IDS.includes(sheetId)) exitScreen(close); else close();
+});
 return {
 open: open,
 close: close
@@ -8414,10 +8371,6 @@ close: close
 }
 
 const MENU_SHEET_IDS = [ 'settingsSheet', 'trashSheet', 'adminSheet' ];
-
-function sheetIsMenuScreen(id) {
-return MENU_SHEET_IDS.includes(id);
-}
 
 const BAND_SHEET_IDS = [ ...MENU_SHEET_IDS, 'filterSheet', 'tabbarSheet' ];
 
@@ -8501,38 +8454,6 @@ _screenDoor = door;
 
 document.getElementById('menuBtn').addEventListener('click', () => screenDoorIs('menu'), true);
 
-function paintCloseControl(btn) {
-if (!btn) return;
-btn.innerHTML = ICON.close;
-btn.classList.remove('is-back');
-btn.title = 'Закрити';
-btn.setAttribute('aria-label', btn.title);
-}
-
-function paintExitControl(btn) {
-if (!btn) return;
-if (_screenDoor !== 'menu') {
-paintCloseControl(btn);
-return;
-}
-btn.innerHTML = ICON.back;
-btn.classList.add('is-back');
-btn.title = 'Назад до меню';
-btn.setAttribute('aria-label', btn.title);
-const box = btn.closest('.modal, .sheet');
-const title = box && box.querySelector('.sheet-head .sheet-title, .sheet-title, .acc-label');
-if (!title) return;
-if (btn.parentElement !== title) title.appendChild(btn);
-btn.classList.add('is-back-inline');
-if (!title.dataset.backWired) {
-title.dataset.backWired = '1';
-title.classList.add('sheet-title--back');
-title.addEventListener('click', e => {
-if (!btn.contains(e.target)) btn.click();
-});
-}
-}
-
 function exitScreen(closeFn) {
 closeFn();
 if (_screenDoor === 'menu') menuSheet.open();
@@ -8546,8 +8467,6 @@ const settingsSheet = wireSheet('settingsSheet', 'settingsBackdrop');
 
 document.getElementById('settingsBtn').addEventListener('click', settingsSheet.open);
 
-document.getElementById('settingsCloseBtn').addEventListener('click', () => exitScreen(settingsSheet.close));
-
 const adminSheet = wireSheet('adminSheet', 'adminBackdrop');
 
 MENU_SCREEN_CLOSERS.push(() => filterSheet.close(), () => settingsSheet.close(), () => trashSheet.close(), () => adminSheet.close(), () => closeRecs(), () => closeFriends(), () => closeAccount());
@@ -8555,8 +8474,6 @@ MENU_SCREEN_CLOSERS.push(() => filterSheet.close(), () => settingsSheet.close(),
 const adminBtn = document.getElementById('adminBtn');
 
 adminBtn.addEventListener('click', () => adminSheet.open());
-
-document.getElementById('adminCloseBtn').addEventListener('click', () => exitScreen(adminSheet.close));
 
 function syncAdminRow() {
 adminBtn.style.display = mayEditCatalogue() ? '' : 'none';
@@ -8612,8 +8529,6 @@ renderTrash();
 trashSheet.open();
 });
 
-document.getElementById('trashCloseBtn').addEventListener('click', () => exitScreen(trashSheet.close));
-
 document.getElementById('trashList').addEventListener('click', async e => {
 const btn = e.target.closest('.trash-restore');
 if (!btn) return;
@@ -8665,8 +8580,6 @@ document.getElementById('filterBtn').addEventListener('click', () => {
 closeMenuScreens();
 filterSheet.open();
 });
-
-document.getElementById('filterCloseBtn').addEventListener('click', filterSheet.close);
 
 document.getElementById('filterResetBtn').addEventListener('click', resetFilters);
 
@@ -8947,8 +8860,6 @@ if (rollTheDice()) diceSheet.open();
 });
 
 document.getElementById('diceAgainBtn').addEventListener('click', rollTheDice);
-
-document.getElementById('diceCloseBtn').addEventListener('click', () => diceSheet.close());
 
 let _diceReturn = false;
 
@@ -9896,8 +9807,7 @@ create.hidden = true;
 }
 
 function addModalHome() {
-addBox.innerHTML = `\n    <button class="modal-close" id="addModalClose">${ICON.close}</button>\n    <div class="add-form">\n      \x3c!-- The word «Додати» said once, at the top, instead of twice across\n           two tabs. What the tabs choose between is not two kinds of adding —\n           it is what you are adding. --\x3e\n      <div class="sheet-title">Додати</div>\n      <div class="add-mode-tabs">\n        <button class="add-mode-tab active" data-m="film" type="button">Фільми</button>\n        <button class="add-mode-tab" data-m="collection" type="button">Добірки</button>\n      </div>\n      <div id="addModeFilm">\n      <div class="add-tabs">\n        <button class="add-tab active" data-t="manual">Назва</button>\n        <button class="add-tab" data-t="ocr">Скріншот</button>\n        <button class="add-tab" data-t="batch">Список</button>\n      </div>\n      <div id="addPaneManual" class="add-pane">\n        <div class="field-clear-wrap">\n          <input id="addTitle" type="text" placeholder="Назва фільму або серіалу">\n          <button class="field-clear-btn" data-clear-target="addTitle" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addYear" type="text" placeholder="Рік (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addYear" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addRecBy" type="text" placeholder="Рекомендовано від… (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="addSearchBtn">Знайти</button>\n      </div>\n      <div id="addPaneOcr" class="add-pane" style="display:none">\n        <input id="addFile" type="file" accept="image/*">\n        <div class="add-hint">Завантаж скріншот — можна з підписом, коментарями, будь-чим. Текст розпізнається автоматично, а ймовірні назви підсвітяться нижче. Якщо назва намальована як частина постера (не звичайний текст) — OCR може її не побачити, тоді простіше пошукати вручну.</div>\n        <div id="ocrPreviewWrap"></div>\n        <div id="ocrStatus"></div>\n        <div id="ocrCandidates"></div>\n        <div id="ocrFullTextWrap"></div>\n      </div>\n      <div id="addPaneBatch" class="add-pane" style="display:none">\n        <div class="add-hint">По одній назві в рядок. Можна дописати рік через кому: <em>Дюна, 2021</em></div>\n        <textarea id="batchInput" rows="6" placeholder="Дюна, 2021&#10;Опівнічна меса&#10;Форс-мажори, 2011"></textarea>\n        <div class="field-clear-wrap">\n          <input id="batchRecBy" type="text" placeholder="Рекомендовано від… — впишеться кожному фільму зі списку (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="batchSearchBtn">Знайти всі</button>\n      </div>\n      <div id="addResults"></div>\n      </div>\n      \x3c!-- Three doors, not one long scroll (owner's call). Each leads to the\n           screen that already owns that job: «Мої добірки» left entirely,\n           because they live in меню → Добірки and listing them here made the\n           same list exist in two places with two different shapes. --\x3e\n      <div id="addModeCollection" style="display:none">\n        <div class="col-routes" id="colRoutes">\n          <button class="sheet-row" data-col-route="create" type="button">Створити добірку</button>\n          <button class="sheet-row" data-col-route="seenit" type="button">Добірки SeenIt</button>\n          <button class="sheet-row" data-col-route="friends" type="button">Добірки друзів</button>\n        </div>\n        <div id="colCreate" hidden>\n          <div class="friend-head">\n            <button class="btn-ghost friend-back" id="colCreateBack" type="button">← Назад</button>\n            <span class="friend-title">Нова добірка</span>\n          </div>\n          <label class="cf-label">Назва</label>\n          <div class="field-clear-wrap">\n            <input id="newColName" type="text" placeholder="Подивитись із Мартою">\n            <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>\n          </div>\n          <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>\n        </div>\n      </div>\n    </div>`;
-addBox.querySelector('#addModalClose').addEventListener('click', closeAddModal);
+addBox.innerHTML = `\n    <div class="add-form">\n      \x3c!-- The word «Додати» said once, at the top, instead of twice across\n           two tabs. What the tabs choose between is not two kinds of adding —\n           it is what you are adding. --\x3e\n      <div class="sheet-title">Додати</div>\n      <div class="add-mode-tabs">\n        <button class="add-mode-tab active" data-m="film" type="button">Фільми</button>\n        <button class="add-mode-tab" data-m="collection" type="button">Добірки</button>\n      </div>\n      <div id="addModeFilm">\n      <div class="add-tabs">\n        <button class="add-tab active" data-t="manual">Назва</button>\n        <button class="add-tab" data-t="ocr">Скріншот</button>\n        <button class="add-tab" data-t="batch">Список</button>\n      </div>\n      <div id="addPaneManual" class="add-pane">\n        <div class="field-clear-wrap">\n          <input id="addTitle" type="text" placeholder="Назва фільму або серіалу">\n          <button class="field-clear-btn" data-clear-target="addTitle" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addYear" type="text" placeholder="Рік (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addYear" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addRecBy" type="text" placeholder="Рекомендовано від… (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="addSearchBtn">Знайти</button>\n      </div>\n      <div id="addPaneOcr" class="add-pane" style="display:none">\n        <input id="addFile" type="file" accept="image/*">\n        <div class="add-hint">Завантаж скріншот — можна з підписом, коментарями, будь-чим. Текст розпізнається автоматично, а ймовірні назви підсвітяться нижче. Якщо назва намальована як частина постера (не звичайний текст) — OCR може її не побачити, тоді простіше пошукати вручну.</div>\n        <div id="ocrPreviewWrap"></div>\n        <div id="ocrStatus"></div>\n        <div id="ocrCandidates"></div>\n        <div id="ocrFullTextWrap"></div>\n      </div>\n      <div id="addPaneBatch" class="add-pane" style="display:none">\n        <div class="add-hint">По одній назві в рядок. Можна дописати рік через кому: <em>Дюна, 2021</em></div>\n        <textarea id="batchInput" rows="6" placeholder="Дюна, 2021&#10;Опівнічна меса&#10;Форс-мажори, 2011"></textarea>\n        <div class="field-clear-wrap">\n          <input id="batchRecBy" type="text" placeholder="Рекомендовано від… — впишеться кожному фільму зі списку (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="batchSearchBtn">Знайти всі</button>\n      </div>\n      <div id="addResults"></div>\n      </div>\n      \x3c!-- Three doors, not one long scroll (owner's call). Each leads to the\n           screen that already owns that job: «Мої добірки» left entirely,\n           because they live in меню → Добірки and listing them here made the\n           same list exist in two places with two different shapes. --\x3e\n      <div id="addModeCollection" style="display:none">\n        <div class="col-routes" id="colRoutes">\n          <button class="sheet-row" data-col-route="create" type="button">Створити добірку</button>\n          <button class="sheet-row" data-col-route="seenit" type="button">Добірки SeenIt</button>\n          <button class="sheet-row" data-col-route="friends" type="button">Добірки друзів</button>\n        </div>\n        <div id="colCreate" hidden>\n          <div class="friend-head">\n            <button class="btn-ghost friend-back" id="colCreateBack" type="button">← Назад</button>\n            <span class="friend-title">Нова добірка</span>\n          </div>\n          <label class="cf-label">Назва</label>\n          <div class="field-clear-wrap">\n            <input id="newColName" type="text" placeholder="Подивитись із Мартою">\n            <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>\n          </div>\n          <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>\n        </div>\n      </div>\n    </div>`;
 addBox.querySelectorAll('.add-mode-tab').forEach(tab => tab.addEventListener('click', () => {
 addBox.querySelectorAll('.add-mode-tab').forEach(x => x.classList.toggle('active', x === tab));
 addBox.querySelector('#addModeFilm').style.display = tab.dataset.m === 'film' ? '' : 'none';
@@ -10646,11 +10556,8 @@ function openAccount() {
 const user = auth.currentUser;
 const username = user && user.displayName || (user && user.email ? user.email.split('@')[0] : '');
 const viaGoogle = !!(user && (user.providerData || []).some(pd => pd && pd.providerId === 'google.com'));
-accountBox.innerHTML = `\n    <button class="modal-close" id="accCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>\n\n    \x3c!-- No wordmark here (owner's call): the header carries it on every\n         screen behind this one, and repeating it inside a sheet about YOUR\n         account made the sheet look like a second front door. --\x3e\n    \x3c!-- The name gets a label of its own. Unlabelled, a bare login sitting\n         under the wordmark reads as a stray word rather than as «this is who\n         you are signed in as» (owner-reported: it looked like debug text). --\x3e\n    \x3c!-- Blood, and only for an account that actually holds the role\n         (owner's call). An ordinary account shows nothing at all — a badge\n         saying «Користувач» would be noise on every screen to tell somebody\n         what they already assume. --\x3e\n    <div class="acc-label">Акаунт${mayEditCatalogue() ? '<span class="acc-role">Admin</span>' : ''}</div>\n    <div class="acc-name" id="accWho">${esc(_me.displayName || username)}</div>\n    \x3c!-- The NAME, above the username, because it is the one people read.\n         Nothing is normalised here: spaces, capitals, apostrophes, Cyrillic\n         — a person's name is theirs to spell (owner's call, after the app\n         turned «Vlad Aloshyn» into «vlad.aloshyn» on his own account).\n         No «Перевірити» either: a name cannot be taken, so there is nothing\n         to ask about — it just saves. --\x3e\n    \x3c!-- Read first, edit on request (owner's call). Both of these are facts\n         about you far more often than they are errands: a screen that opened\n         on two editable fields asked to be filled in every time it was\n         opened to be READ. The value stands as text; «Змінити» on its own\n         label is what turns it into a field. --\x3e\n    <form class="acc-form" id="accDisplayForm">\n      \x3c!-- The label row never leaves: it carries the way OUT of editing as\n           well as the way in, so the same word in the same place opens the\n           field and abandons it. --\x3e\n      <span class="acc-field-lbl">Імʼя<button class="acc-edit" type="button" data-acc-edit="display">Змінити</button></span>\n      <span class="acc-read-val" id="accDisplayRead">${esc(_me.displayName || '—')}</span>\n      <label class="acc-field" id="accDisplayField" hidden>\n        <span class="acc-field-inline">\n          <input id="accDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || '')}" placeholder="Як вас звати">\n          <button class="acc-field-btn" type="submit" id="accDisplayBtn" hidden>Зберегти</button>\n        </span>\n      </label>\n      <div class="acc-hint" id="accDisplayNote" hidden>Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.</div>\n    </form>\n    \x3c!-- Username stands open, unlike the password form below it (owner's\n         call). A password is a rare errand and folds away; this is the one\n         thing on this screen other people see, and hiding it behind a\n         disclosure meant nobody would find it. It is NOT the name above —\n         that one comes from Google and is only ever shown to you. --\x3e\n    <form class="acc-form" id="accNameForm">\n      <span class="acc-field-lbl">Username<button class="acc-edit" type="button" data-acc-edit="name">Змінити</button></span>\n      <span class="acc-read-val" id="accNameRead">${esc(_me.username || defaultSearchName(user))}</span>\n      <label class="acc-field" id="accNameField" hidden>\n        \x3c!-- The check and the save are ONE button, in the field, changing\n             its label (owner's call). A username is not saved, it is\n             claimed: you find out whether you may have it, and only then\n             take it. Two separate buttons made that one errand look like\n             two, and a debounced check that fired mid-word answered about\n             names nobody had finished typing. --\x3e\n        <span class="acc-field-inline">\n          <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(defaultSearchName(user))}" placeholder="${esc(defaultSearchName(user))}">\n          <span class="acc-name-mark" id="accNameMark" hidden aria-hidden="true"></span>\n          <button class="acc-field-btn" type="submit" id="accNameBtn" hidden>Перевірити</button>\n        </span>\n      </label>\n      <div class="acc-hint" id="accNameNote" hidden>Латинські літери, цифри, крапка, дефіс і підкреслення. Від ${USERNAME_MIN} до 32 символів.</div>\n    </form>\n    ${viaGoogle ? `\n    <div class="acc-label">Вхід через Google${user && user.email ? ` · ${esc(user.email)}` : ''}</div>` : `\n    \x3c!-- Folded shut (owner's call): changing a password is a rare errand,\n         and two fields, a policy line and a button standing open made the\n         screen look like a form you were supposed to fill in. --\x3e\n    <button class="acc-toggle" type="button" id="accPassToggle" aria-expanded="false">\n      <span>Змінити пароль</span>\n      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>\n    </button>\n    <form class="acc-form" id="accPassForm" hidden>\n      <label class="acc-field">\n        <span class="acc-field-lbl">Поточний пароль</span>\n        <input id="accCur" type="password" autocomplete="current-password" required>\n      </label>\n      <label class="acc-field">\n        <span class="acc-field-lbl">Новий пароль</span>\n        <input id="accNew" type="password" autocomplete="new-password" required>\n      </label>\n      <div class="acc-hint">Пароль: щонайменше 8 символів, велика й мала літери, цифра і символ.</div>\n      <div class="acc-form-actions">\n        <button class="btn on-watched" type="submit" id="accPassBtn">Зберегти</button>\n        <button class="btn" type="button" id="accPassCancel">Скасувати</button>\n      </div>\n    </form>`}\n    <div class="acc-label">Мої сервіси</div>\n    <div class="acc-hint">Познач, за що вже платиш — ці сервіси будуть першими в «Де подивитись».\n      Це лише позначка: додаток не підключається до сервісів і нічого не оплачує.</div>\n    <div class="acc-services" id="accServices">\n      ${KNOWN_SERVICES.map(name => `\n        <label class="svc${myServices().includes(name) ? ' svc--on' : ''}">\n          <input type="checkbox" data-service="${esc(name)}" ${myServices().includes(name) ? 'checked' : ''}>\n          <span>${esc(name)}</span>\n        </label>`).join('')}\n    </div>\n    <div class="acc-label">Статистика</div>\n    <div class="stats" id="accStats"></div>\n    <div class="acc-actions">\n      <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>\n    </div>`;
+accountBox.innerHTML = `\n    \x3c!-- No wordmark here (owner's call): the header carries it on every\n         screen behind this one, and repeating it inside a sheet about YOUR\n         account made the sheet look like a second front door. --\x3e\n    \x3c!-- The name gets a label of its own. Unlabelled, a bare login sitting\n         under the wordmark reads as a stray word rather than as «this is who\n         you are signed in as» (owner-reported: it looked like debug text). --\x3e\n    \x3c!-- Blood, and only for an account that actually holds the role\n         (owner's call). An ordinary account shows nothing at all — a badge\n         saying «Користувач» would be noise on every screen to tell somebody\n         what they already assume. --\x3e\n    <div class="acc-label">Акаунт${mayEditCatalogue() ? '<span class="acc-role">Admin</span>' : ''}</div>\n    <div class="acc-name" id="accWho">${esc(_me.displayName || username)}</div>\n    \x3c!-- The NAME, above the username, because it is the one people read.\n         Nothing is normalised here: spaces, capitals, apostrophes, Cyrillic\n         — a person's name is theirs to spell (owner's call, after the app\n         turned «Vlad Aloshyn» into «vlad.aloshyn» on his own account).\n         No «Перевірити» either: a name cannot be taken, so there is nothing\n         to ask about — it just saves. --\x3e\n    \x3c!-- Read first, edit on request (owner's call). Both of these are facts\n         about you far more often than they are errands: a screen that opened\n         on two editable fields asked to be filled in every time it was\n         opened to be READ. The value stands as text; «Змінити» on its own\n         label is what turns it into a field. --\x3e\n    <form class="acc-form" id="accDisplayForm">\n      \x3c!-- The label row never leaves: it carries the way OUT of editing as\n           well as the way in, so the same word in the same place opens the\n           field and abandons it. --\x3e\n      <span class="acc-field-lbl">Імʼя<button class="acc-edit" type="button" data-acc-edit="display">Змінити</button></span>\n      <span class="acc-read-val" id="accDisplayRead">${esc(_me.displayName || '—')}</span>\n      <label class="acc-field" id="accDisplayField" hidden>\n        <span class="acc-field-inline">\n          <input id="accDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || '')}" placeholder="Як вас звати">\n          <button class="acc-field-btn" type="submit" id="accDisplayBtn" hidden>Зберегти</button>\n        </span>\n      </label>\n      <div class="acc-hint" id="accDisplayNote" hidden>Як завгодно — з пробілами, великими літерами, будь-якою абеткою. Це видно іншим.</div>\n    </form>\n    \x3c!-- Username stands open, unlike the password form below it (owner's\n         call). A password is a rare errand and folds away; this is the one\n         thing on this screen other people see, and hiding it behind a\n         disclosure meant nobody would find it. It is NOT the name above —\n         that one comes from Google and is only ever shown to you. --\x3e\n    <form class="acc-form" id="accNameForm">\n      <span class="acc-field-lbl">Username<button class="acc-edit" type="button" data-acc-edit="name">Змінити</button></span>\n      <span class="acc-read-val" id="accNameRead">${esc(_me.username || defaultSearchName(user))}</span>\n      <label class="acc-field" id="accNameField" hidden>\n        \x3c!-- The check and the save are ONE button, in the field, changing\n             its label (owner's call). A username is not saved, it is\n             claimed: you find out whether you may have it, and only then\n             take it. Two separate buttons made that one errand look like\n             two, and a debounced check that fired mid-word answered about\n             names nobody had finished typing. --\x3e\n        <span class="acc-field-inline">\n          <input id="accName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(defaultSearchName(user))}" placeholder="${esc(defaultSearchName(user))}">\n          <span class="acc-name-mark" id="accNameMark" hidden aria-hidden="true"></span>\n          <button class="acc-field-btn" type="submit" id="accNameBtn" hidden>Перевірити</button>\n        </span>\n      </label>\n      <div class="acc-hint" id="accNameNote" hidden>Латинські літери, цифри, крапка, дефіс і підкреслення. Від ${USERNAME_MIN} до 32 символів.</div>\n    </form>\n    ${viaGoogle ? `\n    <div class="acc-label">Вхід через Google${user && user.email ? ` · ${esc(user.email)}` : ''}</div>` : `\n    \x3c!-- Folded shut (owner's call): changing a password is a rare errand,\n         and two fields, a policy line and a button standing open made the\n         screen look like a form you were supposed to fill in. --\x3e\n    <button class="acc-toggle" type="button" id="accPassToggle" aria-expanded="false">\n      <span>Змінити пароль</span>\n      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>\n    </button>\n    <form class="acc-form" id="accPassForm" hidden>\n      <label class="acc-field">\n        <span class="acc-field-lbl">Поточний пароль</span>\n        <input id="accCur" type="password" autocomplete="current-password" required>\n      </label>\n      <label class="acc-field">\n        <span class="acc-field-lbl">Новий пароль</span>\n        <input id="accNew" type="password" autocomplete="new-password" required>\n      </label>\n      <div class="acc-hint">Пароль: щонайменше 8 символів, велика й мала літери, цифра і символ.</div>\n      <div class="acc-form-actions">\n        <button class="btn on-watched" type="submit" id="accPassBtn">Зберегти</button>\n        <button class="btn" type="button" id="accPassCancel">Скасувати</button>\n      </div>\n    </form>`}\n    <div class="acc-label">Мої сервіси</div>\n    <div class="acc-hint">Познач, за що вже платиш — ці сервіси будуть першими в «Де подивитись».\n      Це лише позначка: додаток не підключається до сервісів і нічого не оплачує.</div>\n    <div class="acc-services" id="accServices">\n      ${KNOWN_SERVICES.map(name => `\n        <label class="svc${myServices().includes(name) ? ' svc--on' : ''}">\n          <input type="checkbox" data-service="${esc(name)}" ${myServices().includes(name) ? 'checked' : ''}>\n          <span>${esc(name)}</span>\n        </label>`).join('')}\n    </div>\n    <div class="acc-label">Статистика</div>\n    <div class="stats" id="accStats"></div>\n    <div class="acc-actions">\n      <button class="btn" id="accGuideBtn">Гайд і Топ-20 зараз</button>\n    </div>`;
 renderStats();
-const accExit = accountBox.querySelector('#accCloseBtn');
-paintExitControl(accExit);
-accExit.addEventListener('click', () => exitScreen(closeAccount));
 accountBox.querySelector('#accServices').addEventListener('change', e => {
 const box = e.target.closest('input[data-service]');
 if (!box) return;
@@ -11340,21 +11247,10 @@ const friendsBox = document.getElementById('friendsBox');
 let friendsView = 'list';
 
 function renderFriendsSearch() {
-friendsBox.innerHTML = `\n    <button class="modal-close" id="friendsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>\n\n    <div class="sheet-head">\n      <div class="sheet-title">Знайти людину</div>\n      <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\n      </button>\n    </div>\n    <div class="friend-find">\n      <div class="field-clear-wrap">\n        <input id="friendFind" type="text" placeholder="Імʼя, яким людина входить у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">\n        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>\n      </div>\n      <div id="friendFindOut" class="friend-suggest" hidden></div>\n    </div>\n    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>`;
+friendsBox.innerHTML = `\n    <div class="sheet-head">\n      <div class="sheet-title">Знайти людину</div>\n      <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\n      </button>\n    </div>\n    <div class="friend-find">\n      <div class="field-clear-wrap">\n        <input id="friendFind" type="text" placeholder="Імʼя, яким людина входить у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">\n        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>\n      </div>\n      <div id="friendFindOut" class="friend-suggest" hidden></div>\n    </div>\n    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>`;
 friendsBox.querySelector('#friendsSearchBack').addEventListener('click', () => {
 friendsView = 'list';
 renderFriends();
-});
-const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
-paintExitControl(friendsExit);
-friendsExit.addEventListener('click', () => {
-if (_returnToAddCollections) {
-_returnToAddCollections = false;
-closeFriends();
-returnToAddCollections();
-return;
-}
-exitScreen(closeFriends);
 });
 wireFriendFind();
 const input = friendsBox.querySelector('#friendFind');
@@ -11405,7 +11301,7 @@ if (friendsView === 'search') {
 renderFriendsSearch();
 return;
 }
-friendsBox.innerHTML = `\n    <button class="modal-close" id="friendsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>\n\n    <div class="sheet-head">\n      <div class="sheet-title">Друзі</div>\n      <button class="hicon" id="friendsSearchBtn" type="button" title="Знайти людину" aria-label="Знайти людину">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>\n      </button>\n    </div>\n    <div class="add-tabs">\n      ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}\n    </div>\n    <div id="friendsBody"></div>`;
+friendsBox.innerHTML = `\n    <div class="sheet-head">\n      <div class="sheet-title">Друзі</div>\n      <button class="hicon" id="friendsSearchBtn" type="button" title="Знайти людину" aria-label="Знайти людину">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>\n      </button>\n    </div>\n    <div class="add-tabs">\n      ${tab('subscriptions', 'Підписки', subs.subscriptions.length)}${tab('followers', 'Підписники', subs.followers.length)}\n    </div>\n    <div id="friendsBody"></div>`;
 friendsBox.querySelector('#friendsSearchBtn').addEventListener('click', () => {
 friendsView = 'search';
 openFriend = null;
@@ -11416,17 +11312,6 @@ friendsTab = el.dataset.friendsTab;
 openFriend = null;
 renderFriends();
 }));
-const friendsExit = friendsBox.querySelector('#friendsCloseBtn');
-paintExitControl(friendsExit);
-friendsExit.addEventListener('click', () => {
-if (_returnToAddCollections) {
-_returnToAddCollections = false;
-closeFriends();
-returnToAddCollections();
-return;
-}
-exitScreen(closeFriends);
-});
 const body = friendsBox.querySelector('#friendsBody');
 if (openFriend) {
 renderFriendDetail(body);
@@ -11682,8 +11567,18 @@ if (btn) btn.disabled = false;
 
 friendsBtn.addEventListener('click', () => openFriends());
 
+function exitFriends() {
+if (_returnToAddCollections) {
+_returnToAddCollections = false;
+closeFriends();
+returnToAddCollections();
+return;
+}
+exitScreen(closeFriends);
+}
+
 friendsOverlay.addEventListener('click', e => {
-if (e.target === friendsOverlay) closeFriends();
+if (e.target === friendsOverlay) exitFriends();
 });
 
 let _recsFriend = null;
@@ -11820,23 +11715,12 @@ body.querySelectorAll('[data-add-col]').forEach(el => el.addEventListener('click
 
 function renderRecs() {
 const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
-recsBox.innerHTML = `\n    <button class="modal-close" id="recsCloseBtn" type="button" title="Закрити" aria-label="Закрити">${ICON.close}</button>\n\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n    </div>\n    <div id="recsbody"></div>`;
+recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n    </div>\n    <div id="recsbody"></div>`;
 recsBox.querySelectorAll('[data-recs-src]').forEach(el => el.addEventListener('click', () => {
 recsSource = el.dataset.recsSrc;
 _recsFriend = null;
 renderRecs();
 }));
-const recsExit = recsBox.querySelector('#recsCloseBtn');
-paintExitControl(recsExit);
-recsExit.addEventListener('click', () => {
-if (_returnToAddCollections) {
-_returnToAddCollections = false;
-closeRecs();
-returnToAddCollections();
-return;
-}
-exitScreen(closeRecs);
-});
 const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
 if (recsSource === 'friends') {
 if (_recsFriend) {
@@ -11916,14 +11800,24 @@ toast('err', 'Не вдалося прибрати — спробуй ще ра�
 
 recsBtn.addEventListener('click', openRecs);
 
+function exitRecs() {
+if (_returnToAddCollections) {
+_returnToAddCollections = false;
+closeRecs();
+returnToAddCollections();
+return;
+}
+exitScreen(closeRecs);
+}
+
 recsOverlay.addEventListener('click', e => {
-if (e.target === recsOverlay) closeRecs();
+if (e.target === recsOverlay) exitRecs();
 });
 
 accountBtn.addEventListener('click', openAccount);
 
 accountOverlay.addEventListener('click', e => {
-if (e.target === accountOverlay) closeAccount();
+if (e.target === accountOverlay) exitScreen(closeAccount);
 });
 
 onboardOverlay.addEventListener('click', e => {
@@ -11959,11 +11853,11 @@ close: () => exitScreen(closeAccount)
 },
 recs: {
 open: () => elIsOpen('recsOverlay'),
-close: () => exitScreen(closeRecs)
+close: exitRecs
 },
 friends: {
 open: () => elIsOpen('friendsOverlay'),
-close: () => exitScreen(closeFriends)
+close: exitFriends
 },
 dice: {
 open: () => elIsOpen('diceSheet'),
@@ -12146,6 +12040,18 @@ card.scrollIntoView();
 }
 }
 
+function atScrollTop(node, box) {
+for (let el = node; el && el !== document.body; el = el.parentElement) {
+if (el === box) return box.scrollTop <= 0;
+if (el.scrollHeight > el.clientHeight + 4) {
+const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+const oy = style ? style.overflowY : '';
+if (oy === 'auto' || oy === 'scroll') return el.scrollTop <= 0;
+}
+}
+return box.scrollTop <= 0;
+}
+
 function insideSideScroller(node) {
 for (let el = node; el && el !== document.body; el = el.parentElement) {
 if (el.scrollWidth > el.clientWidth + 4) {
@@ -12271,7 +12177,7 @@ t0: Date.now(),
 axis: null,
 dx: 0,
 dy: 0,
-atTop: surface.key === 'filmCard' && surface.box.scrollTop <= 0
+atTop: surface.key !== 'shelf' && atScrollTop(e.target, surface.box)
 };
 }, {
 passive: true
@@ -12284,7 +12190,7 @@ const dx = t.clientX - _swipe.x0;
 const dy = t.clientY - _swipe.y0;
 if (!_swipe.axis) {
 _swipe.axis = swipeAxis(dx, dy);
-if (_swipe.axis === 'y' && !(_swipe.key === 'filmCard' && _swipe.atTop && dy > 0)) {
+if (_swipe.axis === 'y' && !(_swipe.atTop && dy > 0)) {
 _swipe = null;
 return;
 }
@@ -12412,8 +12318,6 @@ const tabbarRows = document.getElementById('tabbarRows');
 
 const tabbarSheet = wireSheet('tabbarSheet', 'tabbarBackdrop');
 
-document.getElementById('tabbarCloseBtn').addEventListener('click', tabbarSheet.close);
-
 const TABBAR_ICON = {
 shelf: 'shelf',
 seen: 'seen',
@@ -12489,13 +12393,33 @@ window.scrollTo(0, 0);
 }
 }
 
+const TABBAR_PAGES = new Set([ ...Object.values(TABBAR_SURFACE), 'tabbar' ]);
+
+function closeStripPage() {
+for (let i = 0; i < 12; i++) {
+const key = topNavSurface(navOpenNow());
+if (!key || !TABBAR_PAGES.has(key)) return;
+screenDoorIs('tabbar');
+try {
+NAV_CLOSERS[key].close();
+} catch (err) {
+return;
+}
+}
+}
+
 function pressTab(id) {
 if (id === 'shelf') {
 goToShelf();
 return;
 }
+const mine = id === 'arrange' ? 'tabbar' : TABBAR_SURFACE[id];
+if (mine && mine === topNavSurface(navOpenNow())) {
+closeStripPage();
+return;
+}
 if (id === 'arrange') {
-closeMenuScreens();
+closeStripPage();
 renderTabbarRows();
 tabbarSheet.open();
 return;
@@ -12503,7 +12427,7 @@ return;
 const ctl = TABBAR_CONTROL[id] && document.getElementById(TABBAR_CONTROL[id]);
 if (!ctl) return;
 if (TABBAR_MENU_SCREENS.has(id)) screenDoorIs('tabbar');
-if (TABBAR_MENU_SCREENS.has(id) || id === 'filter') closeMenuScreens();
+if (mine) closeStripPage();
 ctl.click();
 if (id === 'seen') syncTabbar();
 }
