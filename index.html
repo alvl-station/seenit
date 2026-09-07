@@ -54,8 +54,9 @@
 
   
   [data-surface="window"] {
-    --tpl-ground: var(--coal2);
-    --tpl-head-ground: var(--coal2);
+    --tpl-ground: var(--coal);
+    
+    --tpl-head-ground: var(--coal);
     --tpl-radius: var(--radius-overlay) var(--radius-overlay) 0 0;
     --tpl-pad-x: 18px;
     --tpl-pad-y: 18px;
@@ -67,8 +68,8 @@
 
   
   [data-surface="screen"] {
-    --tpl-ground: var(--surface);
-    --tpl-head-ground: var(--surface);
+    --tpl-ground: var(--coal);
+    --tpl-head-ground: var(--coal);
     --tpl-edge: var(--border);
     --tpl-radius: var(--radius-overlay);
     --tpl-pad-x: 22px;
@@ -103,13 +104,30 @@
   }
 
   
+  
+  :root {
+    --tpl-art-bar: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='106' height='106'%3E%3Crect width='106' height='106' fill='%2315161A'/%3E%3Cpath fill='%2324262C' opacity='0.10' d='M0 0h8v8h-8z'/%3E%3Cpath fill='%2324262C' opacity='0.15' d='M14 0.5h7v7h-7zM92 0.5h7v7h-7zM0.5 14h7v7h-7zM14 14h7v7h-7zM92 14h7v7h-7zM0.5 92h7v7h-7zM14 92h7v7h-7zM92 92h7v7h-7z'/%3E%3Cpath fill='%2324262C' opacity='0.20' d='M28 1h6v6h-6zM79 1h6v6h-6zM28 14.5h6v6h-6zM79 14.5h6v6h-6zM1 28h6v6h-6zM14.5 28h6v6h-6zM28 28h6v6h-6zM79 28h6v6h-6zM92.5 28h6v6h-6zM1 79h6v6h-6zM14.5 79h6v6h-6zM28 79h6v6h-6zM79 79h6v6h-6zM92.5 79h6v6h-6zM28 92.5h6v6h-6zM79 92.5h6v6h-6z'/%3E%3Cpath fill='%2324262C' opacity='0.25' d='M41 1.5h5v5h-5zM66 1.5h5v5h-5zM41 15h5v5h-5zM66 15h5v5h-5zM41 28.5h5v5h-5zM66 28.5h5v5h-5zM1.5 41h5v5h-5zM15 41h5v5h-5zM28.5 41h5v5h-5zM41 41h5v5h-5zM66 41h5v5h-5zM79.5 41h5v5h-5zM93 41h5v5h-5zM1.5 66h5v5h-5zM15 66h5v5h-5zM28.5 66h5v5h-5zM41 66h5v5h-5zM66 66h5v5h-5zM79.5 66h5v5h-5zM93 66h5v5h-5zM41 79.5h5v5h-5zM66 79.5h5v5h-5zM41 93h5v5h-5zM66 93h5v5h-5z'/%3E%3Cpath fill='%2324262C' opacity='0.30' d='M54 2h4v4h-4zM54 15.5h4v4h-4zM54 29h4v4h-4zM54 41.5h4v4h-4zM2 54h4v4h-4zM15.5 54h4v4h-4zM29 54h4v4h-4zM41.5 54h4v4h-4zM54 54h4v4h-4zM66.5 54h4v4h-4zM80 54h4v4h-4zM93.5 54h4v4h-4zM54 66.5h4v4h-4zM54 80h4v4h-4zM54 93.5h4v4h-4z'/%3E%3C/svg%3E");
+    --tpl-art-bar-size: 106px;
+    
+    --tpl-art: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='222'%3E%3Crect x='3' y='211' width='8' height='8' fill='%23C21414' opacity='0.260'/%3E%3Crect x='3.13' y='197.25' width='7.75' height='7.75' fill='%23C21414' opacity='0.246'/%3E%3Crect x='3.25' y='183.75' width='7.5' height='7.5' fill='%23C21414' opacity='0.231'/%3E%3Crect x='3.38' y='170.5' width='7.25' height='7.25' fill='%23C21414' opacity='0.217'/%3E%3Crect x='3.5' y='157' width='7' height='7' fill='%23C21414' opacity='0.203'/%3E%3Crect x='3.63' y='143.25' width='6.75' height='6.75' fill='%23C21414' opacity='0.188'/%3E%3Crect x='3.75' y='129.75' width='6.5' height='6.5' fill='%23C21414' opacity='0.174'/%3E%3Crect x='3.88' y='116.5' width='6.25' height='6.25' fill='%23C21414' opacity='0.159'/%3E%3Crect x='4' y='103.5' width='6' height='6' fill='%23C21414' opacity='0.145'/%3E%3Crect x='4.13' y='90.75' width='5.75' height='5.75' fill='%23C21414' opacity='0.131'/%3E%3Crect x='4.25' y='78.25' width='5.5' height='5.5' fill='%23C21414' opacity='0.116'/%3E%3Crect x='4.38' y='66' width='5.25' height='5.25' fill='%23C21414' opacity='0.102'/%3E%3Crect x='4.5' y='53.5' width='5' height='5' fill='%23C21414' opacity='0.087'/%3E%3Crect x='4.63' y='40.75' width='4.75' height='4.75' fill='%23C21414' opacity='0.073'/%3E%3Crect x='4.75' y='28.25' width='4.5' height='4.5' fill='%23C21414' opacity='0.059'/%3E%3Crect x='4.88' y='16' width='4.25' height='4.25' fill='%23C21414' opacity='0.044'/%3E%3Crect x='5' y='4' width='4' height='4' fill='%23C21414' opacity='0.030'/%3E%3C/svg%3E");
+    --tpl-art-w: 14px;
+    --tpl-art-h: 222px;
+  }
+  [data-surface="window"],
+  [data-surface="screen"] {
+    background-image: var(--tpl-art);
+    background-size: var(--tpl-art-w) var(--tpl-art-h);
+    background-repeat: repeat-x;
+    background-position: bottom left;
+  }
+
   [data-surface="bar"] {
     --tpl-ground: var(--coal);
     --tpl-head-ground: var(--coal);
-    
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='106' height='106'%3E%3Crect width='106' height='106' fill='%2315161A'/%3E%3Cpath fill='%2324262C' opacity='0.10' d='M0 0h8v8h-8z'/%3E%3Cpath fill='%2324262C' opacity='0.15' d='M14 0.5h7v7h-7zM92 0.5h7v7h-7zM0.5 14h7v7h-7zM14 14h7v7h-7zM92 14h7v7h-7zM0.5 92h7v7h-7zM14 92h7v7h-7zM92 92h7v7h-7z'/%3E%3Cpath fill='%2324262C' opacity='0.20' d='M28 1h6v6h-6zM79 1h6v6h-6zM28 14.5h6v6h-6zM79 14.5h6v6h-6zM1 28h6v6h-6zM14.5 28h6v6h-6zM28 28h6v6h-6zM79 28h6v6h-6zM92.5 28h6v6h-6zM1 79h6v6h-6zM14.5 79h6v6h-6zM28 79h6v6h-6zM79 79h6v6h-6zM92.5 79h6v6h-6zM28 92.5h6v6h-6zM79 92.5h6v6h-6z'/%3E%3Cpath fill='%2324262C' opacity='0.25' d='M41 1.5h5v5h-5zM66 1.5h5v5h-5zM41 15h5v5h-5zM66 15h5v5h-5zM41 28.5h5v5h-5zM66 28.5h5v5h-5zM1.5 41h5v5h-5zM15 41h5v5h-5zM28.5 41h5v5h-5zM41 41h5v5h-5zM66 41h5v5h-5zM79.5 41h5v5h-5zM93 41h5v5h-5zM1.5 66h5v5h-5zM15 66h5v5h-5zM28.5 66h5v5h-5zM41 66h5v5h-5zM66 66h5v5h-5zM79.5 66h5v5h-5zM93 66h5v5h-5zM41 79.5h5v5h-5zM66 79.5h5v5h-5zM41 93h5v5h-5zM66 93h5v5h-5z'/%3E%3Cpath fill='%2324262C' opacity='0.30' d='M54 2h4v4h-4zM54 15.5h4v4h-4zM54 29h4v4h-4zM54 41.5h4v4h-4zM2 54h4v4h-4zM15.5 54h4v4h-4zM29 54h4v4h-4zM41.5 54h4v4h-4zM54 54h4v4h-4zM66.5 54h4v4h-4zM80 54h4v4h-4zM93.5 54h4v4h-4zM54 66.5h4v4h-4zM54 80h4v4h-4zM54 93.5h4v4h-4z'/%3E%3C/svg%3E");
-    background-size: 106px 106px;
+    background-image: var(--tpl-art-bar);
+    background-size: var(--tpl-art-bar-size) var(--tpl-art-bar-size);
     background-repeat: repeat;
+    
   }
 
   
@@ -734,7 +752,8 @@
   }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 81;
-    background: var(--tpl-ground); border-radius: var(--tpl-radius);
+    
+    background-color: var(--tpl-ground); border-radius: var(--tpl-radius);
     padding: var(--tpl-pad-y) var(--tpl-pad-x) var(--tpl-pad-foot);
     max-height: 80vh; overflow-y: auto;
     transform: translateY(105%); visibility: hidden;
@@ -1101,7 +1120,8 @@
   
 
   .modal {
-    background: var(--tpl-ground); border: 1px solid var(--tpl-edge);
+    
+    background-color: var(--tpl-ground); border: 1px solid var(--tpl-edge);
     border-radius: var(--tpl-radius); max-width: 560px; width: 100%;
     display: flex; flex-direction: column; overflow: hidden; position: relative;
   }
@@ -1347,6 +1367,34 @@
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
     text-transform: uppercase; color: var(--ash);
   }
+  
+  
+  body.tabs-in-bar #recsBox > .add-tabs,
+  body.tabs-in-bar #friendsBox > .add-tabs,
+  body.tabs-in-bar #addMovieBox .add-mode-tabs { display: none; }
+  
+  .tabbar-tab--window { min-width: 0; padding: 0 14px; }
+  
+  .tabbar-split {
+    flex: 0 0 auto; align-self: center;
+    width: 1px; height: 22px; margin: 0 6px; background: var(--border);
+  }
+  .tabbar-tab-word {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+
+  .col-score {
+    flex: 0 0 auto; display: flex; gap: 8px; align-items: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ash);
+  }
+  .col-score-up, .col-score-down { display: inline-flex; align-items: center; gap: 3px; }
+  .col-score svg { width: 12px; height: 12px; opacity: .7; }
+
+  
+  .col-plate-votes { display: inline-flex; gap: 6px; }
+  .col-plate-votes .btn { display: inline-flex; align-items: center; gap: 5px; }
+
   .col-votes { flex: 0 0 auto; display: flex; gap: 4px; }
   
   .col-vote {
@@ -2471,7 +2519,7 @@
      name, its exit and its sharing state; four more controls beside them
      would bury the name they describe. -->
 <div class="sheet-backdrop" id="colEditBackdrop" hidden></div>
-<div class="sheet" id="colEditSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="colEditSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title" id="colEditTitle">Редагувати добірку</div>
     <button class="hicon" id="colEditCloseBtn" type="button" title="Закрити">
@@ -2498,7 +2546,7 @@
      and it vanished every time a panel re-rendered its innerHTML. Out here
      it is one node that nothing redraws and nothing covers. -->
 <div class="sheet-backdrop" id="menuBackdrop" hidden></div>
-<div class="sheet" id="menuSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="menuSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <!-- The menu's own way out (owner's call). It used to have none: tapping
        the backdrop was it, and once the backdrop stopped blocking touches
        so the catalogue could scroll behind, that way out went with it. A
@@ -2542,7 +2590,7 @@
      person's shelf. Duplicates first, because a film in the catalogue twice
      splits everybody's marks between two rows that look identical. -->
 <div class="sheet-backdrop" id="adminBackdrop" hidden></div>
-<div class="sheet" id="adminSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="adminSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Адмін</div>
   </div>
@@ -2565,7 +2613,7 @@
      it holds (that is FILTER). The rows keep their historical ids — the
      wiring and the tests hold onto them. -->
 <div class="sheet-backdrop" id="settingsBackdrop" hidden></div>
-<div class="sheet" id="settingsSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="settingsSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Налаштування</div>
   </div>
@@ -2592,7 +2640,7 @@
      strip's own last tab and closing it should land you back on the strip
      you were arranging, not in the middle of another screen. -->
 <div class="sheet-backdrop" id="tabbarBackdrop" hidden></div>
-<div class="sheet" id="tabbarSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="tabbarSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Меню плашки</div>
   </div>
@@ -2604,7 +2652,7 @@
 <!-- The trash: what was removed from a collection lies here for 24 hours
      before the removal becomes real; until then it can be put back. -->
 <div class="sheet-backdrop" id="trashBackdrop" hidden></div>
-<div class="sheet" id="trashSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="trashSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Кошик</div>
   </div>
@@ -2620,7 +2668,7 @@
      (userTasteStats/rollDice in logic.js). A sheet like FILTER — the same
      strip of glass at the same edge — filled by renderDiceResults(). -->
 <div class="sheet-backdrop" id="diceBackdrop" hidden></div>
-<div class="sheet" id="diceSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="diceSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Дзиґа радить</div>
   </div>
@@ -2628,7 +2676,7 @@
   <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Ще раз</button></div>
 </div>
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
-<div class="sheet" id="filterSheet" data-surface="window" data-material="glass" aria-hidden="true">
+<div class="sheet" id="filterSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title">Фільтр</div>
   </div>
@@ -2754,19 +2802,19 @@
   </button>
 </div>
 <div class="modal-overlay" id="addMovieOverlay">
-  <div class="modal add-modal" id="addMovieBox" data-surface="screen" data-material="glass"></div>
+  <div class="modal add-modal" id="addMovieBox" data-surface="screen" data-material="solid"></div>
 </div>
 <div class="modal-overlay" id="accountOverlay">
-  <div class="modal add-modal" id="accountBox" data-surface="screen" data-material="glass"></div>
+  <div class="modal add-modal" id="accountBox" data-surface="screen" data-material="solid"></div>
 </div>
 <div class="modal-overlay" id="onboardOverlay">
-  <div class="modal add-modal" id="onboardBox" data-surface="screen" data-material="glass"></div>
+  <div class="modal add-modal" id="onboardBox" data-surface="screen" data-material="solid"></div>
 </div>
 <div class="modal-overlay" id="recsOverlay">
-  <div class="modal add-modal" id="recsBox" data-surface="screen" data-material="glass"></div>
+  <div class="modal add-modal" id="recsBox" data-surface="screen" data-material="solid"></div>
 </div>
 <div class="modal-overlay" id="friendsOverlay">
-  <div class="modal add-modal" id="friendsBox" data-surface="screen" data-material="glass"></div>
+  <div class="modal add-modal" id="friendsBox" data-surface="screen" data-material="solid"></div>
 </div>
 </div>
 
@@ -11241,6 +11289,7 @@ public: col.public,
 ids: new Set((col.film_ids || []).map(String))
 };
 navSync();
+loadPlateVotes();
 state.genre = 'all';
 document.getElementById('collectionPlateName').textContent = `Добірка · ${col.name}`;
 document.getElementById('collectionPlate').hidden = false;
@@ -11285,16 +11334,81 @@ if (from.person) openRecsFriend(from.person);
 
 document.getElementById('collectionPlateClose').addEventListener('click', closeCollectionCatalog);
 
+let _plateVotes = null;
+
+async function loadPlateVotes() {
+_plateVotes = null;
+const col = openCatalogCollection;
+if (!col || !col.owner || !col.collection_id) {
+renderPlateActions();
+return;
+}
+try {
+const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.owner)}/${encodeURIComponent(col.collection_id)}/vote`, {
+headers: await proxyHeaders({
+accept: 'application/json'
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+_plateVotes = await res.json();
+} catch (err) {
+_plateVotes = null;
+}
+if (openCatalogCollection === col) renderPlateActions();
+}
+
+function plateVotesHtml() {
+const v = _plateVotes;
+if (!v || !v.mineToVote) return '';
+const thumb = (val, icon, count) => `<button class="btn col-vote${v.mine === val ? ' on-watched' : ''}" type="button" data-plate-vote="${val}"` + ` aria-pressed="${v.mine === val}" aria-label="${val === 1 ? 'Подобається' : 'Не подобається'}">` + `${icon}<span>${count}</span></button>`;
+return `<span class="col-plate-votes">${thumb(1, ICON.thumbUp, v.likes)}${thumb(-1, ICON.thumbDown, v.dislikes)}</span>`;
+}
+
+document.getElementById('collectionPlateActions').addEventListener('click', async e => {
+const btn = e.target.closest('[data-plate-vote]');
+if (!btn || !_plateVotes || !openCatalogCollection) return;
+const col = openCatalogCollection;
+const asked = Number(btn.dataset.plateVote);
+const next = _plateVotes.mine === asked ? 0 : asked;
+const before = {
+..._plateVotes
+};
+if (_plateVotes.mine === 1) _plateVotes.likes--;
+if (_plateVotes.mine === -1) _plateVotes.dislikes--;
+if (next === 1) _plateVotes.likes++;
+if (next === -1) _plateVotes.dislikes++;
+_plateVotes.mine = next;
+renderPlateActions();
+try {
+const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.owner)}/${encodeURIComponent(col.collection_id)}/vote`, {
+method: 'PUT',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+vote: next
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+} catch (err) {
+_plateVotes = before;
+renderPlateActions();
+toast('Не вдалося');
+}
+});
+
 function renderPlateActions() {
 const el = document.getElementById('collectionPlateActions');
 const col = openCatalogCollection;
-if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks') {
-el.hidden = true;
-el.innerHTML = '';
+const votes = plateVotesHtml();
+if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks' || col.source === 'public') {
+el.hidden = !votes;
+el.innerHTML = votes;
 return;
 }
 el.hidden = false;
-el.innerHTML = col.source === 'own' ? `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>` : '<button class="btn" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>';
+el.innerHTML = votes + (col.source === 'own' ? `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>` : '<button class="btn" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>');
 const edit = el.querySelector('#plateEditBtn');
 if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
 const share = el.querySelector('#plateShareBtn');
@@ -12007,8 +12121,7 @@ wired: false
 
 function topColRowHtml(c) {
 const key = `${c.owner}/${c.collection_id}`;
-const thumb = (v, icon, count) => `<button class="col-vote${c.mine === v ? ' active' : ''}" type="button" data-vote="${v}" data-target="${esc(key)}"` + ` aria-pressed="${c.mine === v}" title="${v === 1 ? 'Подобається' : 'Не подобається'}"` + ` aria-label="${v === 1 ? 'Подобається' : 'Не подобається'}">${icon}<span>${count}</span></button>`;
-return `<div class="col-top-row" data-col="${esc(key)}">` + `<button class="col-top-open" type="button" data-key="${esc(key)}">` + `<span class="col-top-name">${esc(c.name)}</span>` + `<span class="col-top-meta">${esc(c.owner_name || 'хтось')} · ${c.count}</span></button>` + `<span class="col-votes">${thumb(1, ICON.thumbUp, c.likes)}${thumb(-1, ICON.thumbDown, c.dislikes)}</span>` + '</div>';
+return `<div class="col-top-row" data-col="${esc(key)}">` + `<button class="col-top-open" type="button" data-key="${esc(key)}">` + `<span class="col-top-name">${esc(c.name)}</span>` + `<span class="col-top-meta">${esc(c.owner_name || 'хтось')} · ${c.count}</span></button>` + `<span class="col-score" title="Подобається ${c.likes}, не подобається ${c.dislikes}">` + `<span class="col-score-up">${ICON.thumbUp}${c.likes}</span>` + `<span class="col-score-down">${ICON.thumbDown}${c.dislikes}</span></span>` + '</div>';
 }
 
 async function loadTopCollections(body, {append: append = false} = {}) {
@@ -12062,51 +12175,22 @@ append: true
 }, {
 passive: true
 });
-recsBox.addEventListener('click', async e => {
-const btn = e.target.closest('[data-vote]');
-if (!btn) return;
-const key = btn.dataset.target;
-const row = _topCols.rows.find(c => `${c.owner}/${c.collection_id}` === key);
+recsBox.addEventListener('click', e => {
+const open = e.target.closest('.col-top-open');
+if (!open || recsSource !== 'top') return;
+const row = _topCols.rows.find(c => `${c.owner}/${c.collection_id}` === open.dataset.key);
 if (!row) return;
-const asked = Number(btn.dataset.vote);
-const next = row.mine === asked ? 0 : asked;
-const before = {
-mine: row.mine,
-likes: row.likes,
-dislikes: row.dislikes
-};
-if (row.mine === 1) row.likes--;
-if (row.mine === -1) row.dislikes--;
-if (next === 1) row.likes++;
-if (next === -1) row.dislikes++;
-row.mine = next;
-repaintVote(key, row);
-try {
-const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(row.owner)}/${encodeURIComponent(row.collection_id)}/vote`, {
-method: 'PUT',
-headers: await proxyHeaders({
-accept: 'application/json',
-'content-type': 'application/json'
-}),
-body: JSON.stringify({
-vote: next
-})
+openCollectionAsCatalog({
+key: `${row.owner}/${row.collection_id}`,
+name: row.name,
+owner: row.owner,
+collection_id: row.collection_id,
+source: 'public',
+public: true,
+film_ids: row.film_ids || []
 });
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-} catch (err) {
-Object.assign(row, before);
-repaintVote(key, row);
-toast('Не вдалося');
-}
+closeRecs();
 });
-}
-
-function repaintVote(key, row) {
-const row_ = [ ...recsBox.querySelectorAll('.col-top-row') ].find(r => r.dataset.col === key);
-const el = row_ && row_.querySelector('.col-votes');
-if (!el) return;
-const thumb = (v, icon, count) => `<button class="col-vote${row.mine === v ? ' active' : ''}" type="button" data-vote="${v}" data-target="${esc(key)}"` + ` aria-pressed="${row.mine === v}" title="${v === 1 ? 'Подобається' : 'Не подобається'}"` + ` aria-label="${v === 1 ? 'Подобається' : 'Не подобається'}">${icon}<span>${count}</span></button>`;
-el.innerHTML = `${thumb(1, ICON.thumbUp, row.likes)}${thumb(-1, ICON.thumbDown, row.dislikes)}`;
 }
 
 const NAV_CLOSERS = {
@@ -12711,21 +12795,75 @@ ctl.click();
 if (id === 'seen') syncTabbar();
 }
 
+const WINDOW_TABS = [ {
+surface: 'recs',
+box: 'recsBox',
+sel: '[data-recs-src]'
+}, {
+surface: 'friends',
+box: 'friendsBox',
+sel: '[data-friends-tab]'
+}, {
+surface: 'addModal',
+box: 'addMovieBox',
+sel: '.add-mode-tab'
+} ];
+
+function windowTabsNow() {
+let top = null;
+try {
+top = topNavSurface(navOpenNow());
+} catch (err) {
+return null;
+}
+const spec = WINDOW_TABS.find(w => w.surface === top);
+if (!spec) return null;
+const box = document.getElementById(spec.box);
+const els = box ? [ ...box.querySelectorAll(spec.sel) ] : [];
+return els.length ? {
+surface: top,
+els: els
+} : null;
+}
+
+function windowTabHtml(el, i) {
+const label = (el.textContent || '').trim();
+return `<button class="tabbar-tab tabbar-tab--window${el.classList.contains('active') ? ' active' : ''}"` + ` type="button" data-window-tab="${i}" title="${esc(label)}" aria-label="${esc(label)}">` + `<span class="tabbar-tab-word">${esc(label)}</span></button>`;
+}
+
 function tabHtml(tab, iconName) {
 return `<button class="tabbar-tab" type="button" data-tab="${tab.id}" title="${esc(tab.label)}" aria-label="${esc(tab.label)}">` + `${ICON[iconName] || ''}<span class="tabbar-tab-label">${esc(tab.label)}</span></button>`;
 }
 
+let _stripShows = null;
+
 function renderTabbar() {
 if (!tabbarScroll) return;
 const left = tabbarScroll.scrollLeft;
+const borrowed = windowTabsNow();
+const changed = (borrowed ? borrowed.surface : null) !== _stripShows;
+_stripShows = borrowed ? borrowed.surface : null;
+document.body.classList.toggle('tabs-in-bar', !!borrowed);
 const tabs = tabbarLayout(state.tabbar, tabAvailable);
-tabbarScroll.innerHTML = tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
-tabbarScroll.scrollLeft = left;
+tabbarScroll.innerHTML = (borrowed ? borrowed.els.map(windowTabHtml).join('') + '<span class="tabbar-split" aria-hidden="true"></span>' : '') + tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
+tabbarScroll.scrollLeft = changed ? 0 : left;
 syncTabbar();
 }
 
 function syncTabbar() {
 if (!tabbarScroll) return;
+const borrowed = windowTabsNow();
+if ((borrowed ? borrowed.surface : null) !== _stripShows) {
+renderTabbar();
+return;
+}
+if (borrowed) {
+const mirrors = tabbarScroll.querySelectorAll('.tabbar-tab--window');
+mirrors.forEach((el, i) => {
+const from = borrowed.els[i];
+el.classList.toggle('active', !!(from && from.classList.contains('active')));
+});
+}
 let open = null;
 try {
 open = navOpenNow();
@@ -12734,6 +12872,7 @@ open = null;
 }
 const top = open ? topNavSurface(open) : null;
 for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
+if (btn.dataset.windowTab !== undefined) continue;
 const id = btn.dataset.tab;
 let lit;
 if (id === 'seen') lit = !!state.showWatched; else if (id === 'shelf') lit = !top; else if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
@@ -12743,7 +12882,15 @@ btn.classList.toggle('active', lit);
 
 tabbarScroll.addEventListener('click', e => {
 const btn = e.target.closest('.tabbar-tab');
-if (btn) pressTab(btn.dataset.tab);
+if (!btn) return;
+if (btn.dataset.windowTab !== undefined) {
+const borrowed = windowTabsNow();
+const el = borrowed && borrowed.els[Number(btn.dataset.windowTab)];
+if (el) el.click();
+renderTabbar();
+return;
+}
+pressTab(btn.dataset.tab);
 });
 
 if (typeof MutationObserver === 'function') {
