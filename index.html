@@ -279,9 +279,11 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
+  
   body {
     margin: 0;
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image: linear-gradient(rgba(142, 0, 0, .055), rgba(142, 0, 0, .055));
     color: var(--text);
     font-family: var(--font-body);
     line-height: 1.5;
@@ -1316,6 +1318,48 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 2; -webkit-tap-highlight-color: transparent;
   }
+  
+  .bot-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .bot-row.is-off { opacity: .45; }
+  .bot-name {
+    flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--paper);
+  }
+  .bot-stat { flex: 0 0 auto; font-size: 12px; color: var(--ash); }
+  .bot-stat i { font-style: normal; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; opacity: .7; }
+  
+  .col-top-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .col-top-open {
+    flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+    background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit;
+  }
+  .col-top-name {
+    font-size: 14px; color: var(--paper);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .col-top-meta {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--ash);
+  }
+  .col-votes { flex: 0 0 auto; display: flex; gap: 4px; }
+  
+  .col-vote {
+    display: inline-flex; align-items: center; gap: 4px;
+    min-width: 44px; height: 44px; padding: 0 8px;
+    background: none; border: none; cursor: pointer;
+    color: var(--ash); font-family: var(--font-mono); font-size: 11px;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .15s;
+  }
+  .col-vote.active { color: var(--flash); }
+  .col-vote:active { color: var(--paper); }
+
   .warn-note { font-size: 12px; color: var(--flash); margin-top: 10px; }
 
   .empty-msg { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 15px; }
@@ -2508,6 +2552,13 @@
     <button class="btn on-watched" id="dupScanBtn" type="button">Знайти дублікати</button>
   </div>
   <div id="dupResults"></div>
+
+  <!-- The simulated accounts. Their IDENTITY lives beside the simulator on
+       the machine that runs them; what is here is CONTROL — see bot_control
+       in the Worker's schema. -->
+  <div class="sheet-label">Боти</div>
+  <div class="acc-hint">Вигадані акаунти, що живуть у застосунку самі. Вимкнений бот перестане діяти протягом години — стільки триває цикл симулятора. Пароль у всіх один: <b>botTest123!</b></div>
+  <div id="botList" class="bot-list"></div>
 </div>
 
 <!-- SETTINGS: how the catalogue is DRAWN, as opposed to which films
@@ -2929,6 +2980,13 @@ const UI_DATA = {
   // «Back», which is not «close». A cross ends something; an arrow returns
   // you to where you were. Inside a collection the difference is the whole
   // point — the way out is the screen you opened it from, not the catalogue.
+  /* A thumb, drawn in the app's hand: the 24-unit grid, a 2-unit stroke,
+     round caps, no fill. One shape mirrored for the other verdict rather
+     than two drawings — a like and a dislike are the same gesture turned
+     over, and drawing them separately is how they end up subtly different
+     weights on screen. */
+  thumbUp: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21V10l4-7a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 21z"/><rect x="2.5" y="10" width="4.5" height="11" rx="1"/></svg>',
+  thumbDown: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(180 12 12)"><path d="M7 21V10l4-7a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 21z"/><rect x="2.5" y="10" width="4.5" height="11" rx="1"/></g></svg>',
   back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
 
   // ---- the tab strip's own drawings (owner's ask: drawn here, in the
@@ -8671,6 +8729,70 @@ updateFilterGlow();
 saveSettings();
 });
 
+const botList = document.getElementById('botList');
+
+let _bots = [];
+
+function botRowHtml(b) {
+const off = !b.enabled;
+return `<div class="bot-row${off ? ' is-off' : ''}" data-bot="${esc(b.username)}">` + `<span class="bot-name">${esc(b.username.replace(/^bot_/, ''))}</span>` + `<span class="bot-stat">${b.watched} <i>переглянуто</i></span>` + `<span class="bot-stat">${b.collections} <i>добірок</i></span>` + `<button class="opt${off ? '' : ' active'}" type="button" data-bot-toggle aria-pressed="${off ? 'false' : 'true'}"` + ` title="${off ? 'Увімкнути' : 'Вимкнути'}" aria-label="${off ? 'Увімкнути' : 'Вимкнути'}">${ICON.eye}</button>` + '</div>';
+}
+
+async function renderBots() {
+if (!botList) return;
+botList.innerHTML = '<div class="acc-hint">Читаю…</div>';
+try {
+const res = await fetch(`${API_PROXY}/library/bots`, {
+headers: await proxyHeaders({
+accept: 'application/json'
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+_bots = (await res.json()).bots || [];
+} catch (err) {
+botList.innerHTML = '<div class="acc-hint">Не вдалося прочитати список ботів.</div>';
+return;
+}
+botList.innerHTML = _bots.length ? _bots.map(botRowHtml).join('') : '<div class="acc-hint">Ботів немає. Вони зʼявляться тут самі, щойно будуть створені.</div>';
+}
+
+botList && botList.addEventListener('click', async e => {
+const btn = e.target.closest('[data-bot-toggle]');
+if (!btn) return;
+const row = btn.closest('.bot-row');
+const username = row && row.dataset.bot;
+const bot = _bots.find(b => b.username === username);
+if (!bot) return;
+const next = !bot.enabled;
+bot.enabled = next;
+row.classList.toggle('is-off', !next);
+btn.classList.toggle('active', next);
+btn.setAttribute('aria-pressed', String(next));
+try {
+const res = await fetch(`${API_PROXY}/library/bots/${encodeURIComponent(username)}`, {
+method: 'PUT',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+enabled: next,
+overrides: bot.overrides || {}
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+toast(next ? 'Бот увімкнений' : 'Бот вимкнений');
+} catch (err) {
+bot.enabled = !next;
+row.classList.toggle('is-off', next);
+btn.classList.toggle('active', !next);
+btn.setAttribute('aria-pressed', String(!next));
+toast('Не вдалося змінити');
+}
+});
+
+document.getElementById('adminBtn').addEventListener('click', renderBots);
+
 function syncHeaderHeight() {
 const el = document.querySelector('header');
 if (!el) return;
@@ -11000,7 +11122,7 @@ const recsOverlay = document.getElementById('recsOverlay');
 
 const recsBox = document.getElementById('recsBox');
 
-let recsSource = 'seenit';
+let recsSource = 'top';
 
 const colEditSheet = wireSheet('colEditSheet', 'colEditBackdrop');
 
@@ -11155,7 +11277,7 @@ openFriends(from.person || null);
 return;
 }
 if (from.kind === 'recs') {
-recsSource = from.source || 'seenit';
+recsSource = from.source || 'top';
 openRecs();
 if (from.person) openRecsFriend(from.person);
 }
@@ -11247,7 +11369,7 @@ const friendsBox = document.getElementById('friendsBox');
 let friendsView = 'list';
 
 function renderFriendsSearch() {
-friendsBox.innerHTML = `\n    <div class="sheet-head">\n      <div class="sheet-title">Знайти людину</div>\n      <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\n      </button>\n    </div>\n    <div class="friend-find">\n      <div class="field-clear-wrap">\n        <input id="friendFind" type="text" placeholder="Імʼя, яким людина входить у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">\n        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>\n      </div>\n      <div id="friendFindOut" class="friend-suggest" hidden></div>\n    </div>\n    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>`;
+friendsBox.innerHTML = `\n    <div class="sheet-head">\n      <div class="sheet-title">Знайти людину</div>\n      <button class="hicon" id="friendsSearchBack" type="button" title="Назад" aria-label="Назад до друзів">\n        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>\n      </button>\n    </div>\n    <div class="friend-find">\n      <div class="field-clear-wrap">\n        <input id="friendFind" type="text" placeholder="Імʼя, яким людина входить у SeenIt" autocapitalize="none" autocorrect="off" spellcheck="false">\n        <button class="field-clear-btn" data-clear-target="friendFind" type="button">${ICON.close}</button>\n      </div>\n      <div id="friendFindOut" class="friend-suggest"></div>\n    </div>\n    <div class="acc-hint">Акаунт через Google шукається за імʼям, яке людина обрала в «Акаунті» — не за поштою.</div>`;
 friendsBox.querySelector('#friendsSearchBack').addEventListener('click', () => {
 friendsView = 'list';
 renderFriends();
@@ -11335,18 +11457,42 @@ let _findTimer = 0;
 
 let _findSeq = 0;
 
+const PEOPLE_PAGE = 50;
+
+const PEOPLE_MORE = 10;
+
+let _findPage = null;
+
 function wireFriendFind() {
 const input = friendsBox.querySelector('#friendFind');
 const out = friendsBox.querySelector('#friendFindOut');
 if (!input || !out) return;
-const clear = () => {
-out.hidden = true;
-out.innerHTML = '';
+_findPage = {
+term: '',
+offset: 0,
+more: true,
+busy: false
 };
-const run = async term => {
+const rows = (people, append) => {
+const html = people.map(p => personRowHtml(p, {
+marked: true
+})).join('');
+if (append) out.insertAdjacentHTML('beforeend', html); else out.innerHTML = html;
+const scope = append ? [ ...out.querySelectorAll('[data-person]') ].slice(-people.length) : [ ...out.querySelectorAll('[data-person]') ];
+scope.forEach(el => el.addEventListener('click', () => {
+input.value = '';
+showFriend(el.dataset.person);
+}));
+};
+const load = async ({append: append = false} = {}) => {
+const page = _findPage;
+if (page.busy || append && !page.more) return;
+page.busy = true;
 const seq = ++_findSeq;
+const limit = append ? PEOPLE_MORE : PEOPLE_PAGE;
+const url = `${API_PROXY}/library/users?q=${encodeURIComponent(page.term)}` + `&limit=${limit}&offset=${append ? page.offset : 0}`;
 try {
-const res = await fetch(`${API_PROXY}/library/users?q=${encodeURIComponent(term)}`, {
+const res = await fetch(url, {
 headers: await proxyHeaders({
 accept: 'application/json'
 })
@@ -11356,30 +11502,43 @@ const data = await res.json();
 if (seq !== _findSeq) return;
 const people = data.people || [];
 out.hidden = false;
-out.innerHTML = people.length ? people.map(p => personRowHtml(p, {
-marked: true
-})).join('') : '<div class="friend-suggest-none">Нікого схожого. Імʼя — те, з яким людина входить у SeenIt.</div>';
-out.querySelectorAll('[data-person]').forEach(el => el.addEventListener('click', () => {
-clear();
-input.value = '';
-showFriend(el.dataset.person);
-}));
+if (!append && !people.length) {
+out.innerHTML = page.term ? '<div class="friend-suggest-none">Нікого схожого. Імʼя — те, з яким людина входить у SeenIt.</div>' : '<div class="friend-suggest-none">Тут поки нікого немає.</div>';
+} else {
+rows(people, append);
+}
+page.offset = (append ? page.offset : 0) + people.length;
+page.more = !page.term && people.length === limit;
 } catch (err) {
 if (seq !== _findSeq) return;
 out.hidden = false;
-out.innerHTML = '<div class="friend-suggest-none">Не вдалося пошукати — перевір звʼязок.</div>';
+if (!append) out.innerHTML = '<div class="friend-suggest-none">Не вдалося пошукати — перевір звʼязок.</div>';
+page.more = false;
+} finally {
+page.busy = false;
 }
 };
 input.addEventListener('input', () => {
 clearTimeout(_findTimer);
 const term = (input.value || '').trim().toLowerCase();
-if (term.length < 2) {
-_findSeq++;
-clear();
-return;
-}
-_findTimer = setTimeout(() => run(term), 220);
+_findPage = {
+term: term,
+offset: 0,
+more: !term,
+busy: false
+};
+_findTimer = setTimeout(() => load(), term ? 220 : 0);
 });
+friendsBox.addEventListener('scroll', () => {
+if (!_findPage || friendsView !== 'search') return;
+const left = friendsBox.scrollHeight - friendsBox.scrollTop - friendsBox.clientHeight;
+if (left < 400) load({
+append: true
+});
+}, {
+passive: true
+});
+load();
 wireClearButtons(friendsBox);
 }
 
@@ -11715,13 +11874,17 @@ body.querySelectorAll('[data-add-col]').forEach(el => el.addEventListener('click
 
 function renderRecs() {
 const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
-recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n    </div>\n    <div id="recsbody"></div>`;
+recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n    </div>\n    <div id="recsbody"></div>`;
 recsBox.querySelectorAll('[data-recs-src]').forEach(el => el.addEventListener('click', () => {
 recsSource = el.dataset.recsSrc;
 _recsFriend = null;
 renderRecs();
 }));
 const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
+if (recsSource === 'top') {
+renderTopCollections(body);
+return;
+}
 if (recsSource === 'friends') {
 if (_recsFriend) {
 renderRecsFriend(body);
@@ -11829,6 +11992,122 @@ addBtn.addEventListener('click', openAddModal);
 addOverlay.addEventListener('click', e => {
 if (e.target === addOverlay) closeAddModal();
 });
+
+const TOP_COLLECTIONS_PAGE = 50;
+
+const TOP_COLLECTIONS_MORE = 10;
+
+let _topCols = {
+rows: [],
+offset: 0,
+more: true,
+busy: false,
+wired: false
+};
+
+function topColRowHtml(c) {
+const key = `${c.owner}/${c.collection_id}`;
+const thumb = (v, icon, count) => `<button class="col-vote${c.mine === v ? ' active' : ''}" type="button" data-vote="${v}" data-target="${esc(key)}"` + ` aria-pressed="${c.mine === v}" title="${v === 1 ? 'Подобається' : 'Не подобається'}"` + ` aria-label="${v === 1 ? 'Подобається' : 'Не подобається'}">${icon}<span>${count}</span></button>`;
+return `<div class="col-top-row" data-col="${esc(key)}">` + `<button class="col-top-open" type="button" data-key="${esc(key)}">` + `<span class="col-top-name">${esc(c.name)}</span>` + `<span class="col-top-meta">${esc(c.owner_name || 'хтось')} · ${c.count}</span></button>` + `<span class="col-votes">${thumb(1, ICON.thumbUp, c.likes)}${thumb(-1, ICON.thumbDown, c.dislikes)}</span>` + '</div>';
+}
+
+async function loadTopCollections(body, {append: append = false} = {}) {
+const st = _topCols;
+if (st.busy || append && !st.more) return;
+st.busy = true;
+const limit = append ? TOP_COLLECTIONS_MORE : TOP_COLLECTIONS_PAGE;
+try {
+const res = await fetch(`${API_PROXY}/library/collections?top=1&limit=${limit}&offset=${append ? st.offset : 0}`, {
+headers: await proxyHeaders({
+accept: 'application/json'
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+const data = await res.json();
+const got = data.collections || [];
+st.rows = append ? [ ...st.rows, ...got ] : got;
+st.offset = (append ? st.offset : 0) + got.length;
+st.more = got.length === limit;
+if (!st.rows.length) {
+body.innerHTML = '<div class="add-hint">Поки що жодної відкритої добірки. Відкрий свою в «Моїх» — і вона зʼявиться тут.</div>';
+return;
+}
+body.innerHTML = `<div class="col-top">${st.rows.map(topColRowHtml).join('')}</div>`;
+} catch (err) {
+if (!append) body.innerHTML = '<div class="add-hint">Не вдалося прочитати топ добірок.</div>';
+st.more = false;
+} finally {
+st.busy = false;
+}
+}
+
+function renderTopCollections(body) {
+_topCols = {
+rows: [],
+offset: 0,
+more: true,
+busy: false,
+wired: _topCols.wired
+};
+body.innerHTML = '<div class="add-hint">Читаю…</div>';
+loadTopCollections(body);
+if (_topCols.wired) return;
+_topCols.wired = true;
+recsBox.addEventListener('scroll', () => {
+if (recsSource !== 'top') return;
+const left = recsBox.scrollHeight - recsBox.scrollTop - recsBox.clientHeight;
+if (left < 400) loadTopCollections(recsBox.querySelector('#recsbody'), {
+append: true
+});
+}, {
+passive: true
+});
+recsBox.addEventListener('click', async e => {
+const btn = e.target.closest('[data-vote]');
+if (!btn) return;
+const key = btn.dataset.target;
+const row = _topCols.rows.find(c => `${c.owner}/${c.collection_id}` === key);
+if (!row) return;
+const asked = Number(btn.dataset.vote);
+const next = row.mine === asked ? 0 : asked;
+const before = {
+mine: row.mine,
+likes: row.likes,
+dislikes: row.dislikes
+};
+if (row.mine === 1) row.likes--;
+if (row.mine === -1) row.dislikes--;
+if (next === 1) row.likes++;
+if (next === -1) row.dislikes++;
+row.mine = next;
+repaintVote(key, row);
+try {
+const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(row.owner)}/${encodeURIComponent(row.collection_id)}/vote`, {
+method: 'PUT',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+vote: next
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+} catch (err) {
+Object.assign(row, before);
+repaintVote(key, row);
+toast('Не вдалося');
+}
+});
+}
+
+function repaintVote(key, row) {
+const row_ = [ ...recsBox.querySelectorAll('.col-top-row') ].find(r => r.dataset.col === key);
+const el = row_ && row_.querySelector('.col-votes');
+if (!el) return;
+const thumb = (v, icon, count) => `<button class="col-vote${row.mine === v ? ' active' : ''}" type="button" data-vote="${v}" data-target="${esc(key)}"` + ` aria-pressed="${row.mine === v}" title="${v === 1 ? 'Подобається' : 'Не подобається'}"` + ` aria-label="${v === 1 ? 'Подобається' : 'Не подобається'}">${icon}<span>${count}</span></button>`;
+el.innerHTML = `${thumb(1, ICON.thumbUp, row.likes)}${thumb(-1, ICON.thumbDown, row.dislikes)}`;
+}
 
 const NAV_CLOSERS = {
 confirm: {
