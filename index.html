@@ -12952,6 +12952,11 @@ let _humpAt = null;
 
 let _humpAnim = 0;
 
+function showHump(on) {
+if (!tabbarHump) return;
+if (on) tabbarHump.removeAttribute('hidden'); else tabbarHump.setAttribute('hidden', '');
+}
+
 function drawHump(left, width, depth) {
 tabbarHump.setAttribute('width', String(Math.round(width)));
 tabbarHump.setAttribute('height', String(HUMP.height));
@@ -12996,7 +13001,7 @@ function placeHump() {
 if (!tabbarHump || !tabbarScroll) return;
 const lit = tabbarScroll.querySelector('.tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"])');
 if (!lit) {
-tabbarHump.hidden = true;
+showHump(false);
 _humpAt = null;
 return;
 }
@@ -13004,7 +13009,7 @@ const icon = lit.querySelector('svg') || lit;
 const bar = tabbarHump.parentElement.getBoundingClientRect();
 const box = icon.getBoundingClientRect();
 if (bar.width > 0 && (box.right < bar.left + 8 || box.left > bar.right - 8)) {
-tabbarHump.hidden = true;
+showHump(false);
 _humpAt = null;
 return;
 }
@@ -13015,7 +13020,7 @@ const to = {
 left: Math.round(centre - width / 2),
 width: width
 };
-tabbarHump.hidden = false;
+showHump(true);
 if (_humpAt && _humpAt.left === to.left && _humpAt.width === to.width) return;
 travelHump(to);
 }
