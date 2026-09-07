@@ -328,9 +328,9 @@
   }
   
   header::after {
-    content: ''; display: block; height: 1px;
-    background: var(--border);
-    margin-top: 10px; margin-bottom: -10px;
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    
+    background: var(--blood);
   }
   
   .topbar { display: flex; align-items: center; justify-content: space-between; }
@@ -370,14 +370,28 @@
   .topbar-search.open #searchOpenBtn { display: flex; }
 
   
-  :root { --tabbar-h: 58px; }
+  
+  :root { --tabbar-base: 58px; --tabbar-h: var(--tabbar-base); }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
     
     background-color: var(--tpl-ground);
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--blood);
     padding-bottom: var(--safe-bottom);
   }
+  
+  .tabbar-hump {
+    position: absolute;
+    
+    bottom: calc(var(--safe-bottom) + var(--tabbar-base) - var(--hump-h));
+    display: block; pointer-events: none; overflow: visible;
+    fill: var(--blood);
+    
+    
+    transition: opacity .16s linear;
+  }
+  .tabbar-hump[hidden] { display: block; opacity: 0; }
+
   .tabbar-scroll {
     display: flex; align-items: stretch;
     overflow-x: auto; overflow-y: hidden;
@@ -389,10 +403,9 @@
   .tabbar-scroll::-webkit-scrollbar { display: none; }
   
   .tabbar-tab {
-    flex: 0 0 auto; min-width: 64px; height: var(--tabbar-h);
+    flex: 0 0 auto; min-width: 64px; height: var(--tabbar-base);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
     background: none; border: none; padding: 0 10px; cursor: pointer;
-    border-top: var(--tab-rule) solid transparent; margin-top: -1px;
     color: var(--tab-ink);
     font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
     white-space: nowrap;
@@ -401,7 +414,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   .tabbar-tab svg { width: 22px; height: 22px; display: block; }
-  .tabbar-tab.active { color: var(--tab-ink-on); border-top-color: var(--tab-rule-on); }
+  .tabbar-tab.active { color: var(--tab-ink-on); }
   .tabbar-tab:active { color: var(--paper); }
   
   .tabbar-tab--arrange { margin-left: auto; }
@@ -1373,12 +1386,25 @@
   body.tabs-in-bar #friendsBox > .add-tabs,
   body.tabs-in-bar #addMovieBox .add-mode-tabs { display: none; }
   
-  .tabbar-tab--window { min-width: 0; padding: 0 14px; }
+  .tabbar-tab--window { min-width: 0; padding: 0 14px; height: var(--tabbar-row); }
+
   
-  .tabbar-split {
-    flex: 0 0 auto; align-self: center;
-    width: 1px; height: 22px; margin: 0 6px; background: var(--border);
+  .tabbar-window-row {
+    display: flex; align-items: stretch;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    max-width: 1280px; margin: 0 auto; padding: 0 6px;
+    
+    background: rgba(var(--blood-rgb), .35);
   }
+  
+  .tabbar-window-row .tabbar-tab--window { color: #E8C9C9; }
+  .tabbar-window-row .tabbar-tab--window.active { color: var(--paper); }
+  .tabbar-window-row::-webkit-scrollbar { display: none; }
+
+  
+  :root { --tabbar-row: 38px; --hump-h: 10px; }
+  body.tabs-in-bar { --tabbar-h: calc(var(--tabbar-base) + var(--tabbar-row)); }
   .tabbar-tab-word {
     font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
     text-transform: uppercase; white-space: nowrap;
@@ -2014,7 +2040,7 @@
     #adminSheet { --sheet-w: 560px; }
 
     
-    #recsOverlay, #friendsOverlay, #accountOverlay {
+    .modal-overlay[data-band]:not(#addMovieOverlay) {
       align-items: stretch; justify-content: flex-end; padding: 0;
       overflow: hidden;
     }
@@ -2074,11 +2100,12 @@
     }
     
     body.sheet-nav .modal-overlay { z-index: 82; }
-    body.sheet-nav .modal-overlay > .modal { animation: sheet-up .22s ease-out; }
+    
+    body.sheet-nav .modal-overlay:not([data-band]) > .modal { animation: sheet-up .22s ease-out; }
 
     
-    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet,
-    #settingsSheet, #menuSheet, #diceSheet {
+    
+    [data-surface="window"] {
       top: var(--header-h, 0px);
       bottom: calc(var(--tabbar-h) + var(--safe-bottom));
       height: auto; max-height: none;
@@ -2089,26 +2116,30 @@
     .sheet-backdrop { background: none; }
 
     
-    
-    #recsOverlay, #friendsOverlay, #accountOverlay, #addMovieOverlay {
+    .modal-overlay[data-band] {
       top: 0;
       padding-top: var(--header-h, 0px);
       bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+      
+      display: flex;
+      visibility: hidden; pointer-events: none;
+      transition: visibility 0s linear .22s;
     }
-    #recsOverlay > .modal, #friendsOverlay > .modal,
-    #accountOverlay > .modal, #addMovieOverlay > .modal {
-      animation: sheet-up .22s ease-out;
+    .modal-overlay[data-band].open { visibility: visible; pointer-events: auto; transition: none; }
+    .modal-overlay[data-band] > [data-surface="screen"] {
       border-radius: 0;
+      transform: translateY(105%);
+      transition: transform .22s ease-out;
+      animation: none;
     }
+    .modal-overlay[data-band].open > [data-surface="screen"] { transform: none; }
 
     
     .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
 
     
     
-    #filterSheet, #trashSheet, #adminSheet, #colEditSheet, #tabbarSheet, #settingsSheet {
-      --tpl-pad-y: 18px;
-    }
+    [data-surface="window"] { --tpl-pad-y: 18px; }
     [data-surface="screen"] { --tpl-pad-y: 20px; }
     
     #onboardBox { --tpl-pad-y: calc(20px + var(--safe-top)); }
@@ -2754,6 +2785,18 @@
      sideways when the tabs outrun the screen, and its last tab is its own
      control — the one that opens the sheet where the strip is arranged. -->
 <nav class="tabbar" id="tabbar" data-surface="bar" aria-label="Розділи">
+  <!-- The row a window lends the strip, ABOVE the strip's own (owner's
+       call): the bar grows upward to hold it rather than the two kinds of
+       tab sharing one line. Empty and hidden until a window with tabs is
+       open. -->
+  <!-- The bulge the red seam makes over the tab of an open window. A child
+       of the BAR rather than of the row of tabs: the row clips what leaves
+       it (overflow-y: hidden, so a sideways scroll cannot show a sliver of
+       the page above), and a hump that rises past the bar's edge is exactly
+       what would be clipped. Placed by 24-tabbar.js, which is the only
+       thing that knows which tab is lit. -->
+  <svg class="tabbar-hump" id="tabbarHump" aria-hidden="true" hidden><path id="tabbarHumpPath"/></svg>
+  <div class="tabbar-window-row" id="tabbarWindowRow" hidden></div>
   <div class="tabbar-scroll" id="tabbarScroll"></div>
 </nav>
 <!-- Back to the top of the shelf. Hidden until there is a way back TO go:
@@ -2801,19 +2844,19 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4l8 8-8 8"/></svg>
   </button>
 </div>
-<div class="modal-overlay" id="addMovieOverlay">
+<div class="modal-overlay" id="addMovieOverlay" data-band>
   <div class="modal add-modal" id="addMovieBox" data-surface="screen" data-material="solid"></div>
 </div>
-<div class="modal-overlay" id="accountOverlay">
+<div class="modal-overlay" id="accountOverlay" data-band>
   <div class="modal add-modal" id="accountBox" data-surface="screen" data-material="solid"></div>
 </div>
 <div class="modal-overlay" id="onboardOverlay">
   <div class="modal add-modal" id="onboardBox" data-surface="screen" data-material="solid"></div>
 </div>
-<div class="modal-overlay" id="recsOverlay">
+<div class="modal-overlay" id="recsOverlay" data-band>
   <div class="modal add-modal" id="recsBox" data-surface="screen" data-material="solid"></div>
 </div>
-<div class="modal-overlay" id="friendsOverlay">
+<div class="modal-overlay" id="friendsOverlay" data-band>
   <div class="modal add-modal" id="friendsBox" data-surface="screen" data-material="solid"></div>
 </div>
 </div>
@@ -12677,6 +12720,10 @@ const tabbarEl = document.getElementById('tabbar');
 
 const tabbarScroll = document.getElementById('tabbarScroll');
 
+const tabbarWindowRow = document.getElementById('tabbarWindowRow');
+
+const tabbarHump = document.getElementById('tabbarHump');
+
 const tabbarRows = document.getElementById('tabbarRows');
 
 const tabbarSheet = wireSheet('tabbarSheet', 'tabbarBackdrop');
@@ -12841,13 +12888,17 @@ function renderTabbar() {
 if (!tabbarScroll) return;
 const left = tabbarScroll.scrollLeft;
 const borrowed = windowTabsNow();
-const changed = (borrowed ? borrowed.surface : null) !== _stripShows;
 _stripShows = borrowed ? borrowed.surface : null;
 document.body.classList.toggle('tabs-in-bar', !!borrowed);
 const tabs = tabbarLayout(state.tabbar, tabAvailable);
-tabbarScroll.innerHTML = (borrowed ? borrowed.els.map(windowTabHtml).join('') + '<span class="tabbar-split" aria-hidden="true"></span>' : '') + tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
-tabbarScroll.scrollLeft = changed ? 0 : left;
+if (tabbarWindowRow) {
+tabbarWindowRow.innerHTML = borrowed ? borrowed.els.map(windowTabHtml).join('') : '';
+tabbarWindowRow.hidden = !borrowed;
+}
+tabbarScroll.innerHTML = tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
+tabbarScroll.scrollLeft = left;
 syncTabbar();
+placeHump();
 }
 
 function syncTabbar() {
@@ -12858,7 +12909,7 @@ renderTabbar();
 return;
 }
 if (borrowed) {
-const mirrors = tabbarScroll.querySelectorAll('.tabbar-tab--window');
+const mirrors = tabbarWindowRow ? tabbarWindowRow.querySelectorAll('.tabbar-tab--window') : [];
 mirrors.forEach((el, i) => {
 const from = borrowed.els[i];
 el.classList.toggle('active', !!(from && from.classList.contains('active')));
@@ -12872,25 +12923,121 @@ open = null;
 }
 const top = open ? topNavSurface(open) : null;
 for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
-if (btn.dataset.windowTab !== undefined) continue;
 const id = btn.dataset.tab;
 let lit;
 if (id === 'seen') lit = !!state.showWatched; else if (id === 'shelf') lit = !top; else if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
 btn.classList.toggle('active', lit);
 }
+placeHump();
 }
+
+const HUMP = {
+height: 10,
+shoulder: 14
+};
+
+function humpPath(width, h = HUMP.height, s = HUMP.shoulder) {
+const flat = Math.max(0, width - s * 2);
+return `M0 0` + ` C${s / 2} 0 ${s / 2} ${h} ${s} ${h}` + ` H${s + flat}` + ` C${s + flat + s / 2} ${h} ${s + flat + s / 2} 0 ${width} 0` + ' Z';
+}
+
+const HUMP_TRAVEL_MS = 260;
+
+function humpDepth(t) {
+const x = Math.max(0, Math.min(1, t));
+return 1 - 4 * x * (1 - x);
+}
+
+let _humpAt = null;
+
+let _humpAnim = 0;
+
+function drawHump(left, width, depth) {
+tabbarHump.setAttribute('width', String(Math.round(width)));
+tabbarHump.setAttribute('height', String(HUMP.height));
+tabbarHump.setAttribute('viewBox', `0 0 ${Math.round(width)} ${HUMP.height}`);
+tabbarHump.style.width = `${Math.round(width)}px`;
+tabbarHump.style.left = `${Math.round(left)}px`;
+const path = tabbarHump.firstElementChild;
+if (path) path.setAttribute('d', humpPath(Math.round(width), Math.max(0, depth)));
+}
+
+function travelHump(to) {
+const from = _humpAt;
+_humpAt = to;
+const still = (() => {
+try {
+return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+} catch (err) {
+return false;
+}
+})();
+if (!from || still || typeof requestAnimationFrame !== 'function') {
+drawHump(to.left, to.width, HUMP.height);
+return;
+}
+if (_humpAnim) cancelAnimationFrame(_humpAnim);
+const started = Date.now();
+const step = () => {
+const t = Math.min(1, (Date.now() - started) / HUMP_TRAVEL_MS);
+const ease = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+const left = from.left + (to.left - from.left) * ease;
+const width = from.width + (to.width - from.width) * ease;
+drawHump(left, width, HUMP.height * humpDepth(t));
+if (t < 1) _humpAnim = requestAnimationFrame(step); else {
+_humpAnim = 0;
+drawHump(to.left, to.width, HUMP.height);
+}
+};
+_humpAnim = requestAnimationFrame(step);
+}
+
+function placeHump() {
+if (!tabbarHump || !tabbarScroll) return;
+const lit = tabbarScroll.querySelector('.tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"])');
+if (!lit) {
+tabbarHump.hidden = true;
+_humpAt = null;
+return;
+}
+const icon = lit.querySelector('svg') || lit;
+const bar = tabbarHump.parentElement.getBoundingClientRect();
+const box = icon.getBoundingClientRect();
+if (bar.width > 0 && (box.right < bar.left + 8 || box.left > bar.right - 8)) {
+tabbarHump.hidden = true;
+_humpAt = null;
+return;
+}
+const flat = box.width > 0 ? box.width : 22;
+const width = Math.round(flat + HUMP.shoulder * 2);
+const centre = box.width > 0 ? box.left + box.width / 2 - bar.left : 0;
+const to = {
+left: Math.round(centre - width / 2),
+width: width
+};
+tabbarHump.hidden = false;
+if (_humpAt && _humpAt.left === to.left && _humpAt.width === to.width) return;
+travelHump(to);
+}
+
+tabbarScroll.addEventListener('scroll', placeHump, {
+passive: true
+});
+
+window.addEventListener('resize', placeHump);
 
 tabbarScroll.addEventListener('click', e => {
 const btn = e.target.closest('.tabbar-tab');
+if (btn) pressTab(btn.dataset.tab);
+});
+
+tabbarWindowRow && tabbarWindowRow.addEventListener('click', e => {
+const btn = e.target.closest('[data-window-tab]');
 if (!btn) return;
-if (btn.dataset.windowTab !== undefined) {
 const borrowed = windowTabsNow();
 const el = borrowed && borrowed.els[Number(btn.dataset.windowTab)];
 if (el) el.click();
 renderTabbar();
-return;
-}
-pressTab(btn.dataset.tab);
 });
 
 if (typeof MutationObserver === 'function') {
