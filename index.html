@@ -385,7 +385,7 @@
     
     bottom: calc(var(--safe-bottom) + var(--tabbar-base) - var(--hump-h));
     display: block; pointer-events: none; overflow: visible;
-    fill: var(--blood);
+    fill: var(--tabbar-row-bg);
     
     
     transition: opacity .16s linear;
@@ -1395,7 +1395,7 @@
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
     max-width: 1280px; margin: 0 auto; padding: 0 6px;
     
-    background: rgba(var(--blood-rgb), .35);
+    background: var(--tabbar-row-bg);
   }
   
   .tabbar-window-row .tabbar-tab--window { color: #E8C9C9; }
@@ -1403,7 +1403,11 @@
   .tabbar-window-row::-webkit-scrollbar { display: none; }
 
   
-  :root { --tabbar-row: 38px; --hump-h: 10px; }
+  :root {
+    --tabbar-row: 38px; --hump-h: 10px;
+    
+    --tabbar-row-bg: rgba(var(--blood-rgb), .35);
+  }
   body.tabs-in-bar { --tabbar-h: calc(var(--tabbar-base) + var(--tabbar-row)); }
   .tabbar-tab-word {
     font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
@@ -6172,7 +6176,96 @@ return [];
 set(k, v) {
 try {
 localStorage.setItem(k, JSON.stringify(v));
+return true;
+} catch (e) {
+localStore.lastError = e && e.name || 'error';
+return false;
+}
+},
+remove(k) {
+try {
+localStorage.removeItem(k);
 } catch (e) {}
+},
+lastError: null
+};
+
+const CATALOGUE_DB_NAME = 'seenit';
+
+const CATALOGUE_DB_VERSION = 1;
+
+const CATALOGUE_STORE_NAME = 'catalogue';
+
+const CATALOGUE_RECORD_KEY = 'films';
+
+let _catalogueDb = null;
+
+function openCatalogueDb() {
+if (_catalogueDb) return Promise.resolve(_catalogueDb);
+return new Promise(resolve => {
+let request;
+try {
+if (typeof indexedDB === 'undefined' || !indexedDB) {
+resolve(null);
+return;
+}
+request = indexedDB.open(CATALOGUE_DB_NAME, CATALOGUE_DB_VERSION);
+} catch (err) {
+resolve(null);
+return;
+}
+request.onupgradeneeded = () => {
+const db = request.result;
+if (!db.objectStoreNames.contains(CATALOGUE_STORE_NAME)) db.createObjectStore(CATALOGUE_STORE_NAME);
+};
+request.onsuccess = () => {
+_catalogueDb = request.result;
+resolve(_catalogueDb);
+};
+request.onerror = () => resolve(null);
+request.onblocked = () => resolve(null);
+});
+}
+
+const catalogueCache = {
+async read() {
+const db = await openCatalogueDb();
+if (!db) return localStore.get(localCatalogueKey());
+return new Promise(resolve => {
+let req;
+try {
+req = db.transaction(CATALOGUE_STORE_NAME, 'readonly').objectStore(CATALOGUE_STORE_NAME).get(CATALOGUE_RECORD_KEY);
+} catch (err) {
+resolve([]);
+return;
+}
+req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+req.onerror = () => resolve([]);
+});
+},
+async write(films) {
+const db = await openCatalogueDb();
+if (!db) return localStore.set(localCatalogueKey(), films);
+const stored = await new Promise(resolve => {
+let tx;
+try {
+tx = db.transaction(CATALOGUE_STORE_NAME, 'readwrite');
+} catch (err) {
+resolve(false);
+return;
+}
+try {
+tx.objectStore(CATALOGUE_STORE_NAME).put(films, CATALOGUE_RECORD_KEY);
+} catch (err) {
+resolve(false);
+return;
+}
+tx.oncomplete = () => resolve(true);
+tx.onerror = () => resolve(false);
+tx.onabort = () => resolve(false);
+});
+if (stored) localStore.remove(localCatalogueKey());
+return stored;
 }
 };
 
@@ -6304,6 +6397,22 @@ if (img && !img.complete) return false;
 return true;
 }
 
+const FIRST_SCREEN_YIELD_MS = 2e3;
+
+function afterFirstScreen() {
+return new Promise(resolve => {
+const started = Date.now();
+const check = () => {
+if (firstScreenPostersReady() || Date.now() - started >= FIRST_SCREEN_YIELD_MS) {
+resolve();
+return;
+}
+setTimeout(check, 120);
+};
+setTimeout(check, 0);
+});
+}
+
 const CONTENT_WAIT_MS = 12e3;
 
 let _contentDeadline = 0;
@@ -6311,7 +6420,7 @@ let _contentDeadline = 0;
 function finishBootWhenFilmsShow() {
 if (bootLifted) return;
 if (!_contentDeadline) _contentDeadline = Date.now() + CONTENT_WAIT_MS;
-if (window.__catalogueLoaded === true && firstScreenPostersReady()) {
+if (window.__catalogueShowable === true && firstScreenPostersReady()) {
 finishBoot();
 return;
 }
@@ -9590,8 +9699,8 @@ return !!(m && m.id) && !isExcludedProduction(m);
 
 async function loadCatalog() {
 window.__catalogueLoaded = false;
-const cacheKey = localCatalogueKey();
-const cached = localStore.get(cacheKey);
+window.__catalogueShowable = false;
+const cached = await catalogueCache.read();
 const paintedFromCache = Array.isArray(cached) && cached.length > 0;
 MOVIES.length = 0;
 if (paintedFromCache) {
@@ -9599,6 +9708,7 @@ cached.forEach(m => {
 if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
+window.__catalogueShowable = true;
 render();
 }
 let liveVersion = null;
@@ -9614,6 +9724,7 @@ const cachedVersion = localStore.get(localCatalogueVersionKey());
 if (liveVersion && cachedVersion === liveVersion && paintedFromCache) {
 moviesLoaded = true;
 window.__catalogueLoaded = true;
+window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
 renderChips();
 updateRecommenderFilter();
@@ -9654,11 +9765,12 @@ const kept = MOVIES.filter(Boolean);
 MOVIES.length = 0;
 kept.forEach(m => MOVIES.push(m));
 }
-localStore.set(cacheKey, MOVIES);
+await catalogueCache.write(MOVIES);
 localStore.set(localCatalogueVersionKey(), liveVersion);
 localStore.set(localCatalogueSyncedAtKey(), body.cursor || since);
 moviesLoaded = true;
 window.__catalogueLoaded = true;
+window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
 renderChips();
 updateRecommenderFilter();
@@ -9694,24 +9806,33 @@ page.forEach(m => {
 if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
+if (first) {
 renderChips();
 updateRecommenderFilter();
-render({
-keepDrawn: !first
-});
+render();
+window.__catalogueShowable = true;
+}
 if (page.length < limit) break;
+if (first) await afterFirstScreen();
 const next = Number(body.next_after) || Number(page[page.length - 1] && page[page.length - 1].tmdb_id) || 0;
 if (next <= after) break;
 after = next;
 }
-localStore.set(cacheKey, collected);
+await catalogueCache.write(collected);
 if (liveVersion) localStore.set(localCatalogueVersionKey(), liveVersion);
 localStore.set(localCatalogueSyncedAtKey(), loadStartedAt);
+renderChips();
+updateRecommenderFilter();
+render({
+keepDrawn: true
+});
 window.__catalogueLoaded = true;
+window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
 } catch (err) {
 moviesLoaded = true;
 window.__catalogueLoaded = true;
+window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
 render({
 keepDrawn: true
