@@ -378,26 +378,18 @@
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
     
+    overflow: hidden;
+    
     background-color: var(--tpl-ground);
     border-top: 1px solid var(--blood);
     padding-bottom: var(--safe-bottom);
     
     box-shadow: 0 -10px var(--bar-glow);
   }
-  
-  .tabbar-hump {
-    position: absolute;
-    
-    bottom: calc(var(--safe-bottom) + var(--tabbar-base) - var(--hump-h));
-    display: block; pointer-events: none; overflow: visible;
-    fill: var(--tabbar-row-bg);
-    
-    
-    transition: opacity .16s linear;
-  }
-  .tabbar-hump[hidden] { display: block; opacity: 0; }
 
   .tabbar-scroll {
+    
+    position: relative;
     display: flex; align-items: stretch;
     overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -410,7 +402,8 @@
   .tabbar-tab {
     flex: 0 0 auto; min-width: 64px; height: var(--tabbar-base);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
-    background: none; border: none; padding: 0 10px; cursor: pointer;
+    
+    background: none; border: none; padding: 0 10px 8px; cursor: pointer;
     color: var(--tab-ink);
     font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
     white-space: nowrap;
@@ -420,6 +413,27 @@
   }
   .tabbar-tab svg { width: 22px; height: 22px; display: block; }
   .tabbar-tab.active { color: var(--tab-ink-on); }
+
+  
+  .tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"]) { position: relative; }
+  .tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"])::before {
+    content: ''; position: absolute; z-index: -1;
+    inset: 0 0 var(--tongue-foot) 0;
+    background: var(--tabbar-row-bg);
+    
+    border-radius: 0 0 var(--tongue-radius) var(--tongue-radius);
+  }
+  
+  .tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"])::after {
+    content: ''; position: absolute; z-index: -1;
+    top: 0; height: var(--tongue-radius);
+    left: calc(var(--tongue-radius) * -1); right: calc(var(--tongue-radius) * -1);
+    background:
+      radial-gradient(circle at 0 100%, transparent var(--tongue-radius), var(--tabbar-row-bg) var(--tongue-radius))
+        left top / var(--tongue-radius) var(--tongue-radius) no-repeat,
+      radial-gradient(circle at 100% 100%, transparent var(--tongue-radius), var(--tabbar-row-bg) var(--tongue-radius))
+        right top / var(--tongue-radius) var(--tongue-radius) no-repeat;
+  }
   .tabbar-tab:active { color: var(--paper); }
   
   .tabbar-tab--arrange { margin-left: auto; }
@@ -1396,6 +1410,8 @@
   
   .tabbar-window-row {
     
+    position: relative;
+    
     display: flex; align-items: center; height: var(--tabbar-row);
     overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -1422,6 +1438,10 @@
   .tabbar-window-row .tabbar-tab--window.active {
     color: var(--coal); background: var(--dust);
   }
+  
+  .tabbar-window-row[hidden] { display: none; }
+  
+  .tabbar-window-row .tabbar-tab--window:only-child { margin: 0 auto; }
   .tabbar-window-row::-webkit-scrollbar { display: none; }
 
   
@@ -1429,9 +1449,11 @@
 
   
   :root {
-    --tabbar-row: 38px; --hump-h: 10px;
+    --tabbar-row: 38px;
     
-    --tabbar-row-bg: rgba(var(--blood-rgb), .35);
+    --tongue-foot: 7px; --tongue-radius: 14px;
+    
+    --tabbar-row-bg: var(--blood);
   }
   body.tabs-in-bar { --tabbar-h: calc(var(--tabbar-base) + var(--tabbar-row)); }
   .tabbar-tab-word {
@@ -1526,9 +1548,8 @@
     font-variant-numeric: tabular-nums;
   }
   
-  .filter-reset[hidden] { display: none; }
-  .filter-reset { display: flex; margin: 0 0 4px; }
-  .filter-reset .btn-ghost { flex: 1; }
+  
+  .filter-reset { display: none; }
   footer { text-align: center; color: var(--text-muted); font-size: 12px; padding: 28px 20px 46px; }
 
   
@@ -2759,13 +2780,21 @@
   <div class="sheet-head">
     <div class="sheet-title">Фільтр</div>
   </div>
-  <!-- One tap back to the whole catalogue (owner's ask). It sits ABOVE the
-       sections it undoes, where the eye lands on opening the sheet, and it
-       is absent whenever nothing is set: a dead button on top teaches
-       people to ignore the top of the sheet. Sorting is not among what it
-       clears — that changes the order, not the contents. -->
-  <div class="filter-reset" id="filterResetRow" hidden>
-    <button class="btn-ghost" id="filterResetBtn" type="button">Скинути всі</button>
+  <!-- One tap back to the whole catalogue (owner's ask). It is not drawn
+       here any more: it goes down into the bar, alone and centred, the way
+       the die's own button does. What is left is the original the strip
+       mirrors and presses.
+       ALWAYS THERE (owner's call). It used to appear only while something
+       was set — a dead button teaches people to ignore where it sits — but
+       that reasoning was about the top of a sheet, where a button competes
+       with the sections under it. A row in the bar is a place, and a place
+       that comes and goes is worse than a button that sometimes has nothing
+       to do: the strip changed height under the thumb every time the last
+       filter was cleared.
+       Sorting is not among what it clears — that changes the order, not the
+       contents. -->
+  <div class="filter-reset" id="filterResetRow">
+    <button class="btn-ghost" id="filterResetBtn" type="button">Скинути всі фільтри</button>
   </div>
   <div class="sheet-label">Сортування</div>
   <div class="opts" id="sortOpts">
@@ -2843,7 +2872,6 @@
        the page above), and a hump that rises past the bar's edge is exactly
        what would be clipped. Placed by 24-tabbar.js, which is the only
        thing that knows which tab is lit. -->
-  <svg class="tabbar-hump" id="tabbarHump" aria-hidden="true" hidden><path id="tabbarHumpPath"/></svg>
   <div class="tabbar-window-row" id="tabbarWindowRow" hidden></div>
   <div class="tabbar-scroll" id="tabbarScroll"></div>
 </nav>
@@ -7056,11 +7084,6 @@ _batchObserver.unobserve(sentinel);
 _batchObserver.observe(sentinel);
 }
 
-function syncFilterReset() {
-const row = document.getElementById('filterResetRow');
-if (row) row.hidden = !anyFilterSet(state);
-}
-
 function syncSearchWatched() {
 const row = document.getElementById('searchWatchedRow');
 if (!row) return;
@@ -7078,7 +7101,6 @@ document.getElementById('searchWatchedBox').checked = !!state.searchWatched;
 
 function render(opts = {}) {
 const main = document.getElementById('main');
-syncFilterReset();
 syncSearchWatched();
 const items = visibleMovies();
 syncDice();
@@ -12909,8 +12931,6 @@ const tabbarScroll = document.getElementById('tabbarScroll');
 
 const tabbarWindowRow = document.getElementById('tabbarWindowRow');
 
-const tabbarHump = document.getElementById('tabbarHump');
-
 const tabbarRows = document.getElementById('tabbarRows');
 
 const tabbarSheet = wireSheet('tabbarSheet', 'tabbarBackdrop');
@@ -13049,6 +13069,10 @@ sel: '[data-settings-switch]'
 surface: 'dice',
 box: 'diceSheet',
 sel: '#diceAgainBtn'
+}, {
+surface: 'filter',
+box: 'filterSheet',
+sel: '#filterResetBtn'
 } ];
 
 const STATE_TABS = [ {
@@ -13061,9 +13085,10 @@ sel: '.mark-word'
 function rowFrom(spec, surface) {
 const box = document.getElementById(spec.box);
 const els = box ? [ ...box.querySelectorAll(spec.sel) ] : [];
-return els.length ? {
+const shown = els.filter(el => !el.closest('[hidden]'));
+return shown.length ? {
 surface: surface,
-els: els
+els: shown
 } : null;
 }
 
@@ -13117,7 +13142,6 @@ tabbarWindowRow.hidden = !borrowed;
 tabbarScroll.innerHTML = tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
 tabbarScroll.scrollLeft = left;
 syncTabbar();
-placeHump();
 }
 
 function syncTabbar() {
@@ -13147,108 +13171,7 @@ let lit;
 if (id === 'seen') lit = !!state.showWatched; else if (id === 'shelf') lit = !top; else if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
 btn.classList.toggle('active', lit);
 }
-placeHump();
 }
-
-const HUMP = {
-height: 10,
-shoulder: 14
-};
-
-function humpPath(width, h = HUMP.height, s = HUMP.shoulder) {
-const flat = Math.max(0, width - s * 2);
-return `M0 0` + ` C${s / 2} 0 ${s / 2} ${h} ${s} ${h}` + ` H${s + flat}` + ` C${s + flat + s / 2} ${h} ${s + flat + s / 2} 0 ${width} 0` + ' Z';
-}
-
-const HUMP_TRAVEL_MS = 260;
-
-function humpDepth(t) {
-const x = Math.max(0, Math.min(1, t));
-return 1 - 4 * x * (1 - x);
-}
-
-let _humpAt = null;
-
-let _humpAnim = 0;
-
-function showHump(on) {
-if (!tabbarHump) return;
-if (on) tabbarHump.removeAttribute('hidden'); else tabbarHump.setAttribute('hidden', '');
-}
-
-function drawHump(left, width, depth) {
-tabbarHump.setAttribute('width', String(Math.round(width)));
-tabbarHump.setAttribute('height', String(HUMP.height));
-tabbarHump.setAttribute('viewBox', `0 0 ${Math.round(width)} ${HUMP.height}`);
-tabbarHump.style.width = `${Math.round(width)}px`;
-tabbarHump.style.left = `${Math.round(left)}px`;
-const path = tabbarHump.firstElementChild;
-if (path) path.setAttribute('d', humpPath(Math.round(width), Math.max(0, depth)));
-}
-
-function travelHump(to) {
-const from = _humpAt;
-_humpAt = to;
-const still = (() => {
-try {
-return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-} catch (err) {
-return false;
-}
-})();
-if (!from || still || typeof requestAnimationFrame !== 'function') {
-drawHump(to.left, to.width, HUMP.height);
-return;
-}
-if (_humpAnim) cancelAnimationFrame(_humpAnim);
-const started = Date.now();
-const step = () => {
-const t = Math.min(1, (Date.now() - started) / HUMP_TRAVEL_MS);
-const ease = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
-const left = from.left + (to.left - from.left) * ease;
-const width = from.width + (to.width - from.width) * ease;
-drawHump(left, width, HUMP.height * humpDepth(t));
-if (t < 1) _humpAnim = requestAnimationFrame(step); else {
-_humpAnim = 0;
-drawHump(to.left, to.width, HUMP.height);
-}
-};
-_humpAnim = requestAnimationFrame(step);
-}
-
-function placeHump() {
-if (!tabbarHump || !tabbarScroll) return;
-const lit = tabbarScroll.querySelector('.tabbar-tab.active:not([data-tab="shelf"]):not([data-tab="seen"])');
-if (!lit) {
-showHump(false);
-_humpAt = null;
-return;
-}
-const icon = lit.querySelector('svg') || lit;
-const bar = tabbarHump.parentElement.getBoundingClientRect();
-const box = icon.getBoundingClientRect();
-if (bar.width > 0 && (box.right < bar.left + 8 || box.left > bar.right - 8)) {
-showHump(false);
-_humpAt = null;
-return;
-}
-const flat = box.width > 0 ? box.width : 22;
-const width = Math.round(flat + HUMP.shoulder * 2);
-const centre = box.width > 0 ? box.left + box.width / 2 - bar.left : 0;
-const to = {
-left: Math.round(centre - width / 2),
-width: width
-};
-showHump(true);
-if (_humpAt && _humpAt.left === to.left && _humpAt.width === to.width) return;
-travelHump(to);
-}
-
-tabbarScroll.addEventListener('scroll', placeHump, {
-passive: true
-});
-
-window.addEventListener('resize', placeHump);
 
 tabbarScroll.addEventListener('click', e => {
 const btn = e.target.closest('.tabbar-tab');
@@ -13279,6 +13202,13 @@ if (el) watched.observe(el, {
 attributes: true,
 subtree: true,
 attributeFilter: [ 'class', 'hidden' ]
+});
+}
+for (const spec of WINDOW_TABS) {
+const el = spec.watch && document.getElementById(spec.watch);
+if (el) watched.observe(el, {
+attributes: true,
+attributeFilter: [ 'hidden' ]
 });
 }
 }
