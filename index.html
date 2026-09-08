@@ -301,7 +301,6 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    background-image: linear-gradient(rgba(142, 0, 0, .055), rgba(142, 0, 0, .055));
     color: var(--text);
     font-family: var(--font-body);
     line-height: 1.5;
@@ -325,6 +324,8 @@
     position: sticky; top: 0; z-index: 46;
     
     background-color: var(--tpl-ground);
+    
+    box-shadow: 0 10px var(--bar-glow);
   }
   
   header::after {
@@ -372,12 +373,16 @@
   
   
   :root { --tabbar-base: 58px; --tabbar-h: var(--tabbar-base); }
+  
+  :root { --bar-glow: 18px -8px rgba(var(--blood-rgb), .55); }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
     
     background-color: var(--tpl-ground);
     border-top: 1px solid var(--blood);
     padding-bottom: var(--safe-bottom);
+    
+    box-shadow: 0 -10px var(--bar-glow);
   }
   
   .tabbar-hump {
@@ -1386,6 +1391,8 @@
   body.tabs-in-bar #friendsBox > .add-tabs,
   body.tabs-in-bar #addMovieBox .add-mode-tabs { display: none; }
   
+  #markRow { display: none; }
+  
   .tabbar-tab--window { min-width: 0; padding: 0 14px; height: var(--tabbar-row); }
 
   
@@ -1398,9 +1405,14 @@
     background: var(--tabbar-row-bg);
   }
   
+  
+  .tabbar-window-row .tabbar-tab--window svg { width: 18px; height: 18px; }
   .tabbar-window-row .tabbar-tab--window { color: #E8C9C9; }
   .tabbar-window-row .tabbar-tab--window.active { color: var(--paper); }
   .tabbar-window-row::-webkit-scrollbar { display: none; }
+
+  
+  .sheet--headless, .sheet-backdrop--headless { display: none; }
 
   
   :root {
@@ -2289,7 +2301,7 @@
 
   
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-    header::after { display: none; }
+    
     .nav-row { border-bottom: 0; }
     .sheet-row { border-top-color: transparent; }
   }
@@ -2460,14 +2472,22 @@
        what is already on the screen rather than switching to a list of its
        own (owner's call). Which is why «Must watch» can come out empty —
        a film you have watched and still mean to watch is a rare thing, and
-       the row says what it filters rather than promising a shelf. -->
+       the row says what it filters rather than promising a shelf.
+
+       IT IS NOT DRAWN HERE ANY MORE (owner's call). It comes down into the
+       bar as a sub-panel, the way the settings switches do, and the strip
+       mirrors and presses these — so they stay in the document and the
+       header stops carrying them. See STATE_TABS in 24-tabbar.js.
+
+       THREE WORDS, and «All» is back among them. It was dropped when the
+       row was two, because with two toggles «All» named the absence of a
+       choice and did nothing when tapped. In a row of three it is the
+       choice — the one that says «everything I have watched» out loud,
+       instead of leaving it to be read off two unlit words. -->
   <div class="mark-row" id="markRow" hidden>
+    <button class="tab mark-word" data-mark="all" type="button">Усі</button>
     <button class="tab mark-word" data-mark="liked" type="button">Рекомендую</button>
-    <!-- A separator, not a control: it is aria-hidden and carries no
-         .mark-word, so the row's own click handler cannot mistake it for a
-         filter and a screen reader does not read a bullet out loud. -->
-    <span class="mark-dot" aria-hidden="true">•</span>
-    <button class="tab mark-word" data-mark="must" type="button">Обовʼязково до перегляду</button>
+    <button class="tab mark-word" data-mark="must" type="button">Обовʼязково</button>
   </div>
   <!-- The genre ribbon: one line under the navigation, a tap filters, a
        second tap clears (U-6). That it SCROLLS was invisible (owner-
@@ -2647,26 +2667,33 @@
 <!-- SETTINGS: how the catalogue is DRAWN, as opposed to which films
      it holds (that is FILTER). The rows keep their historical ids — the
      wiring and the tests hold onto them. -->
-<div class="sheet-backdrop" id="settingsBackdrop" hidden></div>
-<div class="sheet" id="settingsSheet" data-surface="window" data-material="solid" aria-hidden="true">
-  <div class="sheet-head">
-    <div class="sheet-title">Налаштування</div>
-  </div>
-  <div class="sheet-label">Картка</div>
-  <div class="opts">
-    <button class="opt" id="hideAwardsToggle" type="button" aria-pressed="false">Без нагород</button>
-    <button class="opt" id="hideScoresToggle" type="button" aria-pressed="false">Без оцінок</button>
-  </div>
-  <div class="sheet-label">Жанри</div>
+<!-- SETTINGS HAS NO WINDOW OF ITS OWN (owner's call). Everything it holds
+     changes how the shelf LOOKS, and a sheet covering the shelf hides the
+     one thing each switch is about — so the window is headless: it opens,
+     it lends the bar its row, and it draws nothing itself. The controls
+     still live here because they are the originals the strip mirrors and
+     presses; see WINDOW_TABS in 24-tabbar.js.
+
+     Three switches and no labels above them, because each says its own
+     name: the ribbon, the scores, and the three shapes a card can take. -->
+<div class="sheet-backdrop sheet-backdrop--headless" id="settingsBackdrop" hidden></div>
+<div class="sheet sheet--headless" id="settingsSheet" data-surface="window" data-material="solid" aria-hidden="true">
+  <!-- Genres as a ribbon, or all of them at once. ONE switch, not two
+       options: «all at once» is the absence of the ribbon, and naming the
+       absence made a row of two where a reader only ever has one question. -->
   <div class="opts" id="genreLayoutOpts">
-    <button class="opt" data-genres="ribbon" type="button">Стрічкою</button>
-    <button class="opt" data-genres="all" type="button">Усі одразу</button>
+    <button class="opt active" id="ribbonToggle" data-settings-switch type="button" aria-pressed="true">Стрічка</button>
   </div>
-  <div class="sheet-label">Вигляд</div>
+  <!-- The scores and the awards travel together (owner's call). They were
+       two switches, «No awards» and «No scores», and they were two answers
+       to one question: whether a card carries its marks or only its film. -->
+  <div class="opts" id="cardLayersOpts">
+    <button class="opt active" id="scoresToggle" data-settings-switch type="button" aria-pressed="true">Оцінки</button>
+  </div>
   <div class="opts" id="viewToggle">
-    <button class="opt" data-v="list" type="button" title="Список"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
-    <button class="opt" data-v="grid-s" type="button" title="Мала сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="3" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="3" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="3" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1"/></svg></button>
-    <button class="opt active" data-v="grid-m" type="button" title="Сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></button>
+    <button class="opt" data-settings-switch data-v="list" type="button" title="Список"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+    <button class="opt" data-settings-switch data-v="grid-s" type="button" title="Мала сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="3" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="3" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="3" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1"/></svg></button>
+    <button class="opt active" data-settings-switch data-v="grid-m" type="button" title="Сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></button>
   </div>
 </div>
 
@@ -3093,9 +3120,17 @@ const UI_DATA = {
   // The same glass the header carries, so «search» is one shape everywhere.
   find: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
   // A spinning top (dzyga), which is what the random pick is called now
-  // (owner's word; the sheet it opens says so). A rim, a cone down to a
-  // point, a stem to spin it by.
-  top: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5c0-1.9 3.4-3.5 7.5-3.5s7.5 1.6 7.5 3.5"/><path d="M4.5 9.5l6 9.3a1.8 1.8 0 0 0 3 0l6-9.3"/><line x1="12" y1="6" x2="12" y2="2.5"/><line x1="12" y1="19.6" x2="12" y2="21.5"/></svg>',
+  // (owner's word; the sheet it opens says so), redrawn from a picture he
+  // sent: a ring to pinch it by, a slim neck that flares late into a wide
+  // flat disc, a shallow cone to the point, and two arcs set diagonally so
+  // the thing reads as SPINNING rather than as standing still.
+  //
+  // The one icon in the set drawn at 1.8 rather than 2, and it is not an
+  // oversight: it carries seven strokes where the others carry three or
+  // four, and at 22px a full-weight stroke closes the gap between the neck
+  // and the disc — the drawing turns into a blob at exactly the size it is
+  // used. Measured against its neighbours in the strip, not guessed.
+  top: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="2.8" r="1.9"/><path d="M11.3 4.7C11.2 9 10.6 11.1 3.4 12.4"/><path d="M12.7 4.7c.1 4.3.7 6.4 7.9 7.7"/><ellipse cx="12" cy="13" rx="8.7" ry="2.8"/><path d="M3.8 14.6c1.2 2.1 4 3.8 8.2 5 4.2-1.2 7-2.9 8.2-5"/><path d="M.9 10.4C1.6 8.2 3.4 6.4 6 5.3"/><path d="M23.1 13.8c-.7 2.2-2.5 4-5.1 5.1"/></svg>',
   // Sliders, each knob somewhere else: a filter is settings you slide.
   sliders: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="7.5" y2="6"/><circle cx="10" cy="6" r="2.2"/><line x1="12.5" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="12.5" y2="12"/><circle cx="15" cy="12" r="2.2"/><line x1="17.5" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="5.5" y2="18"/><circle cx="8" cy="18" r="2.2"/><line x1="10.5" y1="18" x2="20" y2="18"/></svg>',
   // Two cards, one behind the other: a collection is films kept together.
@@ -3118,7 +3153,16 @@ const UI_DATA = {
   // eye alone would have been a second meaning for a drawing that already
   // means «mark this film watched»; the tick is what turns it from an act
   // into a place — the shelf of what is already seen.
-  seen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 11.5s3.7-6.4 10-6.4c1.6 0 3 .4 4.2 1"/><path d="M20.6 8.4c1.2 1.3 1.9 2.6 1.9 2.6s-3.7 6.4-10 6.4c-2.7 0-5-1.2-6.7-2.5"/><circle cx="11.5" cy="11.5" r="2.6"/><polyline points="15.5 19.5 17.6 21.6 22 17"/></svg>',
+  //
+  // Redrawn from the owner's picture. The tick sits in a RING now rather
+  // than loose in the corner: a bare tick beside an eye reads as two marks
+  // that happen to be next to each other, and a badge reads as one mark
+  // ABOUT the other. The eye keeps a whole upper lid and gives up part of
+  // its lower one where the badge crosses it, which is what makes the badge
+  // sit in front instead of tangling with the outline. The dot in the iris
+  // is the only filled shape among the strip's drawings — at 22px a stroked
+  // highlight that small is a smudge, and a solid one is a catchlight.
+  seen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.9 11.2C3.8 7.8 7.4 5.4 11.7 5.4s7.9 2.4 9.8 5.8"/><path d="M1.9 11.2c1.4 2.6 4 4.6 7.2 5.3"/><circle cx="11.7" cy="11.3" r="3.2"/><circle cx="10.6" cy="10.2" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="17.6" r="4.2"/><polyline points="16.6 17.7 18 19.1 20.4 16.2"/></svg>',
   // A step up and a step down, for the arrangement's own rows.
   up: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>',
   down: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>',
@@ -8905,25 +8949,24 @@ render();
 saveSettings();
 });
 
+function scoresShown() {
+return !(state.hideAwards && state.hideScores);
+}
+
 function applyCardLayers() {
 document.body.classList.toggle('hide-awards', state.hideAwards);
 document.body.classList.toggle('hide-scores', state.hideScores);
-for (const [id, on] of [ [ 'hideAwardsToggle', state.hideAwards ], [ 'hideScoresToggle', state.hideScores ] ]) {
-const btn = document.getElementById(id);
+const btn = document.getElementById('scoresToggle');
+if (!btn) return;
+const on = scoresShown();
 btn.classList.toggle('active', on);
 btn.setAttribute('aria-pressed', String(on));
 }
-}
 
-document.getElementById('hideAwardsToggle').addEventListener('click', () => {
-state.hideAwards = !state.hideAwards;
-applyCardLayers();
-updateFilterGlow();
-saveSettings();
-});
-
-document.getElementById('hideScoresToggle').addEventListener('click', () => {
-state.hideScores = !state.hideScores;
+document.getElementById('scoresToggle').addEventListener('click', () => {
+const hide = scoresShown();
+state.hideAwards = hide;
+state.hideScores = hide;
 applyCardLayers();
 updateFilterGlow();
 saveSettings();
@@ -9330,7 +9373,7 @@ function syncTabs() {
 watchedToggleEl.classList.toggle('active', state.showWatched);
 watchedToggleEl.setAttribute('aria-expanded', String(state.showWatched));
 markRowEl.hidden = !state.showWatched;
-markRowEl.querySelectorAll('.mark-word').forEach(b => b.classList.toggle('active', b.dataset.mark === 'liked' ? state.onlyLiked : state.onlyMust));
+markRowEl.querySelectorAll('.mark-word').forEach(b => b.classList.toggle('active', b.dataset.mark === 'liked' ? state.onlyLiked : b.dataset.mark === 'must' ? state.onlyMust : !state.onlyLiked && !state.onlyMust));
 }
 
 document.getElementById('tabs').addEventListener('click', e => {
@@ -9349,10 +9392,10 @@ saveSettings();
 markRowEl.addEventListener('click', e => {
 const b = e.target.closest('.mark-word');
 if (!b) return;
-const liked = b.dataset.mark === 'liked';
-const on = liked ? !state.onlyLiked : !state.onlyMust;
-state.onlyLiked = liked && on;
-state.onlyMust = !liked && on;
+const mark = b.dataset.mark;
+const on = mark === 'liked' ? !state.onlyLiked : mark === 'must' ? !state.onlyMust : false;
+state.onlyLiked = mark === 'liked' && on;
+state.onlyMust = mark === 'must' && on;
 syncTabs();
 renderChips();
 render();
@@ -9504,15 +9547,19 @@ window.addEventListener('resize', syncGenreArrows);
 
 function setGenreLayout(mode) {
 document.body.dataset.genres = mode === 'all' ? 'all' : 'ribbon';
-document.querySelectorAll('#genreLayoutOpts button').forEach(x => x.classList.toggle('active', x.dataset.genres === document.body.dataset.genres));
+const btn = document.getElementById('ribbonToggle');
+if (btn) {
+const on = document.body.dataset.genres === 'ribbon';
+btn.classList.toggle('active', on);
+btn.setAttribute('aria-pressed', String(on));
+}
 syncGenreArrows();
 syncGenreFold();
 }
 
 document.getElementById('genreLayoutOpts').addEventListener('click', e => {
-const b = e.target.closest('button');
-if (!b) return;
-setGenreLayout(b.dataset.genres);
+if (!e.target.closest('#ribbonToggle')) return;
+setGenreLayout(document.body.dataset.genres === 'ribbon' ? 'all' : 'ribbon');
 saveSettings();
 });
 
@@ -12975,7 +13022,27 @@ sel: '[data-friends-tab]'
 surface: 'addModal',
 box: 'addMovieBox',
 sel: '.add-mode-tab'
+}, {
+surface: 'settings',
+box: 'settingsSheet',
+sel: '[data-settings-switch]'
 } ];
+
+const STATE_TABS = [ {
+when: () => !!state.showWatched,
+surface: 'seen',
+box: 'markRow',
+sel: '.mark-word'
+} ];
+
+function rowFrom(spec, surface) {
+const box = document.getElementById(spec.box);
+const els = box ? [ ...box.querySelectorAll(spec.sel) ] : [];
+return els.length ? {
+surface: surface,
+els: els
+} : null;
+}
 
 function windowTabsNow() {
 let top = null;
@@ -12985,18 +13052,26 @@ top = topNavSurface(navOpenNow());
 return null;
 }
 const spec = WINDOW_TABS.find(w => w.surface === top);
-if (!spec) return null;
-const box = document.getElementById(spec.box);
-const els = box ? [ ...box.querySelectorAll(spec.sel) ] : [];
-return els.length ? {
-surface: top,
-els: els
-} : null;
+if (spec) return rowFrom(spec, top);
+if (top) return null;
+let lent = null;
+try {
+lent = STATE_TABS.find(s => s.when());
+} catch (err) {
+return null;
+}
+return lent ? rowFrom(lent, lent.surface) : null;
+}
+
+function windowTabLit(el) {
+return el.classList.contains('active') || el.getAttribute('aria-pressed') === 'true';
 }
 
 function windowTabHtml(el, i) {
 const label = (el.textContent || '').trim();
-return `<button class="tabbar-tab tabbar-tab--window${el.classList.contains('active') ? ' active' : ''}"` + ` type="button" data-window-tab="${i}" title="${esc(label)}" aria-label="${esc(label)}">` + `<span class="tabbar-tab-word">${esc(label)}</span></button>`;
+const drawing = label ? '' : (el.querySelector('svg') || {}).outerHTML || '';
+const name = label || (el.getAttribute('title') || '').trim();
+return `<button class="tabbar-tab tabbar-tab--window${windowTabLit(el) ? ' active' : ''}"` + ` type="button" data-window-tab="${i}" title="${esc(name)}" aria-label="${esc(name)}">` + (drawing || `<span class="tabbar-tab-word">${esc(label)}</span>`) + '</button>';
 }
 
 function tabHtml(tab, iconName) {
@@ -13033,7 +13108,7 @@ if (borrowed) {
 const mirrors = tabbarWindowRow ? tabbarWindowRow.querySelectorAll('.tabbar-tab--window') : [];
 mirrors.forEach((el, i) => {
 const from = borrowed.els[i];
-el.classList.toggle('active', !!(from && from.classList.contains('active')));
+el.classList.toggle('active', !!(from && windowTabLit(from)));
 });
 }
 let open = null;
@@ -13173,6 +13248,14 @@ const el = document.getElementById(id);
 if (el) watched.observe(el, {
 attributes: true,
 attributeFilter: [ 'style', 'hidden' ]
+});
+}
+for (const spec of STATE_TABS) {
+const el = document.getElementById(spec.box);
+if (el) watched.observe(el, {
+attributes: true,
+subtree: true,
+attributeFilter: [ 'class', 'hidden' ]
 });
 }
 }
