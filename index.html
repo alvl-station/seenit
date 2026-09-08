@@ -1297,19 +1297,7 @@
   .dice-why-tag i { font-style: normal; color: var(--steel); }
   .dice-why-tag--luck { color: var(--steel); font-style: italic; text-transform: none; }
   
-  #diceSheet {
-    display: flex; flex-direction: column;
-    overflow: hidden;
-    
-    padding-bottom: var(--tpl-pad-foot);
-  }
-  #diceSheet .dice-results {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-bottom: 16px;
-  }
-  
-  #diceSheet .acc-actions { flex: none; margin: 12px 0 0; }
+  body.tabs-in-bar #diceSheet .acc-actions { display: none; }
 
   
   
@@ -1402,22 +1390,38 @@
   
   #markRow { display: none; }
   
-  .tabbar-tab--window { min-width: 0; padding: 0 14px; height: var(--tabbar-row); }
+  
+  .tabbar-tab--window { min-width: 0; padding: 0 5px; height: var(--tabbar-row); }
 
   
   .tabbar-window-row {
-    display: flex; align-items: stretch;
+    
+    display: flex; align-items: center; height: var(--tabbar-row);
     overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    max-width: 1280px; margin: 0 auto; padding: 0 6px;
+    
+    max-width: 1280px; margin: 0 auto; padding: 0 12px; gap: 6px;
     
     background: var(--tabbar-row-bg);
   }
   
   
-  .tabbar-window-row .tabbar-tab--window svg { width: 18px; height: 18px; }
-  .tabbar-window-row .tabbar-tab--window { color: #E8C9C9; }
-  .tabbar-window-row .tabbar-tab--window.active { color: var(--paper); }
+  
+  .tabbar-window-row .tabbar-tab--window svg { width: 16px; height: 16px; }
+  
+  .tabbar-window-row .tabbar-tab--window {
+    color: #E8C9C9;
+    
+    height: calc(var(--tabbar-row) - 14px);
+    
+    border-radius: 8px;
+    
+    flex-direction: row; justify-content: center; gap: 0;
+  }
+  
+  .tabbar-window-row .tabbar-tab--window.active {
+    color: var(--coal); background: var(--dust);
+  }
   .tabbar-window-row::-webkit-scrollbar { display: none; }
 
   
@@ -2744,7 +2748,11 @@
     <div class="sheet-title">Кубик радить</div>
   </div>
   <div class="dice-results" id="diceResults"></div>
-  <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Ще раз</button></div>
+  <!-- «Roll again» goes down into the bar while the sheet is open, the way
+       the settings switches and the watched marks do — see WINDOW_TABS in
+       24-tabbar.js. It stays here because it is the original the strip
+       mirrors and presses; the sheet stops drawing it. -->
+  <div class="acc-actions"><button class="btn-primary" id="diceAgainBtn" type="button">Спробувати ще</button></div>
 </div>
 <div class="sheet-backdrop" id="filterBackdrop" hidden></div>
 <div class="sheet" id="filterSheet" data-surface="window" data-material="solid" aria-hidden="true">
@@ -13037,6 +13045,10 @@ sel: '.add-mode-tab'
 surface: 'settings',
 box: 'settingsSheet',
 sel: '[data-settings-switch]'
+}, {
+surface: 'dice',
+box: 'diceSheet',
+sel: '#diceAgainBtn'
 } ];
 
 const STATE_TABS = [ {
