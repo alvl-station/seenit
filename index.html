@@ -2509,7 +2509,7 @@
   <div class="nav-row">
     <div class="tabs" id="tabs">
       <button class="tab tab-toggle" id="watchedToggle" type="button"
-              title="Тільки переглянуте" aria-expanded="false" aria-controls="markRow">Переглянуто</button>
+              title="Тільки архів" aria-expanded="false" aria-controls="markRow">Архів</button>
     </div>
     <button class="tab filter-word" id="filterBtn" type="button">Фільтр</button>
   </div>
@@ -2665,7 +2665,7 @@
        news too. -->
   <button class="sheet-row" id="friendsBtn" type="button" style="display:none">Друзі</button>
   <button class="sheet-row" id="accountBtn" type="button" style="display:none">Акаунт</button>
-  <button class="sheet-row" id="settingsBtn" type="button">Налаштування</button>
+  <button class="sheet-row" id="settingsBtn" type="button">Опції</button>
   <!-- Beside Settings, not after Trash: «Trash is the menu's last row» is
        a decision a test holds onto, and this row was quietly taking that
        place. Both sheets configure rather than act, so they belong together.
@@ -3191,14 +3191,27 @@ const UI_DATA = {
   top: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4.5"/><g fill="currentColor" stroke="none"><circle cx="8.2" cy="8.2" r="1.45"/><circle cx="15.8" cy="8.2" r="1.45"/><circle cx="12" cy="12" r="1.45"/><circle cx="8.2" cy="15.8" r="1.45"/><circle cx="15.8" cy="15.8" r="1.45"/></g></svg>',
   // Sliders, each knob somewhere else: a filter is settings you slide.
   sliders: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="7.5" y2="6"/><circle cx="10" cy="6" r="2.2"/><line x1="12.5" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="12.5" y2="12"/><circle cx="15" cy="12" r="2.2"/><line x1="17.5" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="5.5" y2="18"/><circle cx="8" cy="18" r="2.2"/><line x1="10.5" y1="18" x2="20" y2="18"/></svg>',
-  // Two cards, one behind the other: a collection is films kept together.
-  stack: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="14" height="14" rx="1.5"/><path d="M7 7V4.5A1.5 1.5 0 0 1 8.5 3h11A1.5 1.5 0 0 1 21 4.5v11a1.5 1.5 0 0 1-1.5 1.5H17"/></svg>',
+  /* Three cards with a film reel on the front one, drawn from the owner's
+   * picture. The two behind are PARTIAL paths — their visible edge and
+   * nothing more. A whole rect behind a front card that has no fill shows
+   * straight through it, and a stack you can see the insides of is not a
+   * stack; the front card is the only closed shape here.
+   * The reel's four holes are stroked thinner than the set's weight on
+   * purpose: at 22px a 1.2-unit ring drawn at 2 is a filled dot, and four
+   * dots around a circle read as a die, not a reel. */
+  stack: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 6a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7.8a2 2 0 0 1-2-2"/><path d="M15.8 4a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5.8a2 2 0 0 1-2-2"/><rect x="1.8" y="2" width="14" height="17" rx="2"/><circle cx="8.8" cy="10.5" r="4.2"/><g stroke-width="1.4"><circle cx="8.8" cy="8.15" r="1.5"/><circle cx="8.8" cy="12.85" r="1.5"/><circle cx="6.45" cy="10.5" r="1.5"/><circle cx="11.15" cy="10.5" r="1.5"/></g><circle cx="8.8" cy="10.5" r="0.55" fill="currentColor" stroke="none"/><path d="M11.5 14.7h3.1"/></svg>',
   // Two people, the second half a step behind.
   people: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c3.3.2 6 2.5 6 5.8"/></svg>',
   // One person, head and shoulders.
   person: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c0-4 3.4-6.8 7.5-6.8s7.5 2.8 7.5 6.8"/></svg>',
-  // A gear: a ring with eight teeth, the hub open.
-  gear: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><line x1="12" y1="2.5" x2="12" y2="5.5"/><line x1="12" y1="18.5" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5.5" y2="12"/><line x1="18.5" y1="12" x2="21.5" y2="12"/><line x1="5.3" y1="5.3" x2="7.4" y2="7.4"/><line x1="16.6" y1="16.6" x2="18.7" y2="18.7"/><line x1="5.3" y1="18.7" x2="7.4" y2="16.6"/><line x1="16.6" y1="7.4" x2="18.7" y2="5.3"/></svg>',
+  /* A window with a wrench across its corner, drawn from the owner's
+   * picture — «Settings» is «Options» now, and the gear went with the
+   * name. The window's outline STOPS short of the bottom-right corner and
+   * picks up again past it: the wrench lies on top, and two outlines
+   * crossing at 22px are a knot rather than one thing in front of another.
+   * The head is an open ring with its mouth up and to the left, which is
+   * what makes it a spanner instead of a magnifying glass. */
+  gear: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 16.5V6.2A2.2 2.2 0 0 0 18.3 4H4.7A2.2 2.2 0 0 0 2.5 6.2v11.6A2.2 2.2 0 0 0 4.7 20h12.3"/><g fill="currentColor" stroke="none"><circle cx="5.6" cy="6.9" r="0.75"/><circle cx="8.2" cy="6.9" r="0.75"/><circle cx="10.8" cy="6.9" r="0.75"/></g><path d="M15.53 10.71A2.6 2.6 0 1 1 12.86 14.19"/><path d="M17.05 15.05 20.4 18.4" stroke-width="2.4"/></svg>',
   // A shield with a tick: the tools that act on everybody's catalogue.
   shield: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.3-3 8.1-7 9.5-4-1.4-7-5.2-7-9.5V6l7-3z"/><polyline points="9 12 11.2 14.2 15.5 9.8"/></svg>',
   // A bin: lid, handle, body, two grooves.
@@ -3207,20 +3220,13 @@ const UI_DATA = {
   arrange: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="4" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="4" width="4.5" height="4.5" rx="1"/><path d="M3.5 17h17M6 14.5L3.5 17 6 19.5M18 14.5L20.5 17 18 19.5"/></svg>',
   // And «add», at the strip's size.
   plusBig: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-  // «Watched»: the eye the cards already carry, with a tick beside it. The
-  // eye alone would have been a second meaning for a drawing that already
-  // means «mark this film watched»; the tick is what turns it from an act
-  // into a place — the shelf of what is already seen.
-  //
-  // Redrawn from the owner's picture. The tick sits in a RING now rather
-  // than loose in the corner: a bare tick beside an eye reads as two marks
-  // that happen to be next to each other, and a badge reads as one mark
-  // ABOUT the other. The eye keeps a whole upper lid and gives up part of
-  // its lower one where the badge crosses it, which is what makes the badge
-  // sit in front instead of tangling with the outline. The dot in the iris
-  // is the only filled shape among the strip's drawings — at 22px a stroked
-  // highlight that small is a smudge, and a solid one is a catchlight.
-  seen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.9 11.2C3.8 7.8 7.4 5.4 11.7 5.4s7.9 2.4 9.8 5.8"/><path d="M1.9 11.2c1.4 2.6 4 4.6 7.2 5.3"/><circle cx="11.7" cy="11.3" r="3.2"/><circle cx="10.6" cy="10.2" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="17.6" r="4.2"/><polyline points="16.6 17.7 18 19.1 20.4 16.2"/></svg>',
+  /* «Watched» is «Archive» now, and the eye went with the name: a drawer
+   * cabinet, from the owner's picture. The eye said «this film is seen»,
+   * which is an act on ONE film — the tab is a place where all of them are
+   * kept, and a cabinet says kept.
+   * The two handles are solid. They are a sixth of a drawer's height, and
+   * at 22px a stroked outline that thin has no inside left to show. */
+  seen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5 5 3h14l2 3.5"/><rect x="3" y="6.5" width="18" height="14.5" rx="1.2"/><rect x="5.4" y="8.6" width="13.2" height="5" rx="0.8"/><rect x="5.4" y="15" width="13.2" height="5" rx="0.8"/><g fill="currentColor" stroke="none"><rect x="10" y="10.4" width="4" height="1.5" rx="0.5"/><rect x="10" y="16.8" width="4" height="1.5" rx="0.5"/></g></svg>',
   // A step up and a step down, for the arrangement's own rows.
   up: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>',
   down: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>',
@@ -3748,7 +3754,7 @@ id: 'shelf',
 label: 'Полиця'
 }, {
 id: 'seen',
-label: 'Переглянуто'
+label: 'Архів'
 }, {
 id: 'search',
 label: 'Пошук'
@@ -3772,7 +3778,7 @@ id: 'add',
 label: 'Додати'
 }, {
 id: 'settings',
-label: 'Налаштування'
+label: 'Опції'
 }, {
 id: 'trash',
 label: 'Кошик'
@@ -11263,7 +11269,7 @@ navSync();
 
 function openOnboarding() {
 const seeded = defaultSearchName(auth.currentUser);
-onboardBox.innerHTML = `\n    <div class="onb-step">\n      <div class="onb-step-n">1</div>\n      <p><b>Як вас звати і як вас знайти.</b> Імʼя бачитимуть інші. Username — те, за чим вас шукають у «Друзях». Обидва можна змінити згодом в «Акаунті».</p>\n    </div>\n    \x3c!-- Two fields, because they are two things (owner's call). Merging\n         them is what made «Vlad Aloshyn» into «vlad.aloshyn»: one of them\n         has to survive in a URL and a login box, and the other has no such\n         duty and should be spelled however its owner spells it. --\x3e\n    <label class="acc-field">\n      <span class="acc-field-lbl">Імʼя</span>\n      <input id="onbDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || defaultDisplayName(auth.currentUser) || '')}" placeholder="Як вас звати">\n    </label>\n    <div class="acc-hint">З пробілами, великими літерами, будь-якою абеткою — як завгодно.</div>\n    <label class="acc-field">\n      <span class="acc-field-lbl">Username</span>\n      <input id="onbName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(seeded)}" placeholder="${esc(seeded)}">\n    </label>\n    <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>` + `\n    \x3c!-- No wordmark here either (owner's call): the header behind this\n         overlay carries it. The steps describe what the app actually does\n         now — the «NEW» button, the tab that «hid» watched films and the\n         rest of it went with the redesign. --\x3e\n    <div class="onb-step"><div class="onb-step-n">2</div><p><b>Додавай через «+»</b> у шапці — за назвою, за скріншотом або списком одразу. Рік, актори, режисер, оцінки критиків і нагороди підтягнуться самі.</p></div>\n    <div class="onb-step"><div class="onb-step-n">3</div><p><b>Око — переглянуте, серце — рекомендую.</b> Серце вмикає око саме: не можна радити те, чого не бачив. Переглянуте не зникає — осідає в кінець свого жанру.</p></div>\n    <div class="onb-step"><div class="onb-step-n">4</div><p><b>Лупа в шапці розкриває поле</b> й фільтрує те, що перед тобою. Дотик до актора чи режисера шукає за їхнім іменем. Жанрова стрічка фільтрує, «ФІЛЬТР» сортує, решта вигляду — в «Налаштуваннях».</p></div>\n    <div class="onb-step"><div class="onb-step-n">5</div><p><b>Добірки відкриваються як каталог:</b> екран звужується до їхніх фільмів. Скласти свою можна кнопкою «Додати в добірку» в картці фільму. Прибране з добірки лежить у «Кошику» добу — встигнеш передумати.</p></div>\n    <div class="onb-step"><div class="onb-step-n">6</div><p>Не знаєш, з чого почати? Нижче — топ-20 фільмів, які фанати кіно дивляться просто зараз. Оновлюється щодня. Тисни на постер, щоб додати.</p></div>\n    <div class="acc-label">Топ-20 зараз</div>\n    <div class="trend-updated" id="trendUpdated"></div>\n    <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>\n    <div class="acc-label">Або випадкова рекомендація з добірки</div>\n    <div id="poolPick"><div class="add-hint">Завантажую…</div></div>\n    <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
+onboardBox.innerHTML = `\n    <div class="onb-step">\n      <div class="onb-step-n">1</div>\n      <p><b>Як вас звати і як вас знайти.</b> Імʼя бачитимуть інші. Username — те, за чим вас шукають у «Друзях». Обидва можна змінити згодом в «Акаунті».</p>\n    </div>\n    \x3c!-- Two fields, because they are two things (owner's call). Merging\n         them is what made «Vlad Aloshyn» into «vlad.aloshyn»: one of them\n         has to survive in a URL and a login box, and the other has no such\n         duty and should be spelled however its owner spells it. --\x3e\n    <label class="acc-field">\n      <span class="acc-field-lbl">Імʼя</span>\n      <input id="onbDisplay" type="text" autocomplete="name" maxlength="64" value="${esc(_me.displayName || defaultDisplayName(auth.currentUser) || '')}" placeholder="Як вас звати">\n    </label>\n    <div class="acc-hint">З пробілами, великими літерами, будь-якою абеткою — як завгодно.</div>\n    <label class="acc-field">\n      <span class="acc-field-lbl">Username</span>\n      <input id="onbName" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" value="${esc(seeded)}" placeholder="${esc(seeded)}">\n    </label>\n    <div class="acc-hint">Латинські літери, цифри, крапка, дефіс і підкреслення. До 32 символів.</div>` + `\n    \x3c!-- No wordmark here either (owner's call): the header behind this\n         overlay carries it. The steps describe what the app actually does\n         now — the «NEW» button, the tab that «hid» watched films and the\n         rest of it went with the redesign. --\x3e\n    <div class="onb-step"><div class="onb-step-n">2</div><p><b>Додавай через «+»</b> у шапці — за назвою, за скріншотом або списком одразу. Рік, актори, режисер, оцінки критиків і нагороди підтягнуться самі.</p></div>\n    <div class="onb-step"><div class="onb-step-n">3</div><p><b>Око — переглянуте, серце — рекомендую.</b> Серце вмикає око саме: не можна радити те, чого не бачив. Переглянуте не зникає — осідає в кінець свого жанру.</p></div>\n    <div class="onb-step"><div class="onb-step-n">4</div><p><b>Лупа в шапці розкриває поле</b> й фільтрує те, що перед тобою. Дотик до актора чи режисера шукає за їхнім іменем. Жанрова стрічка фільтрує, «ФІЛЬТР» сортує, решта вигляду — в «Опціях».</p></div>\n    <div class="onb-step"><div class="onb-step-n">5</div><p><b>Добірки відкриваються як каталог:</b> екран звужується до їхніх фільмів. Скласти свою можна кнопкою «Додати в добірку» в картці фільму. Прибране з добірки лежить у «Кошику» добу — встигнеш передумати.</p></div>\n    <div class="onb-step"><div class="onb-step-n">6</div><p>Не знаєш, з чого почати? Нижче — топ-20 фільмів, які фанати кіно дивляться просто зараз. Оновлюється щодня. Тисни на постер, щоб додати.</p></div>\n    <div class="acc-label">Топ-20 зараз</div>\n    <div class="trend-updated" id="trendUpdated"></div>\n    <div class="trend-grid" id="trendGrid"><div class="add-hint">Завантажую…</div></div>\n    <div class="acc-label">Або випадкова рекомендація з добірки</div>\n    <div id="poolPick"><div class="add-hint">Завантажую…</div></div>\n    <div class="acc-actions"><button class="btn on-watched" id="onbDoneBtn">Зрозуміло, поїхали</button></div>`;
 const onbName = onboardBox.querySelector('#onbName');
 if (onbName) {
 onbName.addEventListener('input', () => {
