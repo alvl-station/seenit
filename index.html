@@ -568,7 +568,8 @@
     width: calc(100% - 48px); max-width: 1232px; margin-left: auto; margin-right: auto;
   }
   
-  .plate-edit { margin-left: auto; }
+  
+  .plate-edit, .plate-right { margin-left: auto; }
   
   
   .friend-col-count {
@@ -581,21 +582,7 @@
   }
   
   
-  
   .friend-col.is-recommends { cursor: pointer; }
-  .friend-row-pair { display: flex; align-items: stretch; gap: 2px; }
-  .friend-row-pair .friend-row { flex: 1; min-width: 0; }
-  .friend-unfollow {
-    display: flex; align-items: center; justify-content: center;
-    
-    min-width: 44px;
-    background: none; border: 1px solid var(--border); border-radius: 2px;
-    
-    color: var(--slate); cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .friend-unfollow:active { color: var(--flash); border-color: var(--flash); }
-  @media (hover: hover) { .friend-unfollow:hover { color: var(--ash); border-color: var(--steel); } }
   .recs-list-pair { display: inline-flex; align-items: stretch; }
   .recs-list-del {
     display: flex; align-items: center; justify-content: center;
@@ -1029,6 +1016,10 @@
   .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
 
   
+  body.archive-shelf .card.is-watched .poster img,
+  body.archive-shelf .card.is-watched .poster.fallback { filter: grayscale(1); }
+
+  
   body.marks-collection .card.is-watched .poster img,
   body.marks-collection .card.is-watched .poster.fallback { filter: none; }
   body.marks-collection #watchedToggle { display: none; }
@@ -1451,7 +1442,10 @@
   
   .tabbar-window-row[hidden] { display: none; }
   
-  .tabbar-window-row .tabbar-tab--window:only-child { margin: 0 auto; }
+  .tabbar-window-row .tabbar-tab--window:only-child {
+    flex: 1; margin: 0; height: var(--tabbar-row); border-radius: 0;
+  }
+  .tabbar-window-row:has(> .tabbar-tab--window:only-child) { padding-inline: 0; }
   .tabbar-window-row::-webkit-scrollbar { display: none; }
 
   
@@ -2532,7 +2526,9 @@
        IT IS NOT DRAWN HERE ANY MORE (owner's call). It comes down into the
        bar as a sub-panel, the way the settings switches do, and the strip
        mirrors and presses these — so they stay in the document and the
-       header stops carrying them. See STATE_TABS in 24-tabbar.js.
+       header stops carrying them. See WINDOW_TABS in 24-tabbar.js — this row
+       came down through a mechanism of its own until «Archive» became a nav
+       surface, and it comes down the way every other borrowed row does now.
 
        THREE WORDS, and «All» is back among them. It was dropped when the
        row was two, because with two toggles «All» named the absence of a
@@ -9440,6 +9436,7 @@ const watchedToggleEl = document.getElementById('watchedToggle');
 function syncTabs() {
 watchedToggleEl.classList.toggle('active', state.showWatched);
 watchedToggleEl.setAttribute('aria-expanded', String(state.showWatched));
+document.body.classList.toggle('archive-shelf', state.showWatched);
 markRowEl.hidden = !state.showWatched;
 markRowEl.querySelectorAll('.mark-word').forEach(b => b.classList.toggle('active', b.dataset.mark === 'liked' ? state.onlyLiked : b.dataset.mark === 'must' ? state.onlyMust : !state.onlyLiked && !state.onlyMust));
 }
@@ -10248,80 +10245,8 @@ canvas.getContext('2d').drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, 
 return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png'));
 }
 
-function showColRoutes() {
-const routes = addBox.querySelector('#colRoutes');
-const create = addBox.querySelector('#colCreate');
-if (!routes || !create) return;
-routes.hidden = false;
-create.hidden = true;
-}
-
 function addModalHome() {
-addBox.innerHTML = `\n    <div class="add-form">\n      \x3c!-- The word «Додати» said once, at the top, instead of twice across\n           two tabs. What the tabs choose between is not two kinds of adding —\n           it is what you are adding. --\x3e\n      <div class="sheet-title">Додати</div>\n      <div class="add-mode-tabs">\n        <button class="add-mode-tab active" data-m="film" type="button">Фільми</button>\n        <button class="add-mode-tab" data-m="collection" type="button">Добірки</button>\n      </div>\n      <div id="addModeFilm">\n      <div class="add-tabs">\n        <button class="add-tab active" data-t="manual">Назва</button>\n        <button class="add-tab" data-t="ocr">Скріншот</button>\n        <button class="add-tab" data-t="batch">Список</button>\n      </div>\n      <div id="addPaneManual" class="add-pane">\n        <div class="field-clear-wrap">\n          <input id="addTitle" type="text" placeholder="Назва фільму або серіалу">\n          <button class="field-clear-btn" data-clear-target="addTitle" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addYear" type="text" placeholder="Рік (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addYear" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addRecBy" type="text" placeholder="Рекомендовано від… (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="addSearchBtn">Знайти</button>\n      </div>\n      <div id="addPaneOcr" class="add-pane" style="display:none">\n        <input id="addFile" type="file" accept="image/*">\n        <div class="add-hint">Завантаж скріншот — можна з підписом, коментарями, будь-чим. Текст розпізнається автоматично, а ймовірні назви підсвітяться нижче. Якщо назва намальована як частина постера (не звичайний текст) — OCR може її не побачити, тоді простіше пошукати вручну.</div>\n        <div id="ocrPreviewWrap"></div>\n        <div id="ocrStatus"></div>\n        <div id="ocrCandidates"></div>\n        <div id="ocrFullTextWrap"></div>\n      </div>\n      <div id="addPaneBatch" class="add-pane" style="display:none">\n        <div class="add-hint">По одній назві в рядок. Можна дописати рік через кому: <em>Дюна, 2021</em></div>\n        <textarea id="batchInput" rows="6" placeholder="Дюна, 2021&#10;Опівнічна меса&#10;Форс-мажори, 2011"></textarea>\n        <div class="field-clear-wrap">\n          <input id="batchRecBy" type="text" placeholder="Рекомендовано від… — впишеться кожному фільму зі списку (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="batchSearchBtn">Знайти всі</button>\n      </div>\n      <div id="addResults"></div>\n      </div>\n      \x3c!-- Three doors, not one long scroll (owner's call). Each leads to the\n           screen that already owns that job: «Мої добірки» left entirely,\n           because they live in меню → Добірки and listing them here made the\n           same list exist in two places with two different shapes. --\x3e\n      <div id="addModeCollection" style="display:none">\n        <div class="col-routes" id="colRoutes">\n          <button class="sheet-row" data-col-route="create" type="button">Створити добірку</button>\n          <button class="sheet-row" data-col-route="seenit" type="button">Добірки SeenIt</button>\n          <button class="sheet-row" data-col-route="friends" type="button">Добірки друзів</button>\n        </div>\n        <div id="colCreate" hidden>\n          <div class="friend-head">\n            <button class="btn-ghost friend-back" id="colCreateBack" type="button">← Назад</button>\n            <span class="friend-title">Нова добірка</span>\n          </div>\n          <label class="cf-label">Назва</label>\n          <div class="field-clear-wrap">\n            <input id="newColName" type="text" placeholder="Подивитись із Мартою">\n            <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>\n          </div>\n          <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>\n        </div>\n      </div>\n    </div>`;
-addBox.querySelectorAll('.add-mode-tab').forEach(tab => tab.addEventListener('click', () => {
-addBox.querySelectorAll('.add-mode-tab').forEach(x => x.classList.toggle('active', x === tab));
-addBox.querySelector('#addModeFilm').style.display = tab.dataset.m === 'film' ? '' : 'none';
-addBox.querySelector('#addModeCollection').style.display = tab.dataset.m === 'collection' ? '' : 'none';
-if (tab.dataset.m === 'collection') showColRoutes();
-}));
-addBox.querySelector('#createColBtn').addEventListener('click', async () => {
-const input = addBox.querySelector('#newColName');
-const btn = addBox.querySelector('#createColBtn');
-const name = input.value.trim();
-if (!name) {
-toast('error', 'Дай добірці назву.');
-return;
-}
-const taken = shelf.filter(c => c.source === 'own').map(c => c.collection_id);
-const id = collectionIdFrom(name, {
-taken: taken,
-at: Date.now()
-});
-btn.disabled = true;
-try {
-const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(id)}`, {
-method: 'PUT',
-headers: await proxyHeaders({
-accept: 'application/json',
-'content-type': 'application/json'
-}),
-body: JSON.stringify({
-name: name,
-film_ids: []
-})
-});
-if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
-} catch (err) {
-toast('error', 'Не вдалося створити добірку — спробуй ще раз');
-btn.disabled = false;
-return;
-}
-btn.disabled = false;
-await loadShelf();
-input.value = '';
-input.dispatchEvent(new Event('input', {
-bubbles: true
-}));
-toast('success', `Добірку «${name}» створено`);
-input.value = '';
-showColRoutes();
-});
-addBox.querySelectorAll('[data-col-route]').forEach(el => el.addEventListener('click', () => {
-const where = el.dataset.colRoute;
-if (where === 'create') {
-addBox.querySelector('#colRoutes').hidden = true;
-addBox.querySelector('#colCreate').hidden = false;
-addBox.querySelector('#newColName').focus();
-return;
-}
-closeAddModal();
-if (where === 'seenit') {
-recsSource = 'seenit';
-openRecs();
-} else openFriends();
-_returnToAddCollections = true;
-}));
-addBox.querySelector('#colCreateBack').addEventListener('click', showColRoutes);
+addBox.innerHTML = `\n    <div class="add-form">\n      \x3c!-- The word «Додати» said once, at the top, instead of twice across\n           two tabs. What the tabs choose between is not two kinds of adding —\n           it is what you are adding. --\x3e\n      <div class="sheet-title">Додати</div>\n      <div class="add-tabs">\n        <button class="add-tab active" data-t="manual">Назва</button>\n        <button class="add-tab" data-t="ocr">Скріншот</button>\n        <button class="add-tab" data-t="batch">Список</button>\n      </div>\n      <div id="addPaneManual" class="add-pane">\n        <div class="field-clear-wrap">\n          <input id="addTitle" type="text" placeholder="Назва фільму або серіалу">\n          <button class="field-clear-btn" data-clear-target="addTitle" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addYear" type="text" placeholder="Рік (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addYear" type="button">${ICON.close}</button>\n        </div>\n        <div class="field-clear-wrap">\n          <input id="addRecBy" type="text" placeholder="Рекомендовано від… (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="addRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="addSearchBtn">Знайти</button>\n      </div>\n      <div id="addPaneOcr" class="add-pane" style="display:none">\n        <input id="addFile" type="file" accept="image/*">\n        <div class="add-hint">Завантаж скріншот — можна з підписом, коментарями, будь-чим. Текст розпізнається автоматично, а ймовірні назви підсвітяться нижче. Якщо назва намальована як частина постера (не звичайний текст) — OCR може її не побачити, тоді простіше пошукати вручну.</div>\n        <div id="ocrPreviewWrap"></div>\n        <div id="ocrStatus"></div>\n        <div id="ocrCandidates"></div>\n        <div id="ocrFullTextWrap"></div>\n      </div>\n      <div id="addPaneBatch" class="add-pane" style="display:none">\n        <div class="add-hint">По одній назві в рядок. Можна дописати рік через кому: <em>Дюна, 2021</em></div>\n        <textarea id="batchInput" rows="6" placeholder="Дюна, 2021&#10;Опівнічна меса&#10;Форс-мажори, 2011"></textarea>\n        <div class="field-clear-wrap">\n          <input id="batchRecBy" type="text" placeholder="Рекомендовано від… — впишеться кожному фільму зі списку (необов'язково)">\n          <button class="field-clear-btn" data-clear-target="batchRecBy" type="button">${ICON.close}</button>\n        </div>\n        <button class="btn-ghost" id="batchSearchBtn">Знайти всі</button>\n      </div>\n      <div id="addResults"></div>\n    </div>`;
 addBox.querySelectorAll('.add-tab').forEach(t => t.addEventListener('click', () => {
 addBox.querySelectorAll('.add-tab').forEach(x => x.classList.remove('active'));
 t.classList.add('active');
@@ -10734,14 +10659,6 @@ addModalHome();
 addOverlay.classList.add('open');
 lockScroll(addOverlay);
 navSync();
-}
-
-let _returnToAddCollections = false;
-
-function returnToAddCollections() {
-openAddModal();
-const tab = addBox.querySelector('.add-mode-tab[data-m="collection"]');
-if (tab) tab.click();
 }
 
 function closeAddModal() {
@@ -11682,9 +11599,13 @@ function renderPlateActions() {
 const el = document.getElementById('collectionPlateActions');
 const col = openCatalogCollection;
 const votes = plateVotesHtml();
+const linkable = !!(col && col.source === 'public' && col.owner && col.collection_id);
+const linked = !!(col && col.key && shelf.some(c => c.source === 'linked' && c.key === col.key));
+const shelfBtn = !linkable ? '' : linked ? '<button class="btn plate-right" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>' : '<button class="btn plate-right" id="plateAddBtn" type="button">Додати собі</button>';
 if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks' || col.source === 'public') {
-el.hidden = !votes;
-el.innerHTML = votes;
+el.hidden = !(votes || shelfBtn);
+el.innerHTML = votes + shelfBtn;
+wirePlateShelf(el, col);
 return;
 }
 el.hidden = false;
@@ -11729,14 +11650,22 @@ toast('error', 'Не вдалося змінити видимість — спр
 pub.disabled = false;
 }
 });
+wirePlateShelf(el, col);
+}
+
+function wirePlateShelf(el, col) {
 const unlink = el.querySelector('#plateUnlinkBtn');
 if (unlink) unlink.addEventListener('click', async () => {
 await unlinkCollection(col);
 });
+const add = el.querySelector('#plateAddBtn');
+if (add) add.addEventListener('click', async () => {
+await addPersonCollection(col.key, add);
+renderPlateActions();
+});
 }
 
 function openRecs() {
-_returnToAddCollections = false;
 renderRecs();
 recsOverlay.classList.add('open');
 navSync();
@@ -11746,6 +11675,7 @@ syncSheetNav();
 
 function closeRecs() {
 _recsFriend = null;
+_recsCreate = false;
 recsOverlay.classList.remove('open');
 unlockScroll(recsOverlay);
 syncSheetNav();
@@ -11784,7 +11714,6 @@ friendsBtn.style.display = '';
 }
 
 function openFriends(username = null) {
-_returnToAddCollections = false;
 openFriend = null;
 friendsView = 'list';
 friendsOverlay.classList.add('open');
@@ -11838,13 +11767,8 @@ if (!list.length) {
 body.innerHTML = friendsTab === 'subscriptions' ? '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину за імʼям у «Додати» → «Друг» — і підпишись звідти.</div>' : '<div class="add-hint">На тебе ще ніхто не підписався. Щоб тебе було видно, відкрий бодай одну добірку — приватні не показуються нікому.</div>';
 return;
 }
-const canUnfollow = friendsTab === 'subscriptions';
-body.innerHTML = `<div class="friend-list">${list.map(p => canUnfollow ? `<span class="friend-row-pair">${personRowHtml(p)}<button class="friend-unfollow" type="button" data-unfollow="${esc(p.username)}" title="Відписатися" aria-label="Відписатися від ${esc(p.username)}">\n         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n       </button></span>` : personRowHtml(p)).join('')}</div>`;
+body.innerHTML = `<div class="friend-list">${list.map(personRowHtml).join('')}</div>`;
 body.querySelectorAll('[data-person]').forEach(el => el.addEventListener('click', () => showFriend(el.dataset.person)));
-body.querySelectorAll('[data-unfollow]').forEach(el => el.addEventListener('click', async e => {
-e.stopPropagation();
-await togglePersonFollow(el.dataset.unfollow, false, el);
-}));
 }
 
 let _findTimer = 0;
@@ -11977,10 +11901,10 @@ const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.k
 const who = person && person.username;
 const out = [];
 if (person && (person.recommended || []).length) {
-out.push(`<div class="friend-col is-recommends" data-open-recommends="1" data-open-recommends-of="${esc(who)}" role="button" tabindex="0">\n         <span class="friend-col-name">${esc(recommendsCollectionName(person.username))}</span>\n         <span class="friend-col-count">${person.recommended.length}</span>\n       </div>`);
+out.push(`<div class="friend-col is-recommends" data-open-recommends="1" data-open-recommends-of="${esc(who)}" role="button" tabindex="0">\n         <span class="friend-col-name">Рекомендує</span>\n         <span class="friend-col-count">${person.recommended.length}</span>\n       </div>`);
 }
 if (person && (person.must_see || []).length) {
-out.push(`<div class="friend-col is-recommends" data-open-must="1" data-open-must-of="${esc(who)}" role="button" tabindex="0">\n         <span class="friend-col-name">${esc(mustCollectionName(person.username))}</span>\n         <span class="friend-col-count">${person.must_see.length}</span>\n       </div>`);
+out.push(`<div class="friend-col is-recommends" data-open-must="1" data-open-must-of="${esc(who)}" role="button" tabindex="0">\n         <span class="friend-col-name">Обовʼязково до перегляду</span>\n         <span class="friend-col-count">${person.must_see.length}</span>\n       </div>`);
 }
 for (const c of list) {
 const have = linkedKeys.has(c.key);
@@ -12121,12 +12045,6 @@ if (btn) btn.disabled = false;
 friendsBtn.addEventListener('click', () => openFriends());
 
 function exitFriends() {
-if (_returnToAddCollections) {
-_returnToAddCollections = false;
-closeFriends();
-returnToAddCollections();
-return;
-}
 exitScreen(closeFriends);
 }
 
@@ -12266,15 +12184,70 @@ openMustOf(p);
 body.querySelectorAll('[data-add-col]').forEach(el => el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
 }
 
+let _recsCreate = false;
+
+function renderRecsCreate(body) {
+body.innerHTML = `\n    <label class="cf-label">Назва</label>\n    <div class="field-clear-wrap">\n      <input id="newColName" type="text" placeholder="Подивитись із Мартою">\n      <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>\n    </div>\n    <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>`;
+const input = body.querySelector('#newColName');
+const btn = body.querySelector('#createColBtn');
+input.focus();
+btn.addEventListener('click', async () => {
+const name = input.value.trim();
+if (!name) {
+toast('error', 'Дай добірці назву.');
+return;
+}
+const taken = shelf.filter(c => c.source === 'own').map(c => c.collection_id);
+const id = collectionIdFrom(name, {
+taken: taken,
+at: Date.now()
+});
+btn.disabled = true;
+try {
+const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(id)}`, {
+method: 'PUT',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+name: name,
+film_ids: []
+})
+});
+if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+} catch (err) {
+toast('error', 'Не вдалося створити добірку — спробуй ще раз');
+btn.disabled = false;
+return;
+}
+await loadShelf();
+toast('success', `Добірку «${name}» створено`);
+_recsCreate = false;
+recsSource = 'mine';
+renderRecs();
+});
+}
+
 function renderRecs() {
-const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
-recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n    </div>\n    <div id="recsbody"></div>`;
+const src = (id, label) => `<button class="add-tab ${!_recsCreate && recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
+recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n      <button class="add-tab${_recsCreate ? ' active' : ''}" data-recs-new="1" type="button">Створити</button>\n    </div>\n    <div id="recsbody"></div>`;
 recsBox.querySelectorAll('[data-recs-src]').forEach(el => el.addEventListener('click', () => {
 recsSource = el.dataset.recsSrc;
 _recsFriend = null;
+_recsCreate = false;
 renderRecs();
 }));
+recsBox.querySelector('[data-recs-new]').addEventListener('click', () => {
+_recsCreate = true;
+_recsFriend = null;
+renderRecs();
+});
 const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
+if (_recsCreate) {
+renderRecsCreate(body);
+return;
+}
 if (recsSource === 'top') {
 renderTopCollections(body);
 return;
@@ -12358,12 +12331,6 @@ toast('err', 'Не вдалося прибрати — спробуй ще ра�
 recsBtn.addEventListener('click', openRecs);
 
 function exitRecs() {
-if (_returnToAddCollections) {
-_returnToAddCollections = false;
-closeRecs();
-returnToAddCollections();
-return;
-}
 exitScreen(closeRecs);
 }
 
@@ -13113,7 +13080,7 @@ ctl.click();
 const WINDOW_TABS = [ {
 surface: 'recs',
 box: 'recsBox',
-sel: '[data-recs-src]'
+sel: '[data-recs-src], [data-recs-new]'
 }, {
 surface: 'friends',
 box: 'friendsBox',
@@ -13121,7 +13088,7 @@ sel: '[data-friends-tab]'
 }, {
 surface: 'addModal',
 box: 'addMovieBox',
-sel: '.add-mode-tab'
+sel: '.add-tab'
 }, {
 surface: 'settings',
 box: 'settingsSheet',
