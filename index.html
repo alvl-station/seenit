@@ -4618,25 +4618,85 @@ count: count
 }));
 }
 
+const PEOPLE_COLLATOR = new Intl.Collator('uk');
+
 function rankPeopleByTaste(people, tasteMap, keep) {
 const weight = name => tasteMap && tasteMap[name] || 0;
-const ranked = (people || []).slice().sort((a, b) => weight(b.name) - weight(a.name) || b.count - a.count || a.name.localeCompare(b.name, 'uk'));
-return ranked.slice(0, keep).map(p => ({
+const compare = (a, b) => weight(b.name) - weight(a.name) || b.count - a.count || PEOPLE_COLLATOR.compare(a.name, b.name);
+const decorate = p => ({
 ...p,
 favourite: weight(p.name) > 0
-}));
+});
+const list = people || [];
+if (keep === undefined || keep === null) return list.slice().sort(compare).map(decorate);
+const want = Math.max(0, Math.floor(Number(keep)) || 0);
+if (!want) return [];
+const liked = [];
+const plain = [];
+const disliked = [];
+for (const p of list) {
+const w = weight(p.name);
+(w > 0 ? liked : w < 0 ? disliked : plain).push(p);
+}
+liked.sort(compare);
+if (liked.length >= want) return liked.slice(0, want).map(decorate);
+const need = want - liked.length;
+let pool = plain;
+if (plain.length > need) {
+const best = [];
+for (const p of plain) {
+if (best.length < need) {
+let i = best.length;
+best.push(p.count);
+while (i > 0 && best[i - 1] > best[i]) {
+[best[i - 1], best[i]] = [ best[i], best[i - 1] ];
+i--;
+}
+} else if (p.count > best[0]) {
+best[0] = p.count;
+let i = 0;
+while (i + 1 < best.length && best[i] > best[i + 1]) {
+[best[i], best[i + 1]] = [ best[i + 1], best[i] ];
+i++;
+}
+}
+}
+const bar = best[0];
+pool = plain.filter(p => p.count >= bar);
+}
+pool.sort(compare);
+const ranked = liked.concat(pool.slice(0, need));
+if (ranked.length < want && disliked.length) {
+disliked.sort(compare);
+ranked.push(...disliked.slice(0, want - ranked.length));
+}
+return ranked.map(decorate);
 }
 
 function hasActor(movie, names) {
 if (!names || !names.length) return true;
-const cast = (movie && movie.cast || []).map(a => String(a).trim());
-return names.some(n => cast.includes(n));
+const cast = movie && movie.cast || [];
+if (!Array.isArray(cast)) {
+const trimmed = cast.map(a => String(a).trim());
+return names.some(n => trimmed.includes(n));
+}
+for (const a of cast) {
+const t = String(a).trim();
+for (const n of names) if (n === t) return true;
+}
+return false;
 }
 
 function hasDirector(movie, names) {
 if (!names || !names.length) return true;
-const dirs = splitPeople(movie && movie.director);
-return names.some(n => dirs.includes(n));
+const raw = String(movie && movie.director || '');
+if (!raw) return false;
+for (const piece of raw.split(',')) {
+const t = piece.trim();
+if (!t) continue;
+for (const n of names) if (n === t) return true;
+}
+return false;
 }
 
 function orderGenresByTaste(order, tasteGenres) {
@@ -5005,6 +5065,45 @@ list: 'must',
 on: false
 });
 return ops;
+}
+
+const SHELF_COLLATOR = new Intl.Collator('uk');
+
+function sortForShelf(movies, {sortMode: sortMode, watchedIds: watchedIds, awardsFirst: awardsFirst}) {
+const rows = (movies || []).map((m, i) => {
+let awards = 0;
+if (awardsFirst) {
+const t = awardsTally(m.awards_won, m.awards_nominated);
+awards = t.won + t.nominated > 0 ? 1 : 0;
+}
+return {
+m: m,
+i: i,
+watched: isMarked(watchedIds, m) ? 1 : 0,
+awards: awards,
+rating: sortMode === 'rating' ? ratingNum(m) : 0
+};
+});
+rows.sort((A, B) => {
+if (A.watched !== B.watched) return A.watched - B.watched;
+if (awardsFirst && A.awards !== B.awards) return B.awards - A.awards;
+const a = A.m, b = B.m;
+switch (sortMode) {
+case 'rating':
+return B.rating - A.rating;
+
+case 'year-new':
+return (b.year || 0) - (a.year || 0);
+
+case 'year-old':
+return (a.year || 9999) - (b.year || 9999);
+
+case 'name':
+return SHELF_COLLATOR.compare(a.canonical_title_uk || '', b.canonical_title_uk || '');
+}
+return 0;
+});
+return rows.map(r => r.m);
 }
 
 function compareMovies(a, b, {sortMode: sortMode, watchedIds: watchedIds, awardsFirst: awardsFirst}) {
@@ -5964,6 +6063,7 @@ criticBarTone: criticBarTone,
 matches: matches,
 levenshtein: levenshtein,
 compareMovies: compareMovies,
+sortForShelf: sortForShelf,
 matchesRelease: matchesRelease,
 filterCatalog: filterCatalog,
 normTitleForDup: normTitleForDup,
@@ -7207,7 +7307,11 @@ groups.get(g).push(m);
 _renderQueue = [];
 for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
 if (!groups.has(g)) continue;
-const list = groups.get(g).slice().sort(sortFn);
+const list = sortForShelf(groups.get(g), {
+sortMode: state.sort,
+watchedIds: watched,
+awardsFirst: state.awardsFirst
+});
 _renderQueue.push({
 group: g,
 total: list.length,
@@ -7568,6 +7672,7 @@ return;
 toast('ok', 'Збережено. Каталог оновиться на всіх пристроях.');
 form.querySelectorAll('.adm-changed').forEach(el => el.classList.remove('adm-changed'));
 Object.assign(m, fieldsToMovie(read()));
+if (typeof catalogueRevisionBump === 'function') catalogueRevisionBump();
 openModal(m);
 } catch (err) {
 toast('error', 'Не вдалося зберегти');
@@ -7699,6 +7804,7 @@ return;
 }
 if (!detail) return;
 Object.assign(m, detail);
+if (typeof catalogueRevisionBump === 'function') catalogueRevisionBump();
 if (_modalMovie !== m || !overlay.classList.contains('open')) return;
 const desc = modalBox.querySelector('.desc');
 if (desc && detail.description_uk) desc.textContent = detail.description_uk;
@@ -8483,7 +8589,7 @@ mustOn: must.has(key)
 });
 for (const op of ops) op.on ? setOf(op.list).add(key) : setOf(op.list).delete(key);
 tasteStatsChanged();
-render({
+if (!window.__catalogueLoaded) render({
 keepDrawn: true
 });
 const uid = auth.currentUser && auth.currentUser.uid;
@@ -9719,9 +9825,26 @@ box: document.getElementById('directorFilter')
 }
 };
 
+function catalogueRevisionBump() {
+window.__catalogueRevision = (window.__catalogueRevision || 0) + 1;
+}
+
+function peopleInCatalogue() {
+const key = `${MOVIES.length}:${window.__catalogueRevision || 0}`;
+const memo = window.__peopleCounts;
+if (memo && memo.key === key) return memo;
+window.__peopleCounts = {
+key: key,
+actors: actorsInCatalogue(MOVIES),
+directors: directorsInCatalogue(MOVIES)
+};
+return window.__peopleCounts;
+}
+
 function updatePeopleFilters() {
 const stats = tasteStats();
-const defs = [ [ 'actors', actorsInCatalogue(MOVIES), stats.actors, ACTOR_FILTER_KEEP, 'акторів' ], [ 'directors', directorsInCatalogue(MOVIES), stats.directors, DIRECTOR_FILTER_KEEP, 'режисерів' ] ];
+const counted = peopleInCatalogue();
+const defs = [ [ 'actors', counted.actors, stats.actors, ACTOR_FILTER_KEEP, 'акторів' ], [ 'directors', counted.directors, stats.directors, DIRECTOR_FILTER_KEEP, 'режисерів' ] ];
 for (const [key, counted, taste, keep, noun] of defs) {
 const {label: label, box: box} = peopleFilterEls[key];
 if (!label || !box) continue;
@@ -9880,6 +10003,7 @@ const byId = new Map(MOVIES.map((m, i) => [ String(m.tmdb_id || m.id), i ]));
 for (const f of body.films || []) {
 if (!f || !f.id) continue;
 const at = byId.get(String(f.tmdb_id || f.id));
+if (typeof catalogueRevisionBump === 'function') catalogueRevisionBump();
 if (!catalogueAccepts(f)) {
 if (at !== undefined) MOVIES[at] = null;
 continue;
