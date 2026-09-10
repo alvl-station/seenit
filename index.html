@@ -569,6 +569,12 @@
   }
   
   
+  
+  .vis-cell { padding: 0 10px; }
+  
+  .vis-cell[aria-pressed="true"] {
+    background: var(--dust); color: var(--coal); border-color: transparent;
+  }
   .plate-edit, .plate-right { margin-left: auto; }
   
   .col-plate-have {
@@ -4076,8 +4082,8 @@ collectionId: collectionId
 function collectionLink(origin, key) {
 const pair = parseCollectionKey(key);
 if (!pair) return null;
-const base = String(origin || '').replace(/[#?].*$/, '').replace(/\/+$/, '');
-return `${base}/#/c/${encodeURIComponent(pair.owner)}/${encodeURIComponent(pair.collectionId)}`;
+const base = String(origin || '').replace(/[#?].*$/, '').replace(/\/(?:index|c)\.html$/i, '').replace(/\/+$/, '');
+return `${base}/c.html#/c/${encodeURIComponent(pair.owner)}/${encodeURIComponent(pair.collectionId)}`;
 }
 
 function parseCollectionLink(href) {
@@ -6565,6 +6571,9 @@ auth.signOut();
 return;
 }
 authAnswered = true;
+try {
+if (user) localStorage.setItem('seenit-signed-in', '1'); else localStorage.removeItem('seenit-signed-in');
+} catch (err) {}
 if (user) {
 const cameFromLogin = bootLifted;
 loginOverlay.classList.add('hidden');
@@ -11491,6 +11500,7 @@ owner: col.owner,
 collection_id: col.collection_id,
 source: col.source,
 public: col.public,
+visibility: col.visibility,
 ids: new Set((col.film_ids || []).map(String))
 };
 navSync();
@@ -11603,6 +11613,24 @@ toast('Не вдалося');
 }
 });
 
+const VISIBILITY_LEVELS = [ [ 'private', 'Приватна' ], [ 'followers', 'Підписникам' ], [ 'public', 'Видима всім' ] ];
+
+const VISIBILITY_SAID = {
+private: 'Добірку бачиш тільки ти',
+followers: 'Добірку бачать твої підписники',
+public: 'Добірку видно всім, навіть без акаунта'
+};
+
+function visibilityOf(col) {
+if (col && col.visibility) return col.visibility;
+return col && col.public ? 'public' : 'private';
+}
+
+function visibilityCells(col) {
+const now = visibilityOf(col);
+return VISIBILITY_LEVELS.map(([level, label]) => `<button class="btn vis-cell" type="button"` + ` data-visibility="${level}" aria-pressed="${level === now}">${label}</button>`).join('');
+}
+
 function renderPlateActions() {
 const el = document.getElementById('collectionPlateActions');
 const col = openCatalogCollection;
@@ -11617,7 +11645,7 @@ wirePlateShelf(el, col);
 return;
 }
 el.hidden = false;
-el.innerHTML = votes + `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>`;
+el.innerHTML = votes + `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       ${visibilityCells(col)}\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>`;
 const edit = el.querySelector('#plateEditBtn');
 if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
 const share = el.querySelector('#plateShareBtn');
@@ -11633,9 +11661,12 @@ return;
 }
 copyOrPrompt(url, done);
 });
-const pub = el.querySelector('#platePublicBtn');
-if (pub) pub.addEventListener('click', async () => {
-pub.disabled = true;
+el.querySelectorAll('[data-visibility]').forEach(btn => btn.addEventListener('click', async () => {
+const level = btn.dataset.visibility;
+if (level === visibilityOf(col)) return;
+el.querySelectorAll('[data-visibility]').forEach(b => {
+b.disabled = true;
+});
 try {
 const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.collection_id)}/public`, {
 method: 'PUT',
@@ -11644,20 +11675,25 @@ accept: 'application/json',
 'content-type': 'application/json'
 }),
 body: JSON.stringify({
-public: !col.public
+visibility: level,
+public: level === 'public'
 })
 });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-col.public = !col.public;
+col.visibility = level;
+col.public = level === 'public';
 const shelfCol = shelf.find(c => c.key === col.key);
-if (shelfCol) shelfCol.public = col.public;
-toast('success', col.public ? 'Добірку видно в пошуку за іменем' : 'Добірка знову приватна');
+if (shelfCol) {
+shelfCol.visibility = col.visibility;
+shelfCol.public = col.public;
+}
+toast('success', VISIBILITY_SAID[level]);
 renderPlateActions();
 } catch (err) {
 toast('error', 'Не вдалося змінити видимість — спробуй ще раз');
-pub.disabled = false;
+renderPlateActions();
 }
-});
+}));
 wirePlateShelf(el, col);
 }
 
@@ -12268,10 +12304,11 @@ return;
 if (recsSource === 'mine') {
 const own = shelf.filter(c => c.source === 'own');
 const credit = c => c.from && c.from.username ? `<span class="recs-list-from">від ${esc(c.from.username)}</span>` : '';
-const takers = c => c.copies ? `<span class="recs-list-takers" title="Стільки людей скопіювали цю добірку собі">${c.copies}&nbsp;&#215;</span>` : '';
+const takers = c => c.views === undefined && c.copies === undefined ? '' : '<span class="recs-list-takers" title="Скільки людей відкрили посилання, і скільки зберегли добірку собі">' + `${c.views || 0}&nbsp;відкрили&nbsp;&middot;&nbsp;${c.copies || 0}&nbsp;зберегли</span>`;
 const chipFor = c => `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         ${credit(c)}${takers(c)}\n         \x3c!-- Beside the collection rather than inside it: opening a\n              collection and deleting it are different intentions, and\n              one target for both is how a list gets deleted by a\n              thumb aiming to open it. --\x3e\n         <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n         </button>\n       </span>`;
 const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="recs-lists">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
-const ownHtml = groupHtml('Приватні добірки', own.filter(c => !c.public), chipFor, own.some(c => !c.public) ? 'Видно лише тобі.' : '') + groupHtml('Відкриті добірки', own.filter(c => c.public), chipFor, own.some(c => c.public) ? 'Їх видно в пошуку за твоїм імʼям.' : '');
+const at = level => own.filter(c => visibilityOf(c) === level);
+const ownHtml = groupHtml('Приватні добірки', at('private'), chipFor, at('private').length ? 'Видно лише тобі.' : '') + groupHtml('Для підписників', at('followers'), chipFor, at('followers').length ? 'Бачать ті, хто на тебе підписаний.' : '') + groupHtml('Відкриті добірки', at('public'), chipFor, at('public').length ? 'Їх видно в пошуку за твоїм імʼям — і за посиланням, навіть без акаунта.' : '');
 const recommended = MOVIES.filter(m => isMarked(liked, m));
 const mustSee = MOVIES.filter(m => isMarked(must, m));
 const chip = (list, label, count) => `<button class="recs-list-chip" data-own-marks="${list}" ${count ? '' : 'disabled'}>${label} · ${count}</button>`;

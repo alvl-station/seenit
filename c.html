@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Добірка · SeenIt</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2224%22%20fill%3D%22%238E0000%22%2F%3E%3Cg%20transform%3D%22translate(15%2C15)%20scale(0.75)%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22i4d%22%20x%3D%22-60%25%22%20y%3D%22-60%25%22%20width%3D%22220%25%22%20height%3D%22220%25%22%3E%3CfeDropShadow%20dx%3D%22-3.36%22%20dy%3D%224.97%22%20stdDeviation%3D%223.8%22%20flood-color%3D%22%23000000%22%20flood-opacity%3D%221.00%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cg%20transform%3D%22translate(1.65%2C-5.31)%20scale(0.8709)%22%3E%3Cg%20fill%3D%22%23F2F3F6%22%3E%3Cpath%20d%3D%22M105.14%2C52.00%20A38.14%2C37.86%200%201%200%2067.00%2C89.86%20L67.00%2C65.63%20A9.86%2C10.14%200%201%201%2075.75%2C52.00%20L105.14%2C52.00%20Z%22%2F%3E%3Cpath%20d%3D%22M104.14%2C34.00%20A51.14%2C49.86%200%201%200%2053.00%2C83.86%20L53.00%2C59.63%20A22.86%2C22.14%200%201%201%2075.07%2C34.00%20L104.14%2C34.00%20Z%22%20transform%3D%22rotate(180%2060%2060)%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://seenit-proxy.seenit.workers.dev" crossorigin>
+<!-- A PAGE, NOT THE APP (owner's call, and the reasoning is worth keeping).
+     Somebody who taps a link in a chat has no account and should not need one
+     to look. The app is half a megabyte and three Firebase scripts; this is
+     one request to the Worker and the markup around its answer.
+
+     Which is also why it is a separate file rather than a mode of index.html:
+     a mode would still have loaded all of it to decide it was not needed.
+
+     No fonts are fetched. The app's display face is worth a round trip on a
+     page somebody will spend minutes in; on a page they will spend seconds
+     in, a system stack that paints immediately is worth more. -->
+<style>
+  :root {
+    --coal: #0F1013; --surface: #16171B; --surface2: #1D1E23;
+    --paper: #F2F0EB; --dust: #E8E6E1; --slate: #8A8C93; --border: #2A2C32;
+    --blood: #A4161A; --flash: #E01E26;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--coal); color: var(--paper);
+    font-family: var(--sans); -webkit-text-size-adjust: 100%;
+  }
+  a { color: inherit; }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(14px + env(safe-area-inset-top)) 20px 12px;
+    border-bottom: 2px solid var(--blood);
+  }
+  .mark { width: 30px; height: 30px; display: block; }
+  .mark svg { width: 100%; height: 100%; display: block; }
+  /* The app's own display stack, NAMED but not fetched. Whoever has Archivo
+     Black — from the app, or installed — sees the real wordmark; everybody
+     else sees exactly what the app itself falls back to when Google Fonts is
+     slow or blocked, which is a fallback the brand already lives with. A
+     font file would be twice this page's weight and a round trip to a third
+     party, on a page whose entire argument is weight. */
+  .word {
+    font-family: 'Archivo Black', Archivo, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 800; font-size: 20px; letter-spacing: -.02em;
+  }
+  .word em { color: var(--blood); font-style: normal; }
+  main { max-width: 1000px; margin: 0 auto; padding: 22px 20px 140px; }
+  h1 { font-size: 26px; line-height: 1.15; margin: 0 0 10px; }
+  .meta {
+    font-family: var(--mono); font-size: 12px; color: var(--slate);
+    display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 22px;
+  }
+  .meta b { color: var(--dust); font-weight: 400; }
+  /* NO COUNTS HERE (owner's call). They are still kept, and they are still
+     worth keeping — but they are the AUTHOR's reading of their own
+     collection, not part of the collection. A visitor arrives to see what
+     somebody chose; a view count above it turns that into a measurement
+     of how popular the choosing was, which is a different page. The numbers
+     are shown where they mean something: on the author's own shelf. */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 14px;
+  }
+  .film { min-width: 0; }
+  .poster {
+    width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
+    background: var(--surface2); border-radius: 2px; border: 1px solid var(--border);
+  }
+  .film .t {
+    margin-top: 7px; font-size: 13px; line-height: 1.25;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .film .y { margin-top: 2px; font-family: var(--mono); font-size: 11px; color: var(--slate); }
+  .more { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--slate); }
+  .state { padding: 60px 0; text-align: center; color: var(--slate); font-family: var(--mono); font-size: 13px; }
+  /* THE CARD OPENS FROM WHAT THE PAGE ALREADY HOLDS — every film arrived
+     with the collection, in one answer, so a tap costs no request at all.
+     A dialog rather than a second page: the visitor is reading a list and
+     wants to look at one of it, not to go somewhere. */
+  .film { cursor: pointer; }
+  .card-back {
+    position: fixed; inset: 0; z-index: 10; background: rgba(6,7,9,.82);
+    display: flex; align-items: flex-start; justify-content: center;
+    overflow-y: auto; padding: 24px 16px 120px;
+  }
+  .card-back[hidden] { display: none; }
+  .card {
+    width: 100%; max-width: 560px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 3px; overflow: hidden;
+  }
+  .card-top { display: flex; gap: 14px; padding: 16px; }
+  .card-top img { width: 116px; min-width: 116px; aspect-ratio: 2/3; object-fit: cover; border-radius: 2px; }
+  .card h2 { margin: 0 0 6px; font-size: 19px; line-height: 1.2; }
+  .card .en { font-family: var(--mono); font-size: 11px; color: var(--slate); margin-bottom: 8px; }
+  .card .facts { font-family: var(--mono); font-size: 11.5px; color: var(--slate); line-height: 1.7; }
+  .card .facts b { color: var(--dust); font-weight: 400; }
+  .card .scores { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .card .score {
+    font-family: var(--mono); font-size: 11px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 2px; color: var(--dust);
+  }
+  .card .award { border-color: rgba(164,22,26,.55); color: var(--blood); }
+  .card .about { padding: 0 16px 16px; font-size: 14px; line-height: 1.5; color: var(--dust); }
+  .card .people { padding: 0 16px 16px; font-family: var(--mono); font-size: 11.5px; color: var(--slate); line-height: 1.7; }
+  .card .people b { color: var(--dust); font-weight: 400; }
+  .card-close {
+    display: block; width: 100%; background: none; border: 0; border-top: 1px solid var(--border);
+    color: var(--slate); font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
+    text-transform: uppercase; padding: 14px; cursor: pointer;
+  }
+  /* THE ONE THING THIS PAGE ASKS FOR, pinned so it is never scrolled past.
+     Every other control the app has is absent rather than disabled: a row of
+     dead buttons teaches somebody that the app does nothing, which is the
+     opposite of what this page is for. */
+  .cta {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: linear-gradient(to top, var(--coal) 62%, rgba(15,16,19,0));
+    padding: 34px 20px calc(18px + env(safe-area-inset-bottom));
+  }
+  .cta-in { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .cta a {
+    display: block; width: 100%; max-width: 420px; text-align: center;
+    background: var(--blood); color: #fff; text-decoration: none;
+    font-family: var(--mono); font-size: 14px; letter-spacing: .04em; text-transform: uppercase;
+    padding: 15px 18px; border-radius: 2px;
+  }
+  .cta a:active { background: var(--flash); }
+  .cta p { margin: 0; font-family: var(--mono); font-size: 11px; color: var(--slate); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <span class="mark" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><filter id="i5d" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-3.36" dy="4.97" stdDeviation="3.8" flood-color="#000000" flood-opacity="1.00"/></filter></defs><g transform="translate(1.65,-5.31) scale(0.8709)"><g fill="#8E0000"><path d="M105.14,52.00 A38.14,37.86 0 1 0 67.00,89.86 L67.00,65.63 A9.86,10.14 0 1 1 75.75,52.00 L105.14,52.00 Z"/><path d="M104.14,34.00 A51.14,49.86 0 1 0 53.00,83.86 L53.00,59.63 A22.86,22.14 0 1 1 75.07,34.00 L104.14,34.00 Z" transform="rotate(180 60 60)"/></g></g></svg></span>
+  <span class="word">Seen<em>It</em></span>
+</header>
+<main>
+  <div id="body"><div class="state">Читаю добірку…</div></div>
+</main>
+<div class="card-back" hidden id="cardBack">
+  <div class="card" id="card" role="dialog" aria-modal="true" aria-label="Фільм"></div>
+</div>
+<div class="cta" hidden id="cta">
+  <div class="cta-in">
+    <a id="ctaLink" href="./">Зберегти добірку собі</a>
+    <p>Безкоштовно. Добірка ляже на твою полицю разом з іменем автора.</p>
+  </div>
+</div>
+<script>
+(function () {
+  var API = 'https://seenit-proxy.seenit.workers.dev';
+  var body = document.getElementById('body');
+  var cta = document.getElementById('cta');
+  var ctaLink = document.getElementById('ctaLink');
+
+  /* The address, in the same shape the app's own links have always used:
+     #/c/{owner}/{id}. Read here rather than from a path so the page can be
+     a plain static file — GitHub Pages has no rewrites, and a URL that
+     needs a server is a URL that 404s. */
+  function pair() {
+    var m = (location.hash || '').match(/^#\/?c\/([^/?#]+)\/([^/?#]+)/);
+    if (!m) return null;
+    try { return { owner: decodeURIComponent(m[1]), id: decodeURIComponent(m[2]) }; }
+    catch (e) { return null; }
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function plural(n, one, few, many) {
+    var a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return one;
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+    return many;
+  }
+
+  /* Every film of the collection, held from the one answer that brought
+     them. A tap opens a card out of this — no second request, which is the
+     whole reason the Worker sends whole records: its budget is 100,000
+     REQUESTS a day and says nothing about their size. */
+  var shown = [];
+  var cardBack = document.getElementById('cardBack');
+  var card = document.getElementById('card');
+
+  function fact(label, value) {
+    return value ? '<div><b>' + esc(label) + '</b> ' + esc(value) + '</div>' : '';
+  }
+
+  function openCard(f) {
+    if (!f) return;
+    var poster = f.poster_url ? '<img loading="lazy" alt="" src="' + esc(f.poster_url) + '">' : '';
+    var scores = '';
+    if (f.rating) scores += '<span class="score">' + esc(f.rating) + '</span>';
+    if (f.critic_score != null) scores += '<span class="score">Критики ' + esc(f.critic_score) + '</span>';
+    // Grouped the way the app groups them: one badge per ceremony with a
+    // count, rather than «Oscar» four times.
+    var awards = {};
+    (f.awards_won || []).forEach(function (a) { awards[a] = (awards[a] || 0) + 1; });
+    Object.keys(awards).forEach(function (a) {
+      scores += '<span class="score award">' + esc(a) + (awards[a] > 1 ? ' ×' + awards[a] : '') + '</span>';
+    });
+    var people = fact('Режисер', f.director)
+      + fact('У ролях', (f.cast || []).slice(0, 6).join(', '));
+    card.innerHTML = '<div class="card-top">' + poster + '<div>'
+      + '<h2>' + esc(f.canonical_title_uk) + '</h2>'
+      + (f.canonical_title_en ? '<div class="en">' + esc(f.canonical_title_en) + '</div>' : '')
+      + '<div class="facts">'
+      + fact('Рік', f.year) + fact('Тип', f.type) + fact('Жанр', f.genre)
+      + fact('Країна', f.country) + fact('Тривалість', f.runtime ? f.runtime + ' хв' : '')
+      + fact('Вік', f.age_rating)
+      + '</div>'
+      + (scores ? '<div class="scores">' + scores + '</div>' : '')
+      + '</div></div>'
+      + (f.description_uk ? '<div class="about">' + esc(f.description_uk) + '</div>' : '')
+      + (people ? '<div class="people">' + people + '</div>' : '')
+      + '<button class="card-close" type="button">Закрити</button>';
+    cardBack.hidden = false;
+  }
+
+  function closeCard() { cardBack.hidden = true; }
+  cardBack.addEventListener('click', function (e) {
+    // Outside the card, or the button in it. Nothing else closes it.
+    if (e.target === cardBack || (e.target.className || '') === 'card-close') closeCard();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCard(); });
+
+  var here = pair();
+  /* SOMEBODY WHO ALREADY HAS THE APP GOES STRAIGHT INTO IT.
+     The whole point of this page is the person who does not — a reader with
+     an account wants their own shelf, their marks and the way to keep this,
+     none of which is here. The app leaves a mark on this origin when it
+     signs somebody in; that is the only thing read, and its absence simply
+     means «show the page», which is the safe way round. */
+  try {
+    if (here && localStorage.getItem('seenit-signed-in') === '1') {
+      location.replace('./#/c/' + encodeURIComponent(here.owner) + '/' + encodeURIComponent(here.id));
+      return;
+    }
+  } catch (e) { /* storage refused: show the page, which is what it is for */ }
+
+  if (here) ctaLink.href = './#/c/' + encodeURIComponent(here.owner) + '/' + encodeURIComponent(here.id);
+
+  if (!here) {
+    body.innerHTML = '<div class="state">Посилання неповне — попроси надіслати його ще раз.</div>';
+    return;
+  }
+
+  fetch(API + '/public/collections/' + encodeURIComponent(here.owner) + '/' + encodeURIComponent(here.id), {
+    headers: { accept: 'application/json' },
+  }).then(function (res) {
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then(function (col) {
+    if (!col) {
+      body.innerHTML = '<div class="state">Такої добірки немає, або автор закрив її.</div>';
+      return;
+    }
+    document.title = col.name + ' · SeenIt';
+    var bits = [];
+    bits.push('<span>' + esc(col.count) + ' ' + plural(col.count, 'фільм', 'фільми', 'фільмів') + '</span>');
+    if (col.author) bits.push('<span>від <b>' + esc(col.author) + '</b></span>');
+
+    shown = col.films || [];
+    var films = shown.map(function (f, i) {
+      var poster = f.poster_url
+        ? '<img class="poster" loading="lazy" alt="" src="' + esc(f.poster_url) + '">'
+        : '<div class="poster"></div>';
+      // The index, not the film: everything about it is already in `shown`,
+      // so the row carries a pointer rather than a copy of itself.
+      return '<div class="film" role="button" tabindex="0" data-i="' + i + '">' + poster
+        + '<div class="t">' + esc(f.canonical_title_uk) + '</div>'
+        + '<div class="y">' + esc(f.year || '') + '</div></div>';
+    }).join('');
+
+    body.innerHTML = '<h1>' + esc(col.name) + '</h1>'
+      + '<div class="meta">' + bits.join('') + '</div>'
+      + (films ? '<div class="grid">' + films + '</div>'
+        : '<div class="state">У цій добірці поки порожньо.</div>')
+      + (col.truncated ? '<div class="more">Показано перші ' + shown.length
+        + ' — решта в застосунку.</div>' : '');
+    /* Delegated, once, on the grid rather than on every poster: sixty
+       listeners to do one thing is sixty chances for one of them to be
+       missed by a redraw. */
+    var grid = body.querySelector('.grid');
+    if (grid) {
+      grid.addEventListener('click', function (e) {
+        var row = e.target.closest ? e.target.closest('.film') : null;
+        if (row) openCard(shown[Number(row.dataset.i)]);
+      });
+      grid.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var row = e.target.closest ? e.target.closest('.film') : null;
+        if (row) { e.preventDefault(); openCard(shown[Number(row.dataset.i)]); }
+      });
+    }
+    cta.hidden = false;
+  }).catch(function () {
+    body.innerHTML = '<div class="state">Не вдалося прочитати добірку. Спробуй оновити сторінку.</div>';
+  });
+})();
+</script>
+</body>
+</html>
