@@ -571,6 +571,11 @@
   
   .plate-edit, .plate-right { margin-left: auto; }
   
+  .col-plate-have {
+    align-self: center; font-family: var(--font-mono); font-size: 12px;
+    color: var(--slate); white-space: nowrap;
+  }
+  
   
   .friend-col-count {
     
@@ -1400,7 +1405,8 @@
   
   body.tabs-in-bar #recsBox > .add-tabs,
   body.tabs-in-bar #friendsBox > .add-tabs,
-  body.tabs-in-bar #addMovieBox .add-mode-tabs { display: none; }
+  
+  body.tabs-in-bar #addMovieBox .add-tabs { display: none; }
   
   #markRow { display: none; }
   
@@ -1967,11 +1973,13 @@
   .recs-list-chip.active { background: var(--blood); color: var(--paper); border-color: transparent; font-weight: 700; }
   .recs-list-chip[disabled] { opacity: .4; cursor: default; }
   
-  .recs-list-from {
+  .recs-list-from, .recs-list-takers {
     display: inline-flex; align-items: center; padding: 0 8px 0 6px;
     font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
     text-transform: uppercase; color: var(--slate); white-space: nowrap;
   }
+  
+  .recs-list-takers { color: var(--blood); }
 
   .pool-card { display: flex; gap: 12px; }
   .pool-poster { width: 84px; min-width: 84px; aspect-ratio: 2/3; object-fit: cover;
@@ -4048,9 +4056,9 @@ hidden: all.length - keep
 };
 }
 
-function refUrl(base, ownerUid, collectionId) {
+function copyUrl(base, ownerUid, collectionId) {
 if (!ownerUid || !collectionId) return null;
-return `${base}/library/refs/${encodeURIComponent(ownerUid)}/${encodeURIComponent(collectionId)}`;
+return `${base}/library/copies/${encodeURIComponent(ownerUid)}/${encodeURIComponent(collectionId)}`;
 }
 
 function parseCollectionKey(key) {
@@ -5988,7 +5996,7 @@ poolListUrl: poolListUrl,
 poolVersionUrl: poolVersionUrl,
 markUrl: markUrl,
 collectionFilmUrl: collectionFilmUrl,
-refUrl: refUrl,
+copyUrl: copyUrl,
 parseCollectionKey: parseCollectionKey,
 collectionLink: collectionLink,
 parseCollectionLink: parseCollectionLink,
@@ -7337,10 +7345,10 @@ const key = takePendingCollection();
 if (!key) return;
 const pair = parseCollectionKey(key);
 if (!pair) return;
-let col = shelf.find(c => c.key === key);
+let col = shelf.find(c => c.from && `${c.from.uid}/${c.from.collection_id}` === key);
 if (!col) {
 try {
-const res = await fetch(refUrl(API_PROXY, pair.owner, pair.collectionId), {
+const res = await fetch(copyUrl(API_PROXY, pair.owner, pair.collectionId), {
 method: 'PUT',
 headers: await proxyHeaders({
 accept: 'application/json'
@@ -7348,7 +7356,7 @@ accept: 'application/json'
 });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 await loadShelf();
-col = shelf.find(c => c.key === key);
+col = shelf.find(c => c.from && `${c.from.uid}/${c.from.collection_id}` === key);
 } catch (err) {
 toast('error', 'Не вдалося відкрити добірку за посиланням');
 return;
@@ -11600,8 +11608,8 @@ const el = document.getElementById('collectionPlateActions');
 const col = openCatalogCollection;
 const votes = plateVotesHtml();
 const linkable = !!(col && col.source === 'public' && col.owner && col.collection_id);
-const linked = !!(col && col.key && shelf.some(c => c.source === 'linked' && c.key === col.key));
-const shelfBtn = !linkable ? '' : linked ? '<button class="btn plate-right" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>' : '<button class="btn plate-right" id="plateAddBtn" type="button">Додати собі</button>';
+const taken = !!(col && col.key && shelf.some(c => c.from && `${c.from.uid}/${c.from.collection_id}` === col.key));
+const shelfBtn = !linkable ? '' : taken ? '<span class="plate-right col-plate-have">вже в тебе</span>' : '<button class="btn plate-right" id="plateAddBtn" type="button">Додати собі</button>';
 if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks' || col.source === 'public') {
 el.hidden = !(votes || shelfBtn);
 el.innerHTML = votes + shelfBtn;
@@ -11609,7 +11617,7 @@ wirePlateShelf(el, col);
 return;
 }
 el.hidden = false;
-el.innerHTML = votes + (col.source === 'own' ? `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>` : '<button class="btn" id="plateUnlinkBtn" type="button">Прибрати з полиці</button>');
+el.innerHTML = votes + `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       <button class="btn ${col.public ? 'on-watched' : ''}" id="platePublicBtn" type="button">${col.public ? 'Видима всім' : 'Приватна'}</button>\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>`;
 const edit = el.querySelector('#plateEditBtn');
 if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
 const share = el.querySelector('#plateShareBtn');
@@ -11654,10 +11662,6 @@ wirePlateShelf(el, col);
 }
 
 function wirePlateShelf(el, col) {
-const unlink = el.querySelector('#plateUnlinkBtn');
-if (unlink) unlink.addEventListener('click', async () => {
-await unlinkCollection(col);
-});
 const add = el.querySelector('#plateAddBtn');
 if (add) add.addEventListener('click', async () => {
 await addPersonCollection(col.key, add);
@@ -11897,7 +11901,7 @@ return `<div class="friend-cols">${rows.join('')}</div>`;
 
 function friendColRows(person, cols) {
 const list = collectionsByRecency(cols || person && person.collections || []);
-const linkedKeys = new Set(shelf.filter(c => c.source === 'linked').map(c => c.key));
+const takenFrom = new Set(shelf.filter(c => c.from && c.from.uid && c.from.collection_id).map(c => `${c.from.uid}/${c.from.collection_id}`));
 const who = person && person.username;
 const out = [];
 if (person && (person.recommended || []).length) {
@@ -11907,7 +11911,7 @@ if (person && (person.must_see || []).length) {
 out.push(`<div class="friend-col is-recommends" data-open-must="1" data-open-must-of="${esc(who)}" role="button" tabindex="0">\n         <span class="friend-col-name">Обовʼязково до перегляду</span>\n         <span class="friend-col-count">${person.must_see.length}</span>\n       </div>`);
 }
 for (const c of list) {
-const have = linkedKeys.has(c.key);
+const have = takenFrom.has(c.key);
 out.push(`<div class="friend-col${have ? ' is-have' : ''}">\n        \x3c!-- The count says WHAT it counts, in blood (owner's call). A\n             bare «· 6» beside a name reads as part of the name — a date,\n             a version, anything — and this list is the one place you\n             judge somebody else's collection before opening it. --\x3e\n        <span class="friend-col-name">${esc(c.name)}</span>${c.count ? `<span class="friend-col-count">${c.count}</span>` : ''}\n        ${have ? '<span class="friend-col-have">вже в тебе</span>' : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`}\n      </div>`);
 }
 return out;
@@ -12023,7 +12027,7 @@ async function addPersonCollection(key, btn) {
 if (btn) btn.disabled = true;
 const [owner, id] = String(key).split('/');
 try {
-const url = refUrl(API_PROXY, owner, id);
+const url = copyUrl(API_PROXY, owner, id);
 if (!url) throw new Error('bad key');
 const res = await fetch(url, {
 method: 'PUT',
@@ -12032,7 +12036,7 @@ accept: 'application/json'
 })
 });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-toast('ok', 'Добірку додано на полицю');
+toast('ok', 'Добірку скопійовано собі');
 await loadShelf();
 if (friendsOverlay.classList.contains('open')) renderFriends();
 if (recsOverlay.classList.contains('open')) renderRecs();
@@ -12263,13 +12267,11 @@ return;
 }
 if (recsSource === 'mine') {
 const own = shelf.filter(c => c.source === 'own');
-const chipFor = c => `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         \x3c!-- Beside the collection rather than inside it: opening a\n              collection and deleting it are different intentions, and\n              one target for both is how a list gets deleted by a\n              thumb aiming to open it. --\x3e\n         <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n         </button>\n       </span>`;
+const credit = c => c.from && c.from.username ? `<span class="recs-list-from">від ${esc(c.from.username)}</span>` : '';
+const takers = c => c.copies ? `<span class="recs-list-takers" title="Стільки людей скопіювали цю добірку собі">${c.copies}&nbsp;&#215;</span>` : '';
+const chipFor = c => `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         ${credit(c)}${takers(c)}\n         \x3c!-- Beside the collection rather than inside it: opening a\n              collection and deleting it are different intentions, and\n              one target for both is how a list gets deleted by a\n              thumb aiming to open it. --\x3e\n         <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n         </button>\n       </span>`;
 const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="recs-lists">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
-const linkedChip = c => {
-const who = c.owner_name || c.owner_username;
-return `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         ${who ? `<span class="recs-list-from">від ${esc(who)}</span>` : ''}\n       </span>`;
-};
-const ownHtml = groupHtml('Приватні добірки', own.filter(c => !c.public), chipFor, own.some(c => !c.public) ? 'Видно лише тобі.' : '') + groupHtml('Відкриті добірки', own.filter(c => c.public), chipFor, own.some(c => c.public) ? 'Їх видно в пошуку за твоїм імʼям.' : '') + groupHtml('Добірки друзів', shelf.filter(c => c.source === 'linked'), linkedChip, 'Це посилання, не копії: власник додасть фільм — ти побачиш.');
+const ownHtml = groupHtml('Приватні добірки', own.filter(c => !c.public), chipFor, own.some(c => !c.public) ? 'Видно лише тобі.' : '') + groupHtml('Відкриті добірки', own.filter(c => c.public), chipFor, own.some(c => c.public) ? 'Їх видно в пошуку за твоїм імʼям.' : '');
 const recommended = MOVIES.filter(m => isMarked(liked, m));
 const mustSee = MOVIES.filter(m => isMarked(must, m));
 const chip = (list, label, count) => `<button class="recs-list-chip" data-own-marks="${list}" ${count ? '' : 'disabled'}>${label} · ${count}</button>`;
@@ -12307,25 +12309,6 @@ body.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', (
 const col = shelf.find(c => c.key === el.dataset.key);
 if (col) openCollectionAsCatalog(col);
 }));
-}
-
-async function unlinkCollection(col) {
-if (!window.confirm(`Прибрати «${col.name}» з полиці? Сама добірка лишиться у власника.`)) return;
-try {
-const res = await fetch(refUrl(API_PROXY, col.owner, col.collection_id), {
-method: 'DELETE',
-headers: await proxyHeaders({
-accept: 'application/json'
-})
-});
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-await loadShelf();
-if (openCatalogCollection && openCatalogCollection.key === col.key) closeCollectionCatalog();
-if (recsOverlay.classList.contains('open')) renderRecs();
-toast('ok', `«${col.name}» прибрано з полиці`);
-} catch (err) {
-toast('err', 'Не вдалося прибрати — спробуй ще раз');
-}
 }
 
 recsBtn.addEventListener('click', openRecs);
