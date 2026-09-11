@@ -642,16 +642,6 @@
   
   
   .chips-row { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
-  
-  .search-watched[hidden] { display: none; }
-  .search-watched {
-    display: flex; align-items: center; gap: 8px; margin-top: 10px;
-    font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
-    text-transform: uppercase; color: var(--ash); cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .search-watched input { accent-color: var(--blood); width: 16px; height: 16px; margin: 0; }
-  .search-watched b { color: var(--dust); font-weight: 400; }
   .chips {
     flex: 1; min-width: 0;
     display: flex; flex-wrap: nowrap; gap: 8px;
@@ -1029,6 +1019,9 @@
   
   body.archive-shelf .card.is-watched .poster img,
   body.archive-shelf .card.is-watched .poster.fallback { filter: grayscale(1); }
+  
+  body.search-shelf .card.is-watched .poster img,
+  body.search-shelf .card.is-watched .poster.fallback { filter: grayscale(1); }
 
   
   body.marks-collection .card.is-watched .poster img,
@@ -1338,6 +1331,8 @@
   
   .opts[hidden] { display: none; }
   
+  .opt[hidden], .sheet-label[hidden] { display: none; }
+  
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
@@ -1380,10 +1375,22 @@
   }
   
   .bot-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 0; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
   }
+  
+  .bot-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .bot-controls .bot-mode { flex: 1 1 auto; }
+  .bot-mode { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bot-mode .opt { padding: 6px 9px; min-height: 32px; font-size: 10.5px; }
   .bot-row.is-off { opacity: .45; }
+  .bot-pending { font-style: italic; }
+  .bot-add { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 8px; }
+  .bot-add-name {
+    width: 100%; min-height: 40px; padding: 10px 12px; box-sizing: border-box;
+    background: var(--tone-ground); border: var(--tone-edge-w) solid var(--tone-edge); color: var(--paper);
+    font-family: var(--font-mono); font-size: 13px; border-radius: 2px;
+  }
   .bot-name {
     flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--paper);
@@ -2570,17 +2577,6 @@
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>
     </button>
   </div>
-  <!-- Watched films left the shelf, and that includes leaving SEARCH — so
-       looking for a film you have already seen finds nothing, and the
-       honest reading of nothing is «I do not have it» (owner-reported: it
-       sent him to add a film that was already there). This offers them
-       back, but only while a search is running and only when there are
-       some to offer: it carries the count, because «show watched»
-       with nothing behind it is a checkbox that lies. -->
-  <label class="search-watched" id="searchWatchedRow" hidden>
-    <input type="checkbox" id="searchWatchedBox">
-    <span>Показати переглянуті <b id="searchWatchedCount"></b></span>
-  </label>
   <!-- «All at once» lays every genre out at once, and with a full catalogue
        that is four or five rows before a single poster (owner-reported).
        This folds it back to the first row and out again. It appears ONLY
@@ -2725,7 +2721,20 @@
        the machine that runs them; what is here is CONTROL — see bot_control
        in the Worker's schema. -->
   <div class="sheet-label">Боти</div>
-  <div class="acc-hint">Вигадані акаунти, що живуть у застосунку самі. Вимкнений бот перестане діяти протягом години — стільки триває цикл симулятора. Пароль у всіх один: <b>botTest123!</b></div>
+  <div class="acc-hint">Вигадані акаунти, що живуть у застосунку самі: відмічають фільми, збирають добірки, підписуються одне на одного й ставлять лайки добіркам. Усе, що змінено тут, діє протягом години — стільки триває цикл симулятора. Пароль у всіх один: <b>botTest123!</b></div>
+  <!-- Adding writes a request; the simulator creates the account on its next
+       run, because only the machine that runs the bots can make one. -->
+  <div class="bot-add">
+    <input class="bot-add-name" id="botAddName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="16" placeholder="Імʼя латиницею, напр. olena" aria-label="Імʼя нового бота">
+    <div class="opts bot-mode" id="botAddMode">
+      <button class="opt" type="button" data-mode="quiet">Тихий</button>
+      <button class="opt active" type="button" data-mode="normal">Звичайний</button>
+      <button class="opt" type="button" data-mode="active">Активний</button>
+    </div>
+    <div class="acc-form-actions">
+      <button class="btn on-watched" id="botAddBtn" type="button">Додати бота</button>
+    </div>
+  </div>
   <div id="botList" class="bot-list"></div>
 </div>
 
@@ -2824,8 +2833,12 @@
        filter was cleared.
        Sorting is not among what it clears — that changes the order, not the
        contents. -->
+  <!-- «Apply» joined it (owner's ask): choices in the window narrow
+       each other at once and reach the shelf only on this button, so the
+       row that was one full-width cell is two. Reset still acts at once. -->
   <div class="filter-reset" id="filterResetRow">
     <button class="btn-ghost" id="filterResetBtn" type="button">Скинути всі фільтри</button>
+    <button class="btn-ghost" id="filterApplyBtn" type="button">Застосувати</button>
   </div>
   <div class="sheet-label">Сортування</div>
   <div class="opts" id="sortOpts">
@@ -2844,14 +2857,14 @@
   <!-- What is out now and what is not out yet. The same function decides
        this and the badge on the card (releaseBadge in logic.js), so a card
        wearing the badge is a card this shows. -->
-  <div class="sheet-label">Реліз</div>
+  <div class="sheet-label" id="releaseLabel">Реліз</div>
   <div class="opts" id="releaseOpts">
     <button class="opt" data-release="new" type="button">Новинки</button>
     <button class="opt" data-release="soon" type="button">Скоро реліз</button>
   </div>
   <div class="sheet-label" id="recommenderLabel" style="display:none">Ким рекомендовано</div>
   <div class="opts" id="recommenderFilter" style="display:none"></div>
-  <div class="sheet-label">Тип</div>
+  <div class="sheet-label" id="typeLabel">Тип</div>
   <div class="opts" id="typeOpts">
     <button class="opt" data-type="фільм" type="button">Фільми</button>
     <button class="opt" data-type="серіал" type="button">Серіали</button>
@@ -2861,7 +2874,7 @@
        one and does not find a film they know is there has been lied to by a
        label. Rendered from YEAR_BUCKETS so the words and the arithmetic
        cannot drift apart. -->
-  <div class="sheet-label">Роки</div>
+  <div class="sheet-label" id="yearLabel">Роки</div>
   <div class="opts" id="yearOpts"></div>
   <!-- Built from the providers actually present in the catalogue, the same
        way «Recommended by» is: an option for a service no film is on
@@ -3724,6 +3737,59 @@ const maxDist = qw.length <= 4 ? 1 : qw.length <= 8 ? 1 : 2;
 return hayWords.some(hw => Math.abs(hw.length - qw.length) <= maxDist && levenshtein(qw, hw) <= maxDist);
 });
 }
+const APOSTROPHES = /[ʼ’'`]/g;
+function normalizeForSearch(text) {
+return String(text || '').toLowerCase().replace(APOSTROPHES, 'ʼ').replace(/ё/g, 'е').replace(/[^\p{L}\p{N}ʼ]+/gu, ' ').trim();
+}
+function nearWord(qw, word) {
+if (word.includes(qw)) return true;
+if (qw.length < 3) return false;
+const maxDist = qw.length <= 8 ? 1 : 2;
+return Math.abs(word.length - qw.length) <= maxDist && levenshtein(qw, word) <= maxDist;
+}
+function titleTier(title, query, qWords) {
+if (!title) return 0;
+if (title === query) return 100;
+if (title.startsWith(`${query} `)) return 90;
+if (title.startsWith(query)) return 85;
+if (` ${title} `.includes(` ${query} `)) return 80;
+if (title.includes(query)) return 70;
+const words = title.split(' ');
+if (qWords.every(qw => words.includes(qw))) return 60;
+if (qWords.every(qw => words.some(w => w.startsWith(qw)))) return 50;
+if (qWords.every(qw => words.some(w => nearWord(qw, w)))) return 40;
+return 0;
+}
+function searchScore(movie, q) {
+const m = movie || {};
+const query = normalizeForSearch(q);
+if (!query) return 0;
+const qWords = query.split(' ');
+let best = 0;
+for (const raw of [ m.canonical_title_uk, m.canonical_title_en ]) {
+const title = normalizeForSearch(raw);
+const tier = titleTier(title, query, qWords);
+if (!tier) continue;
+const score = tier + .5 / (1 + Math.max(0, title.length - query.length));
+if (score > best) best = score;
+}
+if (best) return best;
+const plain = String(q || '').toLowerCase().trim();
+const directors = String(m.director || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+const cast = (Array.isArray(m.cast) ? m.cast : []).map(a => String(a).trim().toLowerCase()).filter(Boolean);
+if (directors.includes(plain)) return 35;
+if (cast.includes(plain)) return 30;
+if (directors.some(d => d.includes(plain))) return 25;
+if (cast.some(a => a.includes(plain))) return 20;
+return matches(m, q) ? 10 : 0;
+}
+function rankSearchResults(movies, q) {
+return (movies || []).map((m, i) => ({
+m: m,
+i: i,
+score: searchScore(m, q)
+})).sort((a, b) => b.score - a.score || a.i - b.i).map(r => r.m);
+}
 const YEAR_BUCKETS = [ {
 key: 'pre1980',
 label: 'до 1980',
@@ -3762,7 +3828,10 @@ return {
 levenshtein: levenshtein,
 matches: matches,
 YEAR_BUCKETS: YEAR_BUCKETS,
-matchesYearBucket: matchesYearBucket
+matchesYearBucket: matchesYearBucket,
+normalizeForSearch: normalizeForSearch,
+searchScore: searchScore,
+rankSearchResults: rankSearchResults
 };
 }();
 
@@ -3890,7 +3959,7 @@ const UI_JUNK_PHRASES = OCR_WORDS.UI_JUNK_PHRASES;
 
 const {AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX, usernameToEmail: usernameToEmail, MARK_LISTS: MARK_LISTS, userMarksPath: userMarksPath, localMarksKey: localMarksKey, localStatsKey: localStatsKey, userServicesPath: userServicesPath, userCatalogPath: userCatalogPath, USERNAME_MIN: USERNAME_MIN, searchNameLongEnough: searchNameLongEnough, normalizeSearchName: normalizeSearchName, defaultDisplayName: defaultDisplayName, defaultSearchName: defaultSearchName} = IS_NODE ? require('./logic/identity.js') : LOGIC_IDENTITY;
 
-const {levenshtein: levenshtein, matches: matches, YEAR_BUCKETS: YEAR_BUCKETS, matchesYearBucket: matchesYearBucket} = IS_NODE ? require('./logic/search.js') : LOGIC_SEARCH;
+const {levenshtein: levenshtein, matches: matches, YEAR_BUCKETS: YEAR_BUCKETS, matchesYearBucket: matchesYearBucket, normalizeForSearch: normalizeForSearch, searchScore: searchScore, rankSearchResults: rankSearchResults} = IS_NODE ? require('./logic/search.js') : LOGIC_SEARCH;
 
 const {isOmdbAnswer: isOmdbAnswer, omdbTitleMatches: omdbTitleMatches, titleHead: titleHead, normalizeTitleForMatch: normalizeTitleForMatch, isOmdbQuotaExhausted: isOmdbQuotaExhausted, parseOmdbYear: parseOmdbYear, omdbYearAcceptable: omdbYearAcceptable} = IS_NODE ? require('./logic/omdb.js') : LOGIC_OMDB;
 
@@ -4782,6 +4851,105 @@ if (!hasActor(m, actors)) return false;
 if (!hasDirector(m, directors)) return false;
 return true;
 });
+}
+
+function filterFacets(movies, opts, now = Date.now()) {
+const o = opts || {};
+const release = new Set;
+const recommender = new Set;
+const type = new Set;
+const years = new Set;
+const provider = new Set;
+const actors = new Map;
+const directors = new Map;
+const base = filterCatalog(movies, {
+...o,
+genre: 'all',
+release: 'all',
+recommender: 'all',
+type: 'all',
+years: 'all',
+provider: 'all',
+actors: [],
+directors: []
+});
+const wantRelease = o.release && o.release !== 'all' ? o.release : null;
+const wantRecommender = o.recommender && o.recommender !== 'all' ? o.recommender : null;
+const wantType = o.type && o.type !== 'all' ? o.type : null;
+const wantProvider = o.provider && o.provider !== 'all' ? o.provider : null;
+for (const m of base) {
+const badge = releaseBadge(m, now);
+const rows = visibleProviders(m.providers);
+let failures = 0;
+let failedAt = -1;
+if (wantRelease && !(badge && badge.kind === wantRelease)) {
+failures += 1;
+failedAt = 0;
+}
+if (wantRecommender && (m.recommended_by || '') !== wantRecommender) {
+failures += 1;
+failedAt = 1;
+}
+if (failures < 2 && wantType && m.type !== wantType) {
+failures += 1;
+failedAt = 2;
+}
+if (failures < 2 && !matchesYearBucket(m, o.years)) {
+failures += 1;
+failedAt = 3;
+}
+if (failures < 2 && wantProvider && !rows.some(p => p.name === wantProvider)) {
+failures += 1;
+failedAt = 4;
+}
+if (failures < 2 && !hasActor(m, o.actors)) {
+failures += 1;
+failedAt = 5;
+}
+if (failures < 2 && !hasDirector(m, o.directors)) {
+failures += 1;
+failedAt = 6;
+}
+if (failures > 1) continue;
+const every = failures === 0;
+if ((every || failedAt === 0) && badge) release.add(badge.kind);
+if ((every || failedAt === 1) && m.recommended_by) recommender.add(m.recommended_by);
+if ((every || failedAt === 2) && m.type) type.add(m.type);
+if (every || failedAt === 3) {
+const key = yearBucketKey(m);
+if (key) years.add(key);
+}
+if (every || failedAt === 4) for (const p of rows) provider.add(p.name);
+if ((every || failedAt === 5) && Array.isArray(m.cast)) {
+for (const a of m.cast) {
+const name = String(a).trim();
+if (name) actors.set(name, (actors.get(name) || 0) + 1);
+}
+}
+if (every || failedAt === 6) {
+for (const d of new Set(splitPeople(m.director))) directors.set(d, (directors.get(d) || 0) + 1);
+}
+}
+const counted = map => [ ...map ].map(([name, count]) => ({
+name: name,
+count: count
+}));
+return {
+release: release,
+recommender: recommender,
+type: type,
+years: years,
+provider: provider,
+actors: counted(actors),
+directors: counted(directors)
+};
+}
+
+function yearBucketKey(movie) {
+const y = Number(movie && movie.year);
+if (!Number.isFinite(y) || y <= 0) return null;
+const bucket = YEAR_BUCKETS.find(b => (b.from === null || y >= b.from) && (b.to === null || y < b.to));
+return bucket ? bucket.key : null;
 }
 
 function fuzzyCatalogSuggestions(catalog, query, limit = 5) {
@@ -6065,6 +6233,8 @@ levenshtein: levenshtein,
 compareMovies: compareMovies,
 sortForShelf: sortForShelf,
 matchesRelease: matchesRelease,
+filterFacets: filterFacets,
+yearBucketKey: yearBucketKey,
 filterCatalog: filterCatalog,
 normTitleForDup: normTitleForDup,
 findDuplicateMovie: findDuplicateMovie,
@@ -6183,6 +6353,9 @@ communityScore: communityScore,
 DICE_COMMUNITY_CAP: DICE_COMMUNITY_CAP,
 YEAR_BUCKETS: YEAR_BUCKETS,
 matchesYearBucket: matchesYearBucket,
+normalizeForSearch: normalizeForSearch,
+searchScore: searchScore,
+rankSearchResults: rankSearchResults,
 isExcludedProduction: isExcludedProduction,
 KNOWN_SERVICES: KNOWN_SERVICES,
 hasProvider: hasProvider,
@@ -6523,7 +6696,15 @@ watchedAt: localMarksKey(uid, 'watched_at')
 };
 const storedPending = localPendingMarksKey(uid) ? localStore.get(localPendingMarksKey(uid)) : null;
 pendingMarks = storedPending && !Array.isArray(storedPending) ? storedPending : {};
-const apply = source => {
+const deviceCopy = () => ({
+watched: localKeys.watched ? localStore.get(localKeys.watched) : [],
+liked: localKeys.liked ? localStore.get(localKeys.liked) : [],
+must: localKeys.must ? localStore.get(localKeys.must) : [],
+watched_at: localKeys.watchedAt ? localStore.get(localKeys.watchedAt) : {}
+});
+const marksNow = () => [ watched, liked, must ].map(set => [ ...set ].sort().join(',')).join('|');
+const apply = (source, {fromDevice: fromDevice = false, quietIfSame: quietIfSame = false} = {}) => {
+const before = quietIfSame ? marksNow() : null;
 watchedAt = source.watched_at && typeof source.watched_at === 'object' && !Array.isArray(source.watched_at) ? source.watched_at : {};
 window.watchedAt = watchedAt;
 watched = new Set((source.watched || []).map(String));
@@ -6537,12 +6718,19 @@ must: must
 window.watched = watched;
 window.liked = liked;
 window.must = must;
-if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
-window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 3;
-render({
+const unchanged = quietIfSame && before === marksNow();
+if (!unchanged && typeof tasteStatsChanged === 'function') tasteStatsChanged();
+if (!fromDevice) window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 3;
+if (!unchanged) render({
 keepDrawn: true
 });
 };
+const onDevice = deviceCopy();
+if (onDevice.watched.length || onDevice.liked.length || onDevice.must.length) {
+apply(onDevice, {
+fromDevice: true
+});
+}
 try {
 const res = await fetch(`${API_PROXY}/library/marks`, {
 headers: await proxyHeaders({
@@ -6551,7 +6739,9 @@ accept: 'application/json'
 });
 if (!res.ok) throw new Error(`marks ${res.status}`);
 const data = await res.json();
-apply(data);
+apply(data, {
+quietIfSame: true
+});
 if (localKeys.watchedAt) localStore.set(localKeys.watchedAt, watchedAt);
 if (localKeys.watched) localStore.set(localKeys.watched, [ ...watched ]);
 if (localKeys.liked) localStore.set(localKeys.liked, [ ...liked ]);
@@ -6559,11 +6749,8 @@ if (localKeys.must) localStore.set(localKeys.must, [ ...must ]);
 loadMarkCounts();
 if (pendingMarkOps(pendingMarks).length) flushMarks();
 } catch (err) {
-apply({
-watched: localKeys.watched ? localStore.get(localKeys.watched) : [],
-liked: localKeys.liked ? localStore.get(localKeys.liked) : [],
-must: localKeys.must ? localStore.get(localKeys.must) : [],
-watched_at: localKeys.watchedAt ? localStore.get(localKeys.watchedAt) : {}
+apply(deviceCopy(), {
+quietIfSame: true
 });
 }
 }
@@ -6808,7 +6995,6 @@ sort: 'rating',
 query: '',
 recommender: 'all',
 showWatched: false,
-searchWatched: false,
 hideAwards: false,
 hideScores: false,
 type: 'all',
@@ -6833,6 +7019,16 @@ let addMode = false;
 
 let selectedForAdd = new Set;
 
+let filterDraft = null;
+
+let genreBeforeSearch = null;
+
+const DRAWER_FILTER_KEYS = [ 'sort', 'awardsFirst', 'release', 'recommender', 'type', 'years', 'provider', 'actors', 'directors' ];
+
+function filterView() {
+return filterDraft || state;
+}
+
 const SETTINGS_KEY = 'kino_ui_settings_v1';
 
 function loadSavedSettings() {
@@ -6852,7 +7048,6 @@ genre: state.genre,
 sort: state.sort,
 recommender: state.recommender,
 showWatched: state.showWatched,
-searchWatched: state.searchWatched,
 hideAwards: state.hideAwards,
 hideScores: state.hideScores,
 type: state.type,
@@ -6908,8 +7103,6 @@ if (typeof savedSettings.onlyLiked === 'boolean') state.onlyLiked = savedSetting
 
 if (typeof savedSettings.onlyMust === 'boolean') state.onlyMust = savedSettings.onlyMust;
 
-if (typeof savedSettings.searchWatched === 'boolean') state.searchWatched = savedSettings.searchWatched;
-
 if (typeof savedSettings.trailerSound === 'boolean') state.trailerSound = savedSettings.trailerSound;
 
 if (savedSettings.tabbar && typeof savedSettings.tabbar === 'object') state.tabbar = savedSettings.tabbar;
@@ -6936,6 +7129,10 @@ return state.query && state.searchScope === 'all' ? MOVIES : catalogSource();
 }
 
 function currentFilterOpts(keepWatched) {
+return filterOptsFor(state, keepWatched);
+}
+
+function filterOptsFor(choices, keepWatched) {
 const showWatched = openCatalogCollection && openCatalogCollection.source === 'marks' ? false : state.showWatched;
 return {
 query: state.query,
@@ -6944,13 +7141,13 @@ keepWatched: keepWatched,
 onlyLiked: state.onlyLiked,
 onlyMust: state.onlyMust,
 genre: state.genre,
-recommender: state.recommender,
-type: state.type,
-years: state.years,
-provider: state.provider,
-actors: state.actors,
-directors: state.directors,
-release: state.release,
+recommender: choices.recommender,
+type: choices.type,
+years: choices.years,
+provider: choices.provider,
+actors: choices.actors,
+directors: choices.directors,
+release: choices.release,
 likedIds: liked,
 watchedIds: watched,
 mustIds: must
@@ -6958,8 +7155,11 @@ mustIds: must
 }
 
 function visibleMovies() {
-const keepWatched = openCatalogCollection && openCatalogCollection.source === 'marks' || addMode || !!(state.query && state.searchWatched);
-return filterCatalog(searchSource(), currentFilterOpts(keepWatched));
+return filterCatalog(searchSource(), currentFilterOpts(shelfKeepsWatched()));
+}
+
+function shelfKeepsWatched() {
+return openCatalogCollection && openCatalogCollection.source === 'marks' || addMode || !!state.query;
 }
 
 let _toastEl = null;
@@ -7160,9 +7360,9 @@ const sel = picking && chosen.has(m.id);
 return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
-const RENDER_FIRST = 50;
+const RENDER_FIRST = 25;
 
-const RENDER_MORE = 20;
+const RENDER_MORE = 25;
 
 let _drawnTarget = RENDER_FIRST;
 
@@ -7224,24 +7424,11 @@ _batchObserver.unobserve(sentinel);
 _batchObserver.observe(sentinel);
 }
 
-function syncSearchWatched() {
-const row = document.getElementById('searchWatchedRow');
-if (!row) return;
-const relevant = !!state.query && !state.showWatched && !addMode && !(openCatalogCollection && openCatalogCollection.source === 'marks');
-if (!relevant) {
-row.hidden = true;
-return;
-}
-const n = countWatchedIn(filterCatalog(searchSource(), currentFilterOpts(true)), watched);
-row.hidden = n === 0;
-if (!n) return;
-document.getElementById('searchWatchedCount').textContent = `(${n})`;
-document.getElementById('searchWatchedBox').checked = !!state.searchWatched;
-}
+const SEARCH_RESULTS_GROUP = 'Знайдено';
 
 function render(opts = {}) {
 const main = document.getElementById('main');
-syncSearchWatched();
+document.body.classList.toggle('search-shelf', !!state.query);
 const items = visibleMovies();
 syncDice();
 _cardAwardMovies = [];
@@ -7298,25 +7485,35 @@ bubbles: true
 }
 return;
 }
+const shelfOpts = {
+sortMode: state.sort,
+watchedIds: watched,
+awardsFirst: state.awardsFirst
+};
+_renderQueue = [];
+if (state.query) {
+const ranked = rankSearchResults(sortForShelf(items, shelfOpts), state.query);
+_renderQueue.push({
+group: SEARCH_RESULTS_GROUP,
+total: ranked.length,
+movies: ranked
+});
+} else {
 const groups = new Map;
 for (const m of items) {
 const g = m.genre_group || 'Інше';
 if (!groups.has(g)) groups.set(g, []);
 groups.get(g).push(m);
 }
-_renderQueue = [];
 for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
 if (!groups.has(g)) continue;
-const list = sortForShelf(groups.get(g), {
-sortMode: state.sort,
-watchedIds: watched,
-awardsFirst: state.awardsFirst
-});
+const list = sortForShelf(groups.get(g), shelfOpts);
 _renderQueue.push({
 group: g,
 total: list.length,
 movies: list
 });
+}
 }
 main.innerHTML = '';
 drawQueuedCards(main, _drawnTarget);
@@ -7325,6 +7522,7 @@ drawQueuedCards(main, _drawnTarget);
 function resetFilters() {
 if (typeof closeSearch === 'function') closeSearch();
 state.query = '';
+genreBeforeSearch = null;
 state.showWatched = false;
 state.onlyLiked = false;
 state.onlyMust = false;
@@ -7336,14 +7534,16 @@ state.provider = 'all';
 state.release = 'all';
 state.actors = [];
 state.directors = [];
-updatePeopleFilters();
+if (filterDraft) {
+filterDraft = {
+...copyFilterChoices(state),
+sort: filterDraft.sort,
+awardsFirst: filterDraft.awardsFirst
+};
+}
 syncTabs();
 renderChips();
-syncTypeOpts();
-syncYearOpts();
-syncReleaseOpts();
-updateRecommenderFilter();
-updateProviderFilter();
+refreshFilterDrawer();
 updateFilterGlow();
 renderChips();
 render();
@@ -8723,15 +8923,16 @@ openModal(m);
 }
 });
 
-document.getElementById('searchWatchedBox').addEventListener('change', e => {
-state.searchWatched = !!e.target.checked;
-renderChips();
-render();
-saveSettings();
-});
-
 document.getElementById('search').addEventListener('input', e => {
+const wasSearching = !!state.query;
 state.query = e.target.value.trim();
+if (!wasSearching && state.query && state.genre !== 'all') {
+genreBeforeSearch = state.genre;
+state.genre = 'all';
+} else if (wasSearching && !state.query && genreBeforeSearch) {
+state.genre = genreBeforeSearch;
+genreBeforeSearch = null;
+}
 renderChips();
 render();
 });
@@ -8830,7 +9031,7 @@ function sheetKeepsCatalogueLive(id) {
 return id === 'menuSheet' || id === 'settingsSheet';
 }
 
-function wireSheet(sheetId, backdropId) {
+function wireSheet(sheetId, backdropId, hooks = {}) {
 const sheet = document.getElementById(sheetId);
 const backdrop = document.getElementById(backdropId);
 const isMenu = sheetId === 'menuSheet';
@@ -8838,6 +9039,7 @@ const open = () => {
 backdrop.hidden = false;
 sheet.classList.add('open');
 sheet.setAttribute('aria-hidden', 'false');
+if (hooks.onOpen) hooks.onOpen();
 if (!menuIsNav() || !sheetKeepsCatalogueLive(sheetId)) lockScroll(sheet);
 if (sheetIsBand(sheetId)) syncSheetNav();
 navSync();
@@ -8846,6 +9048,7 @@ const close = () => {
 backdrop.hidden = true;
 sheet.classList.remove('open');
 sheet.setAttribute('aria-hidden', 'true');
+if (hooks.onClose) hooks.onClose();
 unlockScroll(sheet);
 if (sheetIsBand(sheetId)) syncSheetNav();
 navSync();
@@ -8948,7 +9151,10 @@ closeFn();
 if (_screenDoor === 'menu') menuSheet.open();
 }
 
-const filterSheet = wireSheet('filterSheet', 'filterBackdrop');
+const filterSheet = wireSheet('filterSheet', 'filterBackdrop', {
+onOpen: () => beginFilterDraft(),
+onClose: () => endFilterDraft()
+});
 
 const trashSheet = wireSheet('trashSheet', 'trashBackdrop');
 
@@ -9072,6 +9278,8 @@ filterSheet.open();
 
 document.getElementById('filterResetBtn').addEventListener('click', resetFilters);
 
+document.getElementById('filterApplyBtn').addEventListener('click', () => applyFilterDraft());
+
 document.getElementById('menuSheet').addEventListener('click', e => {
 const row = e.target.closest('.sheet-row');
 if (!row || row.getAttribute('aria-disabled') === 'true') return;
@@ -9084,20 +9292,21 @@ document.getElementById('filterBtn').classList.remove('filter-on');
 
 const typeOptsEl = document.getElementById('typeOpts');
 
-function syncTypeOpts() {
-typeOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.type === state.type));
+function syncTypeOpts(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
+const view = filterView();
+offerOnly(typeOptsEl, document.getElementById('typeLabel'), 'type', facets ? facets.type : null, key => key === view.type);
 }
 
 typeOptsEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
-state.type = state.type === b.dataset.type ? 'all' : b.dataset.type;
-syncTypeOpts();
-syncYearOpts();
-updateFilterGlow();
-renderChips();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.type = d.type === b.dataset.type ? 'all' : b.dataset.type;
+});
 });
 
 const yearOptsEl = document.getElementById('yearOpts');
@@ -9109,31 +9318,36 @@ label: 'Усі'
 }, ...YEAR_BUCKETS ].map(b => `<button class="opt" data-years="${b.key}" type="button">${esc(b.label)}</button>`).join('');
 }
 
-function chosenYearKeys() {
-return new Set(state.years === 'all' ? [] : String(state.years).split(','));
+function yearKeysOf(value) {
+return new Set(value === 'all' ? [] : String(value).split(','));
 }
 
-function syncYearOpts() {
+function chosenYearKeys() {
+return yearKeysOf(filterView().years);
+}
+
+function syncYearOpts(facets) {
 if (!yearOptsEl) return;
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
 const chosen = chosenYearKeys();
-yearOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.years === 'all' ? chosen.size === 0 : chosen.has(b.dataset.years)));
+offerOnly(yearOptsEl, document.getElementById('yearLabel'), 'years', facets ? facets.years : null, key => key === 'all' ? chosen.size === 0 : chosen.has(key));
 }
 
 if (yearOptsEl) yearOptsEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
+editFilterDraft(d => {
 if (b.dataset.years === 'all') {
-state.years = 'all';
-} else {
-const chosen = chosenYearKeys();
-chosen.has(b.dataset.years) ? chosen.delete(b.dataset.years) : chosen.add(b.dataset.years);
-state.years = chosen.size ? [ ...chosen ].join(',') : 'all';
+d.years = 'all';
+return;
 }
-syncYearOpts();
-updateFilterGlow();
-renderChips();
-render();
-saveSettings();
+const chosen = yearKeysOf(d.years);
+chosen.has(b.dataset.years) ? chosen.delete(b.dataset.years) : chosen.add(b.dataset.years);
+d.years = chosen.size ? [ ...chosen ].join(',') : 'all';
+});
 });
 
 function scoresShown() {
@@ -9163,9 +9377,23 @@ const botList = document.getElementById('botList');
 
 let _bots = [];
 
+const BOT_MODE_WORDS = {
+quiet: 'Тихий',
+normal: 'Звичайний',
+active: 'Активний'
+};
+
 function botRowHtml(b) {
 const off = !b.enabled;
-return `<div class="bot-row${off ? ' is-off' : ''}" data-bot="${esc(b.username)}">` + `<span class="bot-name">${esc(b.username.replace(/^bot_/, ''))}</span>` + `<span class="bot-stat">${b.watched} <i>переглянуто</i></span>` + `<span class="bot-stat">${b.collections} <i>добірок</i></span>` + `<button class="opt${off ? '' : ' active'}" type="button" data-bot-toggle aria-pressed="${off ? 'false' : 'true'}"` + ` title="${off ? 'Увімкнути' : 'Вимкнути'}" aria-label="${off ? 'Увімкнути' : 'Вимкнути'}">${ICON.eye}</button>` + '</div>';
+const mode = BOT_MODE_WORDS[b.mode] ? b.mode : 'normal';
+const stats = b.pending ? '<span class="bot-stat bot-pending">створюється…</span>' : `<span class="bot-stat">${b.watched} <i>переглянуто</i></span>` + `<span class="bot-stat">${b.collections} <i>добірок</i></span>` + `<span class="bot-stat">${b.following || 0} <i>підписок</i></span>` + `<span class="bot-stat">${b.likes || 0} <i>лайків</i></span>`;
+const modes = Object.entries(BOT_MODE_WORDS).map(([key, word]) => `<button class="opt${key === mode ? ' active' : ''}" type="button" data-bot-mode="${key}" aria-pressed="${key === mode}">${word}</button>`).join('');
+return `<div class="bot-row${off ? ' is-off' : ''}" data-bot="${esc(b.username)}">` + `<div class="bot-line"><span class="bot-name">${esc(b.username.replace(/^bot_/, ''))}</span>${stats}</div>` + `<div class="bot-line bot-controls"><div class="opts bot-mode">${modes}</div>` + `<button class="opt${off ? '' : ' active'}" type="button" data-bot-toggle aria-pressed="${off ? 'false' : 'true'}"` + ` title="${off ? 'Увімкнути' : 'Вимкнути'}" aria-label="${off ? 'Увімкнути' : 'Вимкнути'}">${ICON.eye}</button>` + `<button class="opt bot-delete" type="button" data-bot-delete title="Видалити" aria-label="Видалити">${ICON.close}</button>` + '</div></div>';
+}
+
+function drawBots() {
+if (!botList) return;
+botList.innerHTML = _bots.length ? _bots.map(botRowHtml).join('') : '<div class="acc-hint">Ботів немає. Вони зʼявляться тут самі, щойно будуть створені.</div>';
 }
 
 async function renderBots() {
@@ -9178,46 +9406,165 @@ accept: 'application/json'
 })
 });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-_bots = (await res.json()).bots || [];
+_bots = ((await res.json()).bots || []).filter(b => !b.removed);
 } catch (err) {
 botList.innerHTML = '<div class="acc-hint">Не вдалося прочитати список ботів.</div>';
 return;
 }
-botList.innerHTML = _bots.length ? _bots.map(botRowHtml).join('') : '<div class="acc-hint">Ботів немає. Вони зʼявляться тут самі, щойно будуть створені.</div>';
+drawBots();
 }
 
-botList && botList.addEventListener('click', async e => {
-const btn = e.target.closest('[data-bot-toggle]');
-if (!btn) return;
-const row = btn.closest('.bot-row');
-const username = row && row.dataset.bot;
-const bot = _bots.find(b => b.username === username);
-if (!bot) return;
-const next = !bot.enabled;
-bot.enabled = next;
-row.classList.toggle('is-off', !next);
-btn.classList.toggle('active', next);
-btn.setAttribute('aria-pressed', String(next));
+async function sendBotControl(bot) {
 try {
-const res = await fetch(`${API_PROXY}/library/bots/${encodeURIComponent(username)}`, {
+const res = await fetch(`${API_PROXY}/library/bots/${encodeURIComponent(bot.username)}`, {
 method: 'PUT',
 headers: await proxyHeaders({
 accept: 'application/json',
 'content-type': 'application/json'
 }),
 body: JSON.stringify({
-enabled: next,
-overrides: bot.overrides || {}
+enabled: bot.enabled,
+overrides: {
+...bot.overrides || {},
+mode: bot.mode || 'normal'
+}
+})
+});
+return res.ok;
+} catch (err) {
+return false;
+}
+}
+
+function paintBotSwitch(row, on) {
+const btn = row.querySelector('[data-bot-toggle]');
+row.classList.toggle('is-off', !on);
+btn.classList.toggle('active', on);
+btn.setAttribute('aria-pressed', String(on));
+}
+
+function paintBotMode(row, mode) {
+row.querySelectorAll('[data-bot-mode]').forEach(b => {
+const lit = b.dataset.botMode === mode;
+b.classList.toggle('active', lit);
+b.setAttribute('aria-pressed', String(lit));
+});
+}
+
+async function toggleBot(bot, row) {
+const next = !bot.enabled;
+bot.enabled = next;
+paintBotSwitch(row, next);
+if (await sendBotControl(bot)) {
+toast(next ? 'Бот увімкнений' : 'Бот вимкнений');
+return;
+}
+bot.enabled = !next;
+paintBotSwitch(row, !next);
+toast('Не вдалося змінити');
+}
+
+async function setBotMode(bot, row, mode) {
+if (!BOT_MODE_WORDS[mode] || (bot.mode || 'normal') === mode) return;
+const was = bot.mode || 'normal';
+bot.mode = mode;
+paintBotMode(row, mode);
+if (await sendBotControl(bot)) {
+toast(`Режим: ${BOT_MODE_WORDS[mode].toLowerCase()}`);
+return;
+}
+bot.mode = was;
+paintBotMode(row, was);
+toast('Не вдалося змінити');
+}
+
+async function deleteBot(bot) {
+const ok = await askConfirm({
+title: 'Видалити бота?',
+lines: [ bot.username.replace(/^bot_/, ''), 'Зникнуть його відмітки, добірки, підписки й лайки. Копії його добірок, які хтось узяв собі, залишаться.' ],
+goText: 'Видалити'
+});
+if (!ok) return;
+try {
+const res = await fetch(`${API_PROXY}/library/bots/${encodeURIComponent(bot.username)}`, {
+method: 'DELETE',
+headers: await proxyHeaders({
+accept: 'application/json'
 })
 });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-toast(next ? 'Бот увімкнений' : 'Бот вимкнений');
 } catch (err) {
-bot.enabled = !next;
-row.classList.toggle('is-off', next);
-btn.classList.toggle('active', !next);
-btn.setAttribute('aria-pressed', String(!next));
-toast('Не вдалося змінити');
+toast('Не вдалося видалити');
+return;
+}
+_bots = _bots.filter(b => b !== bot);
+drawBots();
+toast('Бота видалено');
+}
+
+botList && botList.addEventListener('click', e => {
+const row = e.target.closest('.bot-row');
+const bot = row && _bots.find(b => b.username === row.dataset.bot);
+if (!bot) return;
+if (e.target.closest('[data-bot-toggle]')) {
+toggleBot(bot, row);
+return;
+}
+const modeBtn = e.target.closest('[data-bot-mode]');
+if (modeBtn) {
+setBotMode(bot, row, modeBtn.dataset.botMode);
+return;
+}
+if (e.target.closest('[data-bot-delete]')) deleteBot(bot);
+});
+
+const botAddName = document.getElementById('botAddName');
+
+const botAddMode = document.getElementById('botAddMode');
+
+const botAddBtn = document.getElementById('botAddBtn');
+
+botAddMode && botAddMode.addEventListener('click', e => {
+const b = e.target.closest('[data-mode]');
+if (!b) return;
+botAddMode.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('active', x === b));
+});
+
+botAddBtn && botAddBtn.addEventListener('click', async () => {
+const name = (botAddName.value || '').trim().toLowerCase();
+if (!/^[a-z]{2,16}$/.test(name)) {
+toast('Імʼя — від 2 до 16 латинських літер');
+botAddName.focus();
+return;
+}
+const lit = botAddMode.querySelector('[data-mode].active');
+const mode = lit ? lit.dataset.mode : 'normal';
+botAddBtn.disabled = true;
+try {
+const res = await fetch(`${API_PROXY}/library/bots`, {
+method: 'POST',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+name: name,
+mode: mode
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+const data = await res.json();
+if (data.bot) {
+_bots.push(data.bot);
+_bots.sort((x, y) => x.username.localeCompare(y.username));
+drawBots();
+}
+botAddName.value = '';
+toast('Бота додано: акаунт зʼявиться протягом години');
+} catch (err) {
+toast('Не вдалося додати');
+} finally {
+botAddBtn.disabled = false;
 }
 });
 
@@ -9495,49 +9842,49 @@ input.focus();
 const sortOptsEl = document.getElementById('sortOpts');
 
 function syncSortOpts() {
-sortOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.sort === state.sort));
+const view = filterView();
+sortOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.sort === view.sort));
 }
 
 sortOptsEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
-state.sort = b.dataset.sort;
-syncSortOpts();
-updateFilterGlow();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.sort = b.dataset.sort;
+});
 });
 
 const awardsSortEl = document.getElementById('awardsSortOpts');
 
 function syncAwardsSort() {
 const b = awardsSortEl.querySelector('.opt');
-if (b) b.classList.toggle('active', !!state.awardsFirst);
+if (b) b.classList.toggle('active', !!filterView().awardsFirst);
 }
 
 awardsSortEl.addEventListener('click', e => {
 if (!e.target.closest('.opt')) return;
-state.awardsFirst = !state.awardsFirst;
-syncAwardsSort();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.awardsFirst = !d.awardsFirst;
+});
 });
 
 const releaseOptsEl = document.getElementById('releaseOpts');
 
-function syncReleaseOpts() {
-releaseOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.release === state.release));
+function syncReleaseOpts(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
+const view = filterView();
+offerOnly(releaseOptsEl, document.getElementById('releaseLabel'), 'release', facets ? facets.release : null, key => key === view.release);
 }
 
 releaseOptsEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
-state.release = state.release === b.dataset.release ? 'all' : b.dataset.release;
-syncReleaseOpts();
-renderChips();
-updateFilterGlow();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.release = d.release === b.dataset.release ? 'all' : b.dataset.release;
+});
 });
 
 document.getElementById('viewToggle').addEventListener('click', e => {
@@ -9600,7 +9947,7 @@ query: state.query,
 showWatched: state.showWatched,
 onlyLiked: state.onlyLiked,
 onlyMust: state.onlyMust,
-keepWatched: openCatalogCollection && openCatalogCollection.source === 'marks' || addMode,
+keepWatched: shelfKeepsWatched(),
 genre: 'all',
 recommender: state.recommender,
 type: state.type,
@@ -9674,6 +10021,7 @@ genreChipsEl.addEventListener('click', e => {
 const b = e.target.closest('.chip');
 if (!b) return;
 state.genre = state.genre === b.dataset.g ? 'all' : b.dataset.g;
+genreBeforeSearch = null;
 renderChips();
 render();
 saveSettings();
@@ -9758,16 +10106,23 @@ renderChips();
 
 const recommenderFilterEl = document.getElementById('recommenderFilter');
 
-function updateRecommenderFilter() {
-const values = [ ...new Set(MOVIES.map(m => m.recommended_by).filter(Boolean)) ].sort((a, b) => a.localeCompare(b, 'uk'));
+function updateRecommenderFilter(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
+const view = filterView();
 const label = document.getElementById('recommenderLabel');
+let values = [ ...new Set(MOVIES.map(m => m.recommended_by).filter(Boolean)) ];
+if (!values.includes(view.recommender)) view.recommender = 'all';
+if (facets) values = values.filter(v => facets.recommender.has(v) || v === view.recommender);
+values.sort((a, b) => a.localeCompare(b, 'uk'));
 if (!values.length) {
 recommenderFilterEl.style.display = 'none';
 label.style.display = 'none';
 return;
 }
-if (!values.includes(state.recommender)) state.recommender = 'all';
-recommenderFilterEl.innerHTML = values.map(v => `<button class="opt${state.recommender === v ? ' active' : ''}" data-rec="${esc(v)}" type="button">${esc(v)}</button>`).join('');
+recommenderFilterEl.innerHTML = values.map(v => `<button class="opt${view.recommender === v ? ' active' : ''}" data-rec="${esc(v)}" type="button">${esc(v)}</button>`).join('');
 recommenderFilterEl.style.display = '';
 label.style.display = '';
 }
@@ -9775,24 +10130,31 @@ label.style.display = '';
 recommenderFilterEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
-state.recommender = state.recommender === b.dataset.rec ? 'all' : b.dataset.rec;
-updateRecommenderFilter();
-updateProviderFilter();
-updateFilterGlow();
-renderChips();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.recommender = d.recommender === b.dataset.rec ? 'all' : b.dataset.rec;
+});
 });
 
 updateRecommenderFilter();
 
 const providerFilterEl = document.getElementById('providerFilter');
 
-function updateProviderFilter() {
+function updateProviderFilter(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
 const label = document.getElementById('providerLabel');
 if (!providerFilterEl || !label) return;
-if (!KNOWN_SERVICES.includes(state.provider)) state.provider = 'all';
-providerFilterEl.innerHTML = KNOWN_SERVICES.map(name => `<button class="opt${state.provider === name ? ' active' : ''}" data-prov="${esc(name)}" type="button">${esc(name)}</button>`).join('');
+const view = filterView();
+if (!KNOWN_SERVICES.includes(view.provider)) view.provider = 'all';
+const names = facets ? KNOWN_SERVICES.filter(name => facets.provider.has(name) || name === view.provider) : KNOWN_SERVICES;
+if (!names.length) {
+providerFilterEl.style.display = 'none';
+label.style.display = 'none';
+return;
+}
+providerFilterEl.innerHTML = names.map(name => `<button class="opt${view.provider === name ? ' active' : ''}" data-prov="${esc(name)}" type="button">${esc(name)}</button>`).join('');
 providerFilterEl.style.display = '';
 label.style.display = '';
 }
@@ -9800,12 +10162,9 @@ label.style.display = '';
 if (providerFilterEl) providerFilterEl.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
-state.provider = state.provider === b.dataset.prov ? 'all' : b.dataset.prov;
-updateProviderFilter();
-updateFilterGlow();
-renderChips();
-render();
-saveSettings();
+editFilterDraft(d => {
+d.provider = d.provider === b.dataset.prov ? 'all' : b.dataset.prov;
+});
 });
 
 updateProviderFilter();
@@ -9841,33 +10200,44 @@ directors: directorsInCatalogue(MOVIES)
 return window.__peopleCounts;
 }
 
-function updatePeopleFilters() {
+function updatePeopleFilters(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
 const stats = tasteStats();
-const counted = peopleInCatalogue();
-const defs = [ [ 'actors', counted.actors, stats.actors, ACTOR_FILTER_KEEP, 'акторів' ], [ 'directors', counted.directors, stats.directors, DIRECTOR_FILTER_KEEP, 'режисерів' ] ];
-for (const [key, counted, taste, keep, noun] of defs) {
+const view = filterView();
+const catalogue = peopleInCatalogue();
+const defs = [ [ 'actors', facets ? facets.actors : catalogue.actors, catalogue.actors.length, stats.actors, ACTOR_FILTER_KEEP, 'акторів' ], [ 'directors', facets ? facets.directors : catalogue.directors, catalogue.directors.length, stats.directors, DIRECTOR_FILTER_KEEP, 'режисерів' ] ];
+for (const [key, counted, inCatalogue, taste, keep, noun] of defs) {
 const {label: label, box: box} = peopleFilterEls[key];
 if (!label || !box) continue;
-const ranked = rankPeopleByTaste(counted, taste, keep);
-if (!ranked.length) {
+if (!inCatalogue) {
 label.style.display = 'none';
 box.hidden = true;
-state[key] = [];
+view[key] = [];
 continue;
 }
+const ranked = rankPeopleByTaste(counted, taste, keep);
 const names = new Set(ranked.map(p => p.name));
-for (const chosen of state[key]) {
+for (const chosen of view[key]) {
 if (!names.has(chosen)) ranked.push({
 name: chosen,
 count: 0,
 favourite: false
 });
 }
+if (!ranked.length) {
+label.style.display = 'none';
+box.style.display = 'none';
+continue;
+}
 label.style.display = '';
+box.style.display = '';
 const labelText = label.querySelector('[data-people-label]');
 if (labelText) labelText.textContent = `Твій топ ${keep} ${noun}`;
-box.innerHTML = ranked.map(p => `<button class="opt${state[key].includes(p.name) ? ' active' : ''}"\n        data-name="${esc(p.name)}" type="button">${esc(p.name)}</button>`).join('');
-if (state[key].length) {
+box.innerHTML = ranked.map(p => `<button class="opt${view[key].includes(p.name) ? ' active' : ''}"\n        data-name="${esc(p.name)}" type="button">${esc(p.name)}</button>`).join('');
+if (view[key].length) {
 box.hidden = false;
 label.setAttribute('aria-expanded', 'true');
 }
@@ -9892,16 +10262,80 @@ box.addEventListener('click', e => {
 const b = e.target.closest('.opt');
 if (!b) return;
 const name = b.dataset.name;
-state[key] = state[key].includes(name) ? state[key].filter(n => n !== name) : [ ...state[key], name ];
-updatePeopleFilters();
-updateFilterGlow();
-renderChips();
-render();
-saveSettings();
+editFilterDraft(d => {
+d[key] = d[key].includes(name) ? d[key].filter(n => n !== name) : [ ...d[key], name ];
+});
 });
 }
 
 updatePeopleFilters();
+
+function copyFilterChoices(src) {
+const out = {};
+for (const key of DRAWER_FILTER_KEYS) out[key] = Array.isArray(src[key]) ? src[key].slice() : src[key];
+return out;
+}
+
+function beginFilterDraft() {
+if (!filterDraft) filterDraft = copyFilterChoices(state);
+refreshFilterDrawer();
+}
+
+function endFilterDraft() {
+if (!filterDraft) return;
+filterDraft = null;
+refreshFilterDrawer();
+}
+
+function editFilterDraft(change) {
+if (!filterDraft) filterDraft = copyFilterChoices(state);
+change(filterDraft);
+refreshFilterDrawer();
+}
+
+function filterDraftPending() {
+if (!filterDraft) return false;
+return DRAWER_FILTER_KEYS.some(key => JSON.stringify(filterDraft[key]) !== JSON.stringify(state[key]));
+}
+
+function applyFilterDraft() {
+if (filterDraft) Object.assign(state, copyFilterChoices(filterDraft));
+updateFilterGlow();
+renderChips();
+render();
+saveSettings();
+filterSheet.close();
+}
+
+function offerOnly(box, label, attr, offered, isLit) {
+if (!box) return;
+let shown = 0;
+box.querySelectorAll('.opt').forEach(b => {
+const key = b.dataset[attr];
+const lit = isLit(key);
+b.classList.toggle('active', lit);
+const keep = !offered || key === 'all' || lit || offered.has(key);
+b.hidden = !keep;
+if (keep && key !== 'all') shown += 1;
+});
+const empty = !!offered && shown === 0;
+box.hidden = empty;
+if (label) label.hidden = empty;
+}
+
+function refreshFilterDrawer() {
+const facets = filterDraft ? filterFacets(searchSource(), filterOptsFor(filterDraft, shelfKeepsWatched())) : null;
+syncSortOpts();
+syncAwardsSort();
+syncReleaseOpts(facets);
+syncTypeOpts(facets);
+syncYearOpts(facets);
+updateRecommenderFilter(facets);
+updateProviderFilter(facets);
+updatePeopleFilters(facets);
+const apply = document.getElementById('filterApplyBtn');
+if (apply) apply.classList.toggle('active', filterDraftPending());
+}
 
 (function applySavedSettingsToDom() {
 syncTabs();
@@ -9962,6 +10396,7 @@ if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
 window.__catalogueShowable = true;
+renderChips();
 render();
 }
 let liveVersion = null;
@@ -9981,7 +10416,9 @@ window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
 renderChips();
 updateRecommenderFilter();
-render();
+render({
+keepDrawn: true
+});
 return;
 }
 if (paintedFromCache && !needsFullCatalogueLoad({
@@ -13248,8 +13685,9 @@ sel: '.mark-word',
 deep: true
 }, {
 surface: 'filter',
-box: 'filterSheet',
-sel: '#filterResetBtn'
+box: 'filterResetRow',
+sel: '#filterResetBtn, #filterApplyBtn',
+deep: true
 } ];
 
 function rowFrom(spec, surface) {
