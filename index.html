@@ -1425,6 +1425,30 @@
   .bot-mode { display: flex; gap: 6px; flex-wrap: wrap; }
   .bot-mode .opt { padding: 6px 9px; min-height: 32px; font-size: 10.5px; }
   .bot-row.is-off { opacity: .45; }
+  
+  .admin-pane[hidden] { display: none; }
+  .stats-range { margin: 4px 0 14px; }
+  .stats-range .opt { padding: 7px 10px; min-height: 32px; font-size: 10.5px; }
+  .stats-figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stats-fig { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--border); border-radius: 2px; }
+  .stats-fig b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; color: var(--paper); }
+  .stats-fig span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ash); }
+  .stats-fig--new b { color: var(--flash); }
+  .stats-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; padding-top: 6px; border-bottom: 1px solid var(--border); }
+  .stats-bar { position: relative; flex: 1 1 0; min-width: 0; height: 100%; }
+  .stats-bar i { position: absolute; left: 0; right: 0; bottom: 0; display: block; }
+  .stats-bar-active { background: var(--slate); }
+  .stats-bar-new { background: var(--flash); }
+  .stats-legend {
+    display: flex; gap: 14px; margin: 8px 0 14px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ash);
+  }
+  .stats-key::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+  .stats-key--active::before { background: var(--slate); }
+  .stats-key--new::before { background: var(--flash); }
+  .stats-lines { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .stats-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--dust); }
+  .stats-line b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; color: var(--paper); }
   .bot-pending { font-style: italic; }
   .bot-add { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 8px; }
   .bot-add-name {
@@ -1459,6 +1483,7 @@
   
   body.tabs-in-bar #recsBox > .add-tabs,
   body.tabs-in-bar #friendsBox > .add-tabs,
+  body.tabs-in-bar #adminSheet > .add-tabs,
   
   body.tabs-in-bar #addMovieBox .add-tabs { display: none; }
   
@@ -2751,32 +2776,58 @@
   <div class="sheet-head">
     <div class="sheet-title">Адмін</div>
   </div>
-  <div class="sheet-label">Дублікати</div>
-  <div class="acc-hint">Той самий фільм двома записами. Позначки й добірки розходяться між ними, а на полиці він виглядає як два однакові.</div>
-  <div class="acc-form-actions">
-    <button class="btn on-watched" id="dupScanBtn" type="button">Знайти дублікати</button>
+  <!-- Three errands, three tabs (owner's ask): statistics, bots, duplicates.
+       The row is the ordinary window-tab row — lent to the bar while the
+       sheet is open (WINDOW_TABS in 24-tabbar.js), drawn here otherwise. -->
+  <div class="add-tabs" id="adminTabs">
+    <button class="add-tab active" type="button" data-admin-tab="stats">Статистика</button>
+    <button class="add-tab" type="button" data-admin-tab="bots">Боти</button>
+    <button class="add-tab" type="button" data-admin-tab="dupes">Дублікати</button>
   </div>
-  <div id="dupResults"></div>
-
-  <!-- The simulated accounts. Their IDENTITY lives beside the simulator on
-       the machine that runs them; what is here is CONTROL — see bot_control
-       in the Worker's schema. -->
-  <div class="sheet-label">Боти</div>
-  <div class="acc-hint">Вигадані акаунти, що живуть у застосунку самі: відмічають фільми, збирають добірки, підписуються одне на одного й ставлять лайки добіркам. Усе, що змінено тут, діє протягом години — стільки триває цикл симулятора. Пароль у всіх один: <b>botTest123!</b></div>
-  <!-- Adding writes a request; the simulator creates the account on its next
-       run, because only the machine that runs the bots can make one. -->
-  <div class="bot-add">
-    <input class="bot-add-name" id="botAddName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="16" placeholder="Імʼя латиницею, напр. olena" aria-label="Імʼя нового бота">
-    <div class="opts bot-mode" id="botAddMode">
-      <button class="opt" type="button" data-mode="quiet">Тихий</button>
-      <button class="opt active" type="button" data-mode="normal">Звичайний</button>
-      <button class="opt" type="button" data-mode="active">Активний</button>
+  <div class="admin-pane" data-admin-pane="stats">
+    <div class="opts stats-range" id="statsRange" role="group" aria-label="Період">
+      <button class="opt" type="button" data-range="1h">1 год</button>
+      <button class="opt" type="button" data-range="6h">6 год</button>
+      <button class="opt" type="button" data-range="12h">12 год</button>
+      <button class="opt active" type="button" data-range="24h">24 год</button>
+      <button class="opt" type="button" data-range="7d">7 днів</button>
+      <button class="opt" type="button" data-range="14d">14 днів</button>
+      <button class="opt" type="button" data-range="1m">Місяць</button>
+      <button class="opt" type="button" data-range="3m">3 місяці</button>
+      <button class="opt" type="button" data-range="6m">6 місяців</button>
+      <button class="opt" type="button" data-range="1y">Рік</button>
     </div>
+    <div id="statsBody" class="stats-body"></div>
+  </div>
+  <div class="admin-pane" data-admin-pane="bots" hidden>
+    <!-- The simulated accounts. Their IDENTITY lives beside the simulator on
+         the machine that runs them; what is here is CONTROL — see bot_control
+         in the Worker's schema. -->
+    <div class="sheet-label">Боти</div>
+    <div class="acc-hint">Вигадані акаунти, що живуть у застосунку самі: відмічають фільми, збирають добірки, підписуються одне на одного й ставлять лайки добіркам. Усе, що змінено тут, діє протягом години — стільки триває цикл симулятора. Пароль у всіх один: <b>botTest123!</b></div>
+    <!-- Adding writes a request; the simulator creates the account on its next
+         run, because only the machine that runs the bots can make one. -->
+    <div class="bot-add">
+      <input class="bot-add-name" id="botAddName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="16" placeholder="Імʼя латиницею, напр. olena" aria-label="Імʼя нового бота">
+      <div class="opts bot-mode" id="botAddMode">
+        <button class="opt" type="button" data-mode="quiet">Тихий</button>
+        <button class="opt active" type="button" data-mode="normal">Звичайний</button>
+        <button class="opt" type="button" data-mode="active">Активний</button>
+      </div>
+      <div class="acc-form-actions">
+        <button class="btn on-watched" id="botAddBtn" type="button">Додати бота</button>
+      </div>
+    </div>
+    <div id="botList" class="bot-list"></div>
+  </div>
+  <div class="admin-pane" data-admin-pane="dupes" hidden>
+    <div class="sheet-label">Дублікати</div>
+    <div class="acc-hint">Той самий фільм двома записами. Позначки й добірки розходяться між ними, а на полиці він виглядає як два однакові.</div>
     <div class="acc-form-actions">
-      <button class="btn on-watched" id="botAddBtn" type="button">Додати бота</button>
+      <button class="btn on-watched" id="dupScanBtn" type="button">Знайти дублікати</button>
     </div>
+    <div id="dupResults"></div>
   </div>
-  <div id="botList" class="bot-list"></div>
 </div>
 
 <!-- SETTINGS: how the catalogue is DRAWN, as opposed to which films
@@ -9710,7 +9761,88 @@ botAddBtn.disabled = false;
 }
 });
 
-document.getElementById('adminBtn').addEventListener('click', renderBots);
+const adminTabsEl = document.getElementById('adminTabs');
+
+let adminTab = 'stats';
+
+function showAdminTab(tab) {
+if (!adminTabsEl) return;
+adminTab = tab;
+adminTabsEl.querySelectorAll('[data-admin-tab]').forEach(b => b.classList.toggle('active', b.dataset.adminTab === tab));
+document.querySelectorAll('#adminSheet [data-admin-pane]').forEach(p => {
+p.hidden = p.dataset.adminPane !== tab;
+});
+if (tab === 'stats') renderAdminStats(); else if (tab === 'bots') renderBots();
+}
+
+adminTabsEl && adminTabsEl.addEventListener('click', e => {
+const b = e.target.closest('[data-admin-tab]');
+if (b) showAdminTab(b.dataset.adminTab);
+});
+
+const statsBody = document.getElementById('statsBody');
+
+const statsRangeEl = document.getElementById('statsRange');
+
+let statsRange = '24h';
+
+const _statsCache = new Map;
+
+const STATS_FRESH_MS = 60 * 1e3;
+
+async function renderAdminStats() {
+if (!statsBody || !statsRangeEl) return;
+statsRangeEl.querySelectorAll('[data-range]').forEach(b => b.classList.toggle('active', b.dataset.range === statsRange));
+const range = statsRange;
+const kept = _statsCache.get(range);
+if (kept && Date.now() - kept.at < STATS_FRESH_MS) {
+drawAdminStats(kept.data);
+return;
+}
+statsBody.innerHTML = '<div class="acc-hint">Рахую…</div>';
+try {
+const res = await fetch(`${API_PROXY}/library/admin/stats?range=${encodeURIComponent(range)}`, {
+headers: await proxyHeaders({
+accept: 'application/json'
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+const data = await res.json();
+_statsCache.set(range, {
+at: Date.now(),
+data: data
+});
+if (range === statsRange) drawAdminStats(data);
+} catch (err) {
+if (range === statsRange) statsBody.innerHTML = '<div class="acc-hint">Не вдалося порахувати статистику.</div>';
+}
+}
+
+statsRangeEl && statsRangeEl.addEventListener('click', e => {
+const b = e.target.closest('[data-range]');
+if (!b) return;
+statsRange = b.dataset.range;
+renderAdminStats();
+});
+
+function statsDay(ms) {
+const d = new Date(ms);
+return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+}
+
+function drawAdminStats(s) {
+const n = v => Number(v) || 0;
+const fig = (value, word, cls) => `<div class="stats-fig ${cls}"><b>${n(value)}</b><span>${word}</span></div>`;
+const series = Array.isArray(s.series) ? s.series : [];
+const top = Math.max(1, ...series.map(b => n(b.active)));
+const when = t => n(s.bucket_hours) < 24 ? `${statsDay(t)} ${String(new Date(t).getHours()).padStart(2, '0')}:00` : statsDay(t);
+const chart = series.length > 1 ? `<div class="stats-chart" role="img" aria-label="Активні й нові за період">${series.map(b => `<div class="stats-bar" title="${esc(when(b.t))}: активні ${n(b.active)}, нові ${n(b.new)}">` + `<i class="stats-bar-active" style="height:${Math.round(n(b.active) / top * 100)}%"></i>` + `<i class="stats-bar-new" style="height:${Math.round(n(b.new) / top * 100)}%"></i></div>`).join('')}</div>\n      <div class="stats-legend"><span class="stats-key stats-key--active">активні</span><span class="stats-key stats-key--new">нові</span></div>` : '';
+const line = (word, value) => `<div class="stats-line"><span>${word}</span><b>${n(value)}</b></div>`;
+const since = s.tracking_since ? ` Облік ведеться з ${statsDay(s.tracking_since)}.` : ' Облік ще не почався.';
+statsBody.innerHTML = `\n    <div class="stats-figs">${fig(s.active, 'активні', 'stats-fig--active')}${fig(s.new_users, 'нові', 'stats-fig--new')}${fig(s.left, 'відпали', 'stats-fig--left')}</div>\n    ${chart}\n    <div class="stats-lines">\n      ${line('Усього користувачів', s.users_total)}\n      ${line('Неактивні понад місяць', s.inactive_now)}\n      ${line('Нові підписки', s.follows)}\n      ${line('Змінені добірки', s.collections)}\n      ${line('Лайки добірок', s.likes)}\n    </div>\n    <div class="acc-hint">Активні — ті, хто відкривав застосунок за період. Нові — ті, хто вперше зʼявився. Відпали — ті, у кого за період минув місяць без жодного візиту. Боти не враховуються.${since}</div>`;
+}
+
+document.getElementById('adminBtn').addEventListener('click', () => showAdminTab(adminTab));
 
 function syncHeaderHeight() {
 const el = document.querySelector('header');
@@ -13813,6 +13945,11 @@ sel: '[data-recs-src], [data-recs-new]'
 surface: 'friends',
 box: 'friendsBox',
 sel: '[data-friends-tab]'
+}, {
+surface: 'admin',
+box: 'adminTabs',
+sel: '[data-admin-tab]',
+deep: true
 }, {
 surface: 'addModal',
 box: 'addMovieBox',
