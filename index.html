@@ -202,6 +202,8 @@
   .pick-collection .lbl { --type-size: 10px; --type-track: .18em; --type-ink: var(--ash); }
   
   .modal-providers .lbl,
+  .film-seasons .lbl,
+  .film-marks .lbl,
   .modal-cast .lbl { --type-size: 11px; --type-track: .06em; --type-ink: var(--text-muted); }
   
   .col-plate-name { --type-size: 11px; --type-track: .14em; --type-ink: var(--paper); }
@@ -999,18 +1001,40 @@
     .modal.is-flying { opacity: 1; }
   }
 
-  .film-seasons { margin: 14px 0 0; }
-  .seasons-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .seasons-row select {
-    flex: 1 1 180px; min-width: 0; max-width: 100%;
-    padding: 7px 8px; border-radius: 2px;
-    background: var(--coal2); color: var(--text);
-    border: 1px solid var(--border); font: inherit;
-    
-    font-size: 16px;
+  
+  .film-seasons { margin: 4px 0 16px; }
+  
+  .seasons-row { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  @media (min-width: 600px) { .seasons-row { grid-template-columns: 1fr 1fr; } }
+  
+  .btn.pick-drop {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 2px;
+    font-size: 11.5px; letter-spacing: .04em; text-align: left;
+    -webkit-tap-highlight-color: transparent;
   }
-  .seasons-row select:focus-visible { outline: 2px solid var(--flash); outline-offset: 1px; }
-  .episode-state { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+  .pick-drop-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn.pick-drop svg { flex: 0 0 auto; width: 14px; height: 14px; color: var(--flash); transition: transform .15s; }
+  .btn.pick-drop[aria-expanded="true"] { border-color: var(--flash); }
+  .btn.pick-drop[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .pick-drop:focus-visible, .pick-drop-opt:focus-visible { outline: 2px solid var(--flash); outline-offset: 1px; }
+  
+  .pick-drop-list {
+    margin-top: 6px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain;
+    border: 1px solid var(--border); background: none;
+  }
+  .pick-drop-opt {
+    display: block; width: 100%; padding: 11px 12px; border: 0; border-bottom: 1px solid var(--border);
+    background: none; color: var(--dust); cursor: pointer; text-align: left;
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pick-drop-opt:last-child { border-bottom: 0; }
+  .pick-drop-opt.active { color: var(--paper); box-shadow: inset 3px 0 0 var(--flash); }
+  .episode-state {
+    margin-top: 8px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--ash);
+  }
 
   
   .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
@@ -1267,7 +1291,10 @@
     text-align: justify; hyphens: auto;
   }
   .modal-cast { margin-bottom: 16px; }
-  .modal-cast .lbl { font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track); color: var(--type-ink); margin-bottom: 5px; }
+  
+  .modal-cast .lbl, .film-seasons .lbl, .film-marks .lbl {
+    font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track); color: var(--type-ink); margin-bottom: 8px;
+  }
   
   .actor {
     display: inline-block; background: var(--surface2); border: 1px solid var(--border);
@@ -1280,6 +1307,20 @@
     .actor:hover { border-color: var(--flash); color: var(--paper); }
   }
   .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  
+  .film-marks { margin: 4px 0 16px; }
+  .film-marks .modal-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .film-marks .modal-actions .btn {
+    flex-direction: column; justify-content: center; gap: 6px; min-width: 0; min-height: 64px;
+    padding: 10px 4px; font-size: 10px; letter-spacing: .06em; text-align: center;
+  }
+  .film-marks .modal-actions .btn span { overflow-wrap: anywhere; }
+  .film-marks .modal-actions .btn svg { width: 18px; height: 18px; }
+  
+  .btn.b-collect {
+    display: flex; width: 100%; justify-content: center; margin-top: 10px; min-height: 48px;
+    background: var(--blood); border-color: var(--blood); color: #fff; font-size: 12px;
+  }
   
   
   .dice-results { display: flex; flex-direction: column; gap: 16px; }
@@ -1349,7 +1390,7 @@
   .pick-col-create { margin-top: 10px; }
   .pick-col-create[hidden] { display: none; }
   .pick-col-create .acc-actions { margin-top: 8px; }
-  .b-collect.on, .b-collect[aria-expanded="true"] { border-color: var(--blood); }
+  .btn.b-collect[aria-expanded="true"] { background: var(--flash); border-color: var(--flash); }
   
   .btn {
     display: inline-flex; align-items: center; gap: 7px;
@@ -7368,6 +7409,8 @@ let _drawnTarget = RENDER_FIRST;
 
 let _renderQueue = [];
 
+let _drawnShelf = [];
+
 let _batchObserver = null;
 
 function drawQueuedCards(main, budget) {
@@ -7384,7 +7427,14 @@ section.innerHTML = `<h2>${esc(head.group)} <span class="count">${head.total}</s
 main.appendChild(section);
 grid = section.querySelector('.grid');
 }
-grid.insertAdjacentHTML('beforeend', take.map(cardHtml).join(''));
+const htmls = take.map(m => cardHtml(m));
+take.forEach((m, i) => _drawnShelf.push({
+group: head.group,
+total: head.total,
+id: m.id,
+html: htmls[i]
+}));
+grid.insertAdjacentHTML('beforeend', htmls.join(''));
 if (!head.movies.length) _renderQueue.shift();
 }
 placeBatchSentinel(main);
@@ -7435,6 +7485,7 @@ _cardAwardMovies = [];
 if (!opts.keepDrawn) _drawnTarget = RENDER_FIRST;
 if (!items.length) {
 _renderQueue = [];
+_drawnShelf = [];
 const markEl = document.getElementById('markTemplate');
 const markHtml = `<div class="empty-mark" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>`;
 if (!moviesLoaded) {
@@ -7515,8 +7566,71 @@ movies: list
 });
 }
 }
+if (patchDrawnShelf(main)) return;
 main.innerHTML = '';
+_drawnShelf = [];
 drawQueuedCards(main, _drawnTarget);
+}
+
+function patchDrawnShelf(main) {
+if (!_drawnShelf.length || !main.querySelector('.genre-section .card')) return false;
+const plan = [];
+let budget = _drawnTarget;
+for (const head of _renderQueue) {
+if (budget <= 0) break;
+const take = head.movies.slice(0, budget);
+budget -= take.length;
+for (const m of take) plan.push({
+group: head.group,
+total: head.total,
+m: m
+});
+}
+if (plan.length !== _drawnShelf.length) return false;
+for (let i = 0; i < plan.length; i++) {
+const was = _drawnShelf[i];
+if (plan[i].group !== was.group || plan[i].total !== was.total || plan[i].m.id !== was.id) return false;
+}
+const htmls = plan.map(p => cardHtml(p.m));
+for (let i = 0; i < plan.length; i++) {
+if (htmls[i] === _drawnShelf[i].html) continue;
+const card = main.querySelector(`.card[data-id="${cssAttr(plan[i].m.id)}"]`);
+if (!card) return false;
+const tpl = document.createElement('template');
+tpl.innerHTML = htmls[i].trim();
+patchNode(card, tpl.content.firstElementChild);
+_drawnShelf[i].html = htmls[i];
+}
+let drawn = plan.length;
+while (drawn > 0 && _renderQueue.length) {
+const head = _renderQueue[0];
+const n = Math.min(drawn, head.movies.length);
+head.movies.splice(0, n);
+drawn -= n;
+if (!head.movies.length) _renderQueue.shift();
+}
+placeBatchSentinel(main);
+return true;
+}
+
+function patchNode(node, fresh) {
+if (!fresh || node.nodeType !== fresh.nodeType || node.nodeName !== fresh.nodeName) {
+if (fresh) node.replaceWith(fresh.cloneNode(true));
+return;
+}
+if (node.nodeType !== 1) {
+if (node.nodeValue !== fresh.nodeValue) node.nodeValue = fresh.nodeValue;
+return;
+}
+for (const a of [ ...node.attributes ]) if (!fresh.hasAttribute(a.name)) node.removeAttribute(a.name);
+for (const a of [ ...fresh.attributes ]) if (node.getAttribute(a.name) !== a.value) node.setAttribute(a.name, a.value);
+const kids = [ ...node.childNodes ];
+const freshKids = [ ...fresh.childNodes ];
+if (kids.length !== freshKids.length) {
+node.replaceChildren(...freshKids.map(k => k.cloneNode(true)));
+return;
+}
+for (let i = 0; i < kids.length; i++) patchNode(kids[i], freshKids[i]);
 }
 
 function resetFilters() {
@@ -7928,11 +8042,15 @@ seasons: seasons
 return seasons;
 }
 
-function seasonsHtml(seasons, pick) {
+function seasonsHtml(seasons, pick, openList = null) {
 const season = seasons[pick.season];
 const eps = season && season.eps || [];
-const options = (list, label, chosen) => list.map((x, i) => `<option value="${i}"${i === chosen ? ' selected' : ''}>${esc(label(x))}</option>`).join('');
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      <select class="season-select" aria-label="Сезон">${options(seasons, s => seasonOptionLabel(s), pick.season)}</select>\n      <select class="episode-select" aria-label="Епізод">${options(eps, e => episodeOptionLabel(e), pick.episode)}</select>\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+const drop = (kind, label, text) => {
+const open = openList === kind;
+return `<button class="btn pick-drop ${kind}-drop" type="button" data-drop="${kind}" aria-haspopup="listbox"` + ` aria-expanded="${open}" aria-label="${label}"><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
+};
+const list = (kind, items, label, chosen) => `<div class="pick-drop-list" role="listbox" data-list="${kind}">` + items.map((x, i) => `<button class="pick-drop-opt${i === chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === chosen}" data-i="${i}">${esc(label(x))}</button>`).join('') + '</div>';
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${drop('season', 'Сезон', seasonOptionLabel(season))}\n      ${drop('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]))}\n    </div>\n    ${openList === 'season' ? list('season', seasons, s => seasonOptionLabel(s), pick.season) : ''}\n    ${openList === 'episode' ? list('episode', eps, e => episodeOptionLabel(e), pick.episode) : ''}\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
 }
 
 async function wireSeasons(m) {
@@ -7958,33 +8076,57 @@ episode: 0
 if (!seasons[pick.season]) pick.season = 0;
 if (!(seasons[pick.season].eps || [])[pick.episode]) pick.episode = 0;
 _seasonPick = pick;
+let openList = null;
 const draw = () => {
-box.innerHTML = seasonsHtml(seasons, _seasonPick);
+box.innerHTML = seasonsHtml(seasons, _seasonPick, openList);
+const chosen = box.querySelector('.pick-drop-opt.active');
+if (chosen && typeof chosen.scrollIntoView === 'function') chosen.scrollIntoView({
+block: 'nearest'
+});
 };
 draw();
 box.hidden = false;
-box.addEventListener('change', e => {
-const el = e.target;
-if (el.classList.contains('season-select')) {
-_seasonPick = {
-..._seasonPick,
-season: Number(el.value) || 0,
-episode: 0
+box._closeDrop = () => {
+if (openList) {
+openList = null;
+draw();
+}
 };
+box.addEventListener('click', e => {
+const opt = e.target.closest('.pick-drop-opt');
+if (opt) {
+const i = Number(opt.dataset.i) || 0;
+_seasonPick = openList === 'season' ? {
+..._seasonPick,
+season: i,
+episode: 0
+} : {
+..._seasonPick,
+episode: i
+};
+openList = null;
 draw();
 return;
 }
-if (el.classList.contains('episode-select')) {
-_seasonPick = {
-..._seasonPick,
-episode: Number(el.value) || 0
-};
-const eps = (seasons[_seasonPick.season] || {}).eps || [];
-const line = box.querySelector('.episode-state');
-if (line) line.textContent = episodeStateLine(eps[_seasonPick.episode]);
+const btn = e.target.closest('.pick-drop');
+if (btn) {
+openList = openList === btn.dataset.drop ? null : btn.dataset.drop;
+draw();
+}
+});
+box.addEventListener('keydown', e => {
+if (e.key === 'Escape' && openList) {
+e.stopPropagation();
+box._closeDrop();
 }
 });
 }
+
+document.addEventListener('click', e => {
+if (!e.target.isConnected) return;
+const box = document.getElementById('filmSeasons');
+if (box && box._closeDrop && !box.contains(e.target)) box._closeDrop();
+});
 
 const _detailAsked = new Set;
 
@@ -8430,7 +8572,7 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      <div class="modal-actions">\n        <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.eye} ${isW ? 'Переглянуто' : 'Позначити переглянутим'}</button>\n        <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.heart} ${isL ? 'У рекомендованих' : 'Рекомендую'}</button>\n        <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>${ICON.starLine} ${isM ? 'В обовʼязкових' : 'Обовʼязково до перегляду'}</button>\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} В добірку</button>\n      </div>\n      \x3c!-- The picker unfolds in place rather than popping over the card: the\n           book's rule for anything that explains one element (U-4), and the\n           same shape the awards row uses. --\x3e\n      <div class="pick-collection" id="pickCollection" hidden></div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 overlay.classList.add('open');
 navSync();
 syncFilmCardArrows();
@@ -9940,6 +10082,8 @@ saveSettings();
 
 const genreChipsEl = document.getElementById('genreChips');
 
+let _chipsHtml = null;
+
 function renderChips() {
 const counts = {};
 for (const m of filterCatalog(searchSource(), {
@@ -9975,7 +10119,10 @@ let html = '';
 for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
 if (counts[g]) html += `<button class="chip${activeG === g ? ' active' : ''}" data-g="${g}">${g} (${counts[g]})</button>`;
 }
+if (html !== _chipsHtml) {
 genreChipsEl.innerHTML = html;
+_chipsHtml = html;
+}
 syncGenreArrows();
 syncGenreFold();
 }
