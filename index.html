@@ -1449,6 +1449,9 @@
   .stats-lines { display: flex; flex-direction: column; margin-bottom: 10px; }
   .stats-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--dust); }
   .stats-line b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; color: var(--paper); }
+  
+  .stats-lines--bots .stats-line { color: var(--ash); }
+  .stats-lines--bots .stats-line b { color: var(--dust); }
   .bot-pending { font-style: italic; }
   .bot-add { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 8px; }
   .bot-add-name {
@@ -9839,7 +9842,9 @@ const when = t => n(s.bucket_hours) < 24 ? `${statsDay(t)} ${String(new Date(t).
 const chart = series.length > 1 ? `<div class="stats-chart" role="img" aria-label="Активні й нові за період">${series.map(b => `<div class="stats-bar" title="${esc(when(b.t))}: активні ${n(b.active)}, нові ${n(b.new)}">` + `<i class="stats-bar-active" style="height:${Math.round(n(b.active) / top * 100)}%"></i>` + `<i class="stats-bar-new" style="height:${Math.round(n(b.new) / top * 100)}%"></i></div>`).join('')}</div>\n      <div class="stats-legend"><span class="stats-key stats-key--active">активні</span><span class="stats-key stats-key--new">нові</span></div>` : '';
 const line = (word, value) => `<div class="stats-line"><span>${word}</span><b>${n(value)}</b></div>`;
 const since = s.tracking_since ? ` Облік ведеться з ${statsDay(s.tracking_since)}.` : ' Облік ще не почався.';
-statsBody.innerHTML = `\n    <div class="stats-figs">${fig(s.active, 'активні', 'stats-fig--active')}${fig(s.new_users, 'нові', 'stats-fig--new')}${fig(s.left, 'відпали', 'stats-fig--left')}</div>\n    ${chart}\n    <div class="stats-lines">\n      ${line('Усього користувачів', s.users_total)}\n      ${line('Неактивні понад місяць', s.inactive_now)}\n      ${line('Нові підписки', s.follows)}\n      ${line('Змінені добірки', s.collections)}\n      ${line('Лайки добірок', s.likes)}\n    </div>\n    <div class="acc-hint">Активні — ті, хто відкривав застосунок за період. Нові — ті, хто вперше зʼявився. Відпали — ті, у кого за період минув місяць без жодного візиту. Боти не враховуються.${since}</div>`;
+const bots = s.bots || {};
+const botsBlock = `\n    <div class="sheet-label">Боти</div>\n    <div class="stats-lines stats-lines--bots">\n      ${line('Активні', bots.active)}\n      ${line('Нові', bots.new_users)}\n      ${line('Відпали', bots.left)}\n      ${line('Усього', bots.total)}\n    </div>`;
+statsBody.innerHTML = `\n    <div class="stats-figs">${fig(s.active, 'активні', 'stats-fig--active')}${fig(s.new_users, 'нові', 'stats-fig--new')}${fig(s.left, 'відпали', 'stats-fig--left')}</div>\n    ${chart}\n    <div class="stats-lines">\n      ${line('Усього користувачів', s.users_total)}\n      ${line('Неактивні понад місяць', s.inactive_now)}\n      ${line('Нові підписки', s.follows)}\n      ${line('Змінені добірки', s.collections)}\n      ${line('Лайки добірок', s.likes)}\n    </div>\n    ${botsBlock}\n    <div class="acc-hint">Активні — ті, хто відкривав застосунок за період. Нові — ті, хто вперше зʼявився. Відпали — ті, у кого за період минув місяць без жодного візиту. Боти пораховані окремо й у цифри вище не входять.${since}</div>`;
 }
 
 document.getElementById('adminBtn').addEventListener('click', () => showAdminTab(adminTab));
