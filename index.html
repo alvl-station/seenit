@@ -1209,16 +1209,14 @@
   .modal-poster img { width: 100%; height: auto; display: block; }
   .modal-poster.fallback { display: flex; align-items: center; justify-content: center;
     aspect-ratio: 2/3; background: var(--surface2); }
+  
   .film-title-plate {
-    
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
-    background: rgba(14,14,16,.72); padding: 10px 18px 11px;
+    padding: 12px 18px 0;
     
     display: flex; flex-direction: column; gap: 8px;
   }
   .film-plate-row { display: flex; align-items: center; gap: 10px; }
   .film-title-text { flex: 1; min-width: 0; }
-  
   .film-title-plate h2 {
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
     letter-spacing: -.01em; margin: 0; font-size: 17px; line-height: 1.15;
@@ -1243,22 +1241,23 @@
   }
   .trailer-play[aria-pressed="true"] .t-play { display: none; }
   .trailer-play[aria-pressed="false"] .t-pause { display: none; }
+  
   .trailer-seek {
-    flex: 1 1 auto; min-width: 0; height: 3px; margin: 0; padding: 0;
-    -webkit-appearance: none; appearance: none; background: var(--border);
-    border-radius: 2px; accent-color: var(--flash); cursor: pointer;
+    flex: 1 1 auto; min-width: 0; height: 22px; margin: 0; padding: 0;
+    -webkit-appearance: none; appearance: none; background: none;
+    accent-color: var(--flash); cursor: pointer; touch-action: none;
   }
+  .trailer-seek::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--border); }
+  .trailer-seek::-moz-range-track { height: 3px; border-radius: 2px; background: var(--border); }
   .trailer-seek::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: -5.5px;
     border-radius: 50%; background: var(--flash); border: 0;
   }
-  .trailer-seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--flash); border: 0; }
+  .trailer-seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--flash); border: 0; }
   .trailer-time {
     flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
     font-size: 10.5px; letter-spacing: .04em; color: var(--dust);
   }
-  
-  .film-head.is-idle .trailer-controls { opacity: 0; pointer-events: none; }
   .trailer-controls { transition: opacity .25s; }
   @media (prefers-reduced-motion: reduce) { .trailer-controls { transition: none; } }
 
@@ -5787,7 +5786,7 @@ return picked;
 
 function youtubeEmbedUrl(url) {
 const id = youtubeVideoId(url);
-return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&controls=0&disablekb=1&iv_load_policy=3&modestbranding=1&loop=1&playlist=${id}` : null;
+return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&controls=0&disablekb=1&iv_load_policy=3&loop=1&playlist=${id}` : null;
 }
 
 function clockTime(seconds) {
@@ -8663,7 +8662,7 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-plate-row">\n          <div class="film-title-text">\n            <h2>${esc(m.canonical_title_uk)}</h2>\n            ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          </div>\n          ${sound}\n        </div>\n        ${controls}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n      ${controls}\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 resetTrailerControls();
 overlay.classList.add('open');
 navSync();
@@ -8688,9 +8687,16 @@ duration: 0,
 seeking: false
 };
 
-let _trailerIdleTimer = null;
+let _trailerSeekSentAt = 0;
+
+const TRAILER_SCRUB_MS = 120;
 
 let _trailerPausedByHand = false;
+
+function trailerIsPlaying() {
+const btn = modalBox.querySelector('.trailer-play[data-trailer-play]');
+return !!btn && btn.getAttribute('aria-pressed') === 'true';
+}
 
 function trailerCommand(func, args = '') {
 const iframe = modalBox.querySelector('.modal-trailer iframe');
@@ -8713,32 +8719,20 @@ if (!seeking) seek.value = String(duration > 0 ? Math.round(Math.min(1, current 
 }
 
 function setTrailerPlaying(on) {
-const btn = modalBox.querySelector('[data-trailer-play]');
+const btn = modalBox.querySelector('.trailer-play[data-trailer-play]');
 if (!btn) return;
 btn.setAttribute('aria-pressed', String(!!on));
 btn.setAttribute('title', on ? 'Пауза' : 'Пуск');
 btn.setAttribute('aria-label', on ? 'Пауза' : 'Пуск');
-showTrailerControls();
-}
-
-function showTrailerControls() {
-const head = modalBox.querySelector('.film-head');
-if (!head) return;
-head.classList.remove('is-idle');
-clearTimeout(_trailerIdleTimer);
-const playing = !!modalBox.querySelector('[data-trailer-play][aria-pressed="true"]');
-if (playing) _trailerIdleTimer = setTimeout(() => head.classList.add('is-idle'), 2600);
 }
 
 function resetTrailerControls() {
-clearTimeout(_trailerIdleTimer);
 _trailerClock = {
 current: 0,
 duration: 0,
 seeking: false
 };
 drawTrailerClock();
-showTrailerControls();
 }
 
 let _trailerEverPlayed = false;
@@ -8905,7 +8899,6 @@ const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame) frame.remove();
 _unmuteTimers.forEach(clearTimeout);
 _unmuteTimers = [];
-clearTimeout(_trailerIdleTimer);
 clearTrailerWatch();
 _modalMovie = null;
 unlockScroll(overlay);
@@ -8919,6 +8912,11 @@ if (!seek) return;
 _trailerClock.seeking = true;
 _trailerClock.current = Number(seek.value) / 1e3 * (_trailerClock.duration || 0);
 drawTrailerClock();
+const now = Date.now();
+if (now - _trailerSeekSentAt >= TRAILER_SCRUB_MS) {
+_trailerSeekSentAt = now;
+trailerCommand('seekTo', [ _trailerClock.current, false ]);
+}
 });
 
 modalBox.addEventListener('change', e => {
@@ -8927,11 +8925,6 @@ if (!seek) return;
 const to = Number(seek.value) / 1e3 * (_trailerClock.duration || 0);
 _trailerClock.seeking = false;
 trailerCommand('seekTo', [ to, true ]);
-showTrailerControls();
-});
-
-modalBox.addEventListener('pointerdown', e => {
-if (e.target.closest('.film-head')) showTrailerControls();
 });
 
 const NOT_A_TURN = 'a, button, input, select, textarea, label, iframe,' + ' [role="button"], [data-act], .actor, .rating-badge, .critic-badge';
@@ -8943,7 +8936,7 @@ return;
 }
 const playBtn = e.target.closest('[data-trailer-play]');
 if (playBtn) {
-const playing = playBtn.getAttribute('aria-pressed') === 'true';
+const playing = trailerIsPlaying();
 if (playing) {
 clearTrailerTimers();
 _trailerPausedByHand = true;
