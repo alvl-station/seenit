@@ -1213,8 +1213,10 @@
     
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
     background: rgba(14,14,16,.72); padding: 10px 18px 11px;
-    display: flex; align-items: center; gap: 10px;
+    
+    display: flex; flex-direction: column; gap: 8px;
   }
+  .film-plate-row { display: flex; align-items: center; gap: 10px; }
   .film-title-text { flex: 1; min-width: 0; }
   
   .film-title-plate h2 {
@@ -1231,6 +1233,34 @@
   
   .film-sound[aria-pressed="true"] .snd-slash { display: none; }
   .film-sound[aria-pressed="false"] .snd-waves { opacity: .35; }
+  
+  .trailer-controls { display: flex; align-items: center; gap: 10px; }
+  .trailer-play {
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--flash); border: 0; color: #fff; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .trailer-play[aria-pressed="true"] .t-play { display: none; }
+  .trailer-play[aria-pressed="false"] .t-pause { display: none; }
+  .trailer-seek {
+    flex: 1 1 auto; min-width: 0; height: 3px; margin: 0; padding: 0;
+    -webkit-appearance: none; appearance: none; background: var(--border);
+    border-radius: 2px; accent-color: var(--flash); cursor: pointer;
+  }
+  .trailer-seek::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--flash); border: 0;
+  }
+  .trailer-seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--flash); border: 0; }
+  .trailer-time {
+    flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 10.5px; letter-spacing: .04em; color: var(--dust);
+  }
+  
+  .film-head.is-idle .trailer-controls { opacity: 0; pointer-events: none; }
+  .trailer-controls { transition: opacity .25s; }
+  @media (prefers-reduced-motion: reduce) { .trailer-controls { transition: none; } }
 
   .film-facts {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
@@ -5757,7 +5787,12 @@ return picked;
 
 function youtubeEmbedUrl(url) {
 const id = youtubeVideoId(url);
-return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&loop=1&playlist=${id}` : null;
+return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&controls=0&disablekb=1&iv_load_policy=3&modestbranding=1&loop=1&playlist=${id}` : null;
+}
+
+function clockTime(seconds) {
+const total = Math.max(0, Math.floor(Number(seconds) || 0));
+return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 const PROVIDER_KINDS = {
@@ -6330,6 +6365,7 @@ sortForShelf: sortForShelf,
 matchesRelease: matchesRelease,
 filterFacets: filterFacets,
 yearBucketKey: yearBucketKey,
+clockTime: clockTime,
 filterCatalog: filterCatalog,
 normTitleForDup: normTitleForDup,
 findDuplicateMovie: findDuplicateMovie,
@@ -8619,6 +8655,7 @@ const markEl = document.getElementById('markTemplate');
 const ground = `<div class="trailer-ground" aria-hidden="true">${markEl ? markEl.innerHTML : ''}</div>`;
 const frame = embedUrl ? `<div class="modal-trailer">${ground}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"\n         allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>` : posterHtml(m, 'modal-poster');
 const sound = embedUrl ? `<button class="hicon film-sound" type="button" title="Звук" aria-pressed="${state.trailerSound ? 'true' : 'false'}">\n         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>\n           <g class="snd-waves"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g>\n           <line class="snd-slash" x1="22" y1="3" x2="14" y2="21"/>\n         </svg>\n       </button>` : '';
+const controls = embedUrl ? `<div class="trailer-controls">\n        <button class="trailer-play" type="button" data-trailer-play aria-pressed="false" title="Пуск" aria-label="Пуск">\n          <svg class="t-play" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="7 4 20 12 7 20"/></svg>\n          <svg class="t-pause" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>\n        </button>\n        <input class="trailer-seek" type="range" min="0" max="1000" step="1" value="0" data-trailer-seek aria-label="Перемотати трейлер">\n        <span class="trailer-time" data-trailer-time>0:00 / 0:00</span>\n      </div>` : '';
 const showEn = m.canonical_title_en && m.canonical_title_en.toLowerCase() !== (m.canonical_title_uk || '').toLowerCase();
 const facts = [ m.year, m.type, m.genre, m.country ].filter(Boolean).map(v => esc(String(v))).join(' · ');
 const badge = releaseBadge(m);
@@ -8626,7 +8663,8 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n      <div class="film-title-plate">\n        <div class="film-plate-row">\n          <div class="film-title-text">\n            <h2>${esc(m.canonical_title_uk)}</h2>\n            ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          </div>\n          ${sound}\n        </div>\n        ${controls}\n      </div>\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+resetTrailerControls();
 overlay.classList.add('open');
 navSync();
 syncFilmCardArrows();
@@ -8643,6 +8681,65 @@ nudgeTrailerToPlay();
 let _trailerTimers = [];
 
 let _playerListener = null;
+
+let _trailerClock = {
+current: 0,
+duration: 0,
+seeking: false
+};
+
+let _trailerIdleTimer = null;
+
+let _trailerPausedByHand = false;
+
+function trailerCommand(func, args = '') {
+const iframe = modalBox.querySelector('.modal-trailer iframe');
+if (!iframe || !iframe.contentWindow) return false;
+iframe.contentWindow.postMessage(JSON.stringify({
+event: 'command',
+func: func,
+args: args
+}), '*');
+return true;
+}
+
+function drawTrailerClock() {
+const time = modalBox.querySelector('[data-trailer-time]');
+const seek = modalBox.querySelector('[data-trailer-seek]');
+if (!time || !seek) return;
+const {current: current, duration: duration, seeking: seeking} = _trailerClock;
+time.textContent = `${clockTime(current)} / ${clockTime(duration)}`;
+if (!seeking) seek.value = String(duration > 0 ? Math.round(Math.min(1, current / duration) * 1e3) : 0);
+}
+
+function setTrailerPlaying(on) {
+const btn = modalBox.querySelector('[data-trailer-play]');
+if (!btn) return;
+btn.setAttribute('aria-pressed', String(!!on));
+btn.setAttribute('title', on ? 'Пауза' : 'Пуск');
+btn.setAttribute('aria-label', on ? 'Пауза' : 'Пуск');
+showTrailerControls();
+}
+
+function showTrailerControls() {
+const head = modalBox.querySelector('.film-head');
+if (!head) return;
+head.classList.remove('is-idle');
+clearTimeout(_trailerIdleTimer);
+const playing = !!modalBox.querySelector('[data-trailer-play][aria-pressed="true"]');
+if (playing) _trailerIdleTimer = setTimeout(() => head.classList.add('is-idle'), 2600);
+}
+
+function resetTrailerControls() {
+clearTimeout(_trailerIdleTimer);
+_trailerClock = {
+current: 0,
+duration: 0,
+seeking: false
+};
+drawTrailerClock();
+showTrailerControls();
+}
 
 let _trailerEverPlayed = false;
 
@@ -8664,6 +8761,7 @@ unmuteTrailer();
 
 function nudgeTrailerToPlay({keepRetryCount: keepRetryCount = false} = {}) {
 clearTrailerWatch();
+_trailerPausedByHand = false;
 _trailerEverPlayed = false;
 _playerSpoke = false;
 if (!keepRetryCount) _trailerHardRetries = 0;
@@ -8680,7 +8778,7 @@ channel: 'widget'
 }), '*');
 };
 const wake = () => {
-if (!iframe.contentWindow) return;
+if (!iframe.contentWindow || _trailerPausedByHand) return;
 subscribe();
 iframe.contentWindow.postMessage(JSON.stringify({
 event: 'command',
@@ -8708,13 +8806,19 @@ return;
 }
 if (!msg) return;
 _playerSpoke = true;
+if (msg.event === 'infoDelivery' && msg.info) {
+if (typeof msg.info.duration === 'number' && msg.info.duration > 0) _trailerClock.duration = msg.info.duration;
+if (typeof msg.info.currentTime === 'number') _trailerClock.current = msg.info.currentTime;
+drawTrailerClock();
+}
 if (msg.event === 'infoDelivery' && msg.info && typeof msg.info.muted === 'boolean') {
 const btn = modalBox.querySelector('.film-sound');
 if (btn) btn.setAttribute('aria-pressed', msg.info.muted ? 'false' : 'true');
 if (msg.info.muted && state.trailerSound) _soundNeedsGesture = true;
 }
 const playerState = msg.event === 'onStateChange' ? msg.info : msg.event === 'infoDelivery' && msg.info ? msg.info.playerState : undefined;
-if (playerState === -1 || playerState === 5) {
+if (playerState !== undefined) setTrailerPlaying(playerState === 1 || playerState === 3);
+if ((playerState === -1 || playerState === 5) && !_trailerPausedByHand) {
 const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame && frame.contentWindow) {
 frame.contentWindow.postMessage(JSON.stringify({
@@ -8801,6 +8905,7 @@ const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame) frame.remove();
 _unmuteTimers.forEach(clearTimeout);
 _unmuteTimers = [];
+clearTimeout(_trailerIdleTimer);
 clearTrailerWatch();
 _modalMovie = null;
 unlockScroll(overlay);
@@ -8808,11 +8913,47 @@ revealWalkedCard();
 navSync();
 }
 
+modalBox.addEventListener('input', e => {
+const seek = e.target.closest('[data-trailer-seek]');
+if (!seek) return;
+_trailerClock.seeking = true;
+_trailerClock.current = Number(seek.value) / 1e3 * (_trailerClock.duration || 0);
+drawTrailerClock();
+});
+
+modalBox.addEventListener('change', e => {
+const seek = e.target.closest('[data-trailer-seek]');
+if (!seek) return;
+const to = Number(seek.value) / 1e3 * (_trailerClock.duration || 0);
+_trailerClock.seeking = false;
+trailerCommand('seekTo', [ to, true ]);
+showTrailerControls();
+});
+
+modalBox.addEventListener('pointerdown', e => {
+if (e.target.closest('.film-head')) showTrailerControls();
+});
+
 const NOT_A_TURN = 'a, button, input, select, textarea, label, iframe,' + ' [role="button"], [data-act], .actor, .rating-badge, .critic-badge';
 
 overlay.addEventListener('click', e => {
 if (e.target === overlay || e.target.closest('.modal-close')) {
 closeModal();
+return;
+}
+const playBtn = e.target.closest('[data-trailer-play]');
+if (playBtn) {
+const playing = playBtn.getAttribute('aria-pressed') === 'true';
+if (playing) {
+clearTrailerTimers();
+_trailerPausedByHand = true;
+trailerCommand('pauseVideo');
+setTrailerPlaying(false);
+} else {
+_trailerPausedByHand = false;
+trailerCommand('playVideo');
+setTrailerPlaying(true);
+}
 return;
 }
 const soundBtn = e.target.closest('.film-sound');
