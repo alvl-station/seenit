@@ -1162,6 +1162,11 @@
 
   
   
+  
+  .card-owed {
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--flash); margin-top: 4px;
+  }
   .card-awards {
     display: flex; flex-direction: column; gap: 3px; margin-top: 7px; cursor: pointer;
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
@@ -4299,6 +4304,46 @@ if (!Number.isInteger(n) || n < 0) return null;
 return `${film}:${n}`;
 }
 
+function seriesSeasonState(tmdbId, seasons, marks, {film: film = null, seenAt: seenAt = null, now: now = Date.now()} = {}) {
+const out = {
+known: false,
+total: 0,
+watched: false,
+liked: false,
+must: false,
+owed: null
+};
+const list = Array.isArray(seasons) ? seasons.filter(s => s && Number.isFinite(Number(s.n))) : null;
+if (!list || !list.length) return out;
+out.known = true;
+out.total = list.length;
+const has = (set, n) => !!(set && set.has(`${Number(tmdbId)}:${Number(n)}`));
+const anyMark = [ 'watched', 'liked', 'must' ].some(k => list.some(s => has(marks && marks[k], s.n)));
+const numbered = list.filter(s => Number(s.n) > 0);
+const started = s => {
+const eps = Array.isArray(s.eps) ? s.eps : [];
+const days = eps.map(e => releaseDayMs(e && e.d)).filter(d => d !== null);
+return days.length ? Math.min(...days) : null;
+};
+const outNow = numbered.filter(s => {
+const d = started(s);
+return d !== null && d <= now;
+});
+const covered = (key, s) => {
+if (anyMark) return false;
+if (!(film && film[key])) return false;
+if (seenAt === null || seenAt === undefined) return true;
+const d = started(s);
+return d === null || d <= Number(seenAt);
+};
+for (const key of [ 'watched', 'liked', 'must' ]) {
+out[key] = outNow.length > 0 && outNow.every(s => has(marks && marks[key], s.n) || covered(key, s));
+}
+const first = outNow.find(s => !(has(marks && marks.watched, s.n) || covered('watched', s)));
+out.owed = first ? Number(first.n) : null;
+return out;
+}
+
 function seasonMarkFilm(key) {
 const m = /^(\d+):(\d+)$/.exec(String(key == null ? '' : key));
 return m ? Number(m[1]) : null;
@@ -6731,6 +6776,7 @@ seasonMarkFilm: seasonMarkFilm,
 seasonMarkNumber: seasonMarkNumber,
 markOpId: markOpId,
 SEASON_LISTS: SEASON_LISTS,
+seriesSeasonState: seriesSeasonState,
 NAV_SURFACES: NAV_SURFACES,
 topNavSurface: topNavSurface,
 SWIPE_EDGE_PX: SWIPE_EDGE_PX,
@@ -7661,13 +7707,42 @@ const n = row && row[idx];
 return n ? `<span class="tgl-n">${n}</span>` : '';
 }
 
+function seriesStateOf(m) {
+if (!m || !m.tmdb_id || !String(m.type || '').startsWith('серіал')) return null;
+const cached = localStore.get(localSeasonsKey(m.tmdb_id));
+const seasons = cached && !Array.isArray(cached) && Array.isArray(cached.seasons) ? cached.seasons : null;
+if (!seasons) return null;
+const key = markKey(m);
+const state = seriesSeasonState(m.tmdb_id, seasons, {
+watched: seasonsWatched,
+liked: seasonsLiked,
+must: seasonsMust
+}, {
+film: {
+watched: watched.has(key),
+liked: liked.has(key),
+must: must.has(key)
+},
+seenAt: watchedAt && watchedAt[key] ? Number(watchedAt[key]) : null
+});
+return state.known ? state : null;
+}
+
+function seriesOwedRow(state) {
+if (!state || state.owed === null) return '';
+return `<div class="card-owed">${esc(`${state.owed} сезон не переглянуто`)}</div>`;
+}
+
 function cardHtml(m, {rich: rich = false} = {}) {
-const isW = isMarked(watched, m), isL = isMarked(liked, m), isM = isMarked(must, m);
+const series = seriesStateOf(m);
+const isW = series ? series.watched : isMarked(watched, m);
+const isL = series ? series.liked : isMarked(liked, m);
+const isM = series ? series.must : isMarked(must, m);
 const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      ${seriesOwedRow(series)}\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
@@ -9411,10 +9486,50 @@ for (const op of ops) {
 const set = seasonSetOf(op.list);
 if (op.on) set.add(key); else set.delete(key);
 }
+const film = String(tmdbId);
+const prefix = `${film}:`;
+const anySeason = set => {
+for (const k of set) if (k.startsWith(prefix)) return true;
+return false;
+};
+const filmOps = [];
+for (const [list, set] of [ [ 'watched', seasonsWatched ], [ 'liked', seasonsLiked ], [ 'must', seasonsMust ] ]) {
+const on = anySeason(set);
+const filmSet = {
+watched: watched,
+liked: liked,
+must: must
+}[list];
+if (on === filmSet.has(film)) continue;
+if (on) filmSet.add(film); else filmSet.delete(film);
+filmOps.push({
+list: list,
+on: on
+});
+}
 const uid = auth.currentUser && auth.currentUser.uid;
 for (const list of [ 'seasons_watched', 'seasons_liked', 'seasons_must' ]) {
 const localKey = localMarksKey(uid, list);
 if (localKey) localStore.set(localKey, [ ...seasonSetOf(list) ]);
+}
+if (filmOps.length) {
+for (const list of [ 'watched', 'liked', 'must' ]) {
+const localKey = localMarksKey(uid, list);
+if (localKey) localStore.set(localKey, [ ...{
+watched: watched,
+liked: liked,
+must: must
+}[list] ]);
+}
+tasteStatsChanged();
+if (!window.__catalogueLoaded) render({
+keepDrawn: true
+});
+queueMarks(filmOps, Number(tmdbId));
+} else {
+render({
+keepDrawn: true
+});
 }
 queueMarks(ops, key);
 }
