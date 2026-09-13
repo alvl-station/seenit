@@ -1073,8 +1073,8 @@
   
   .film-seasons { margin: 4px 0 16px; }
   
-  .seasons-row { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
-  @media (min-width: 600px) { .seasons-row { grid-template-columns: 1fr 1fr; } }
+  
+  .seasons-row { display: block; }
   
   .seasons-row .pick { min-width: 0; }
   
@@ -1114,6 +1114,14 @@
     -webkit-tap-highlight-color: transparent;
   }
   .pick-drop-opt:last-child { border-bottom: 0; }
+  
+  .pick-drop-opt--ep { padding-left: 28px; font-size: 11px; color: var(--steel); }
+  .pick-drop-opt--ep.active { color: var(--paper); }
+  
+  .episode-name {
+    margin-top: 10px; font-size: 12px; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--dust);
+  }
   .pick-drop-opt.active { color: var(--paper); box-shadow: inset 3px 0 0 var(--flash); }
   .episode-state {
     margin-top: 8px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
@@ -1171,11 +1179,6 @@
 
   
   
-  
-  .card-owed {
-    font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
-    color: var(--flash); margin-top: 4px;
-  }
   .card-awards {
     display: flex; flex-direction: column; gap: 3px; margin-top: 7px; cursor: pointer;
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
@@ -4321,8 +4324,7 @@ known: false,
 total: 0,
 watched: false,
 liked: false,
-must: false,
-owed: null
+must: false
 };
 const list = Array.isArray(seasons) ? seasons.filter(s => s && Number.isFinite(Number(s.n))) : null;
 if (!list || !list.length) return out;
@@ -4350,8 +4352,6 @@ return d === null || d <= Number(seenAt);
 for (const key of [ 'watched', 'liked', 'must' ]) {
 out[key] = outNow.length > 0 && outNow.every(s => has(marks && marks[key], s.n) || covered(key, s));
 }
-const first = outNow.find(s => !(has(marks && marks.watched, s.n) || covered('watched', s)));
-out.owed = first ? Number(first.n) : null;
 return out;
 }
 
@@ -7739,11 +7739,6 @@ seenAt: watchedAt && watchedAt[key] ? Number(watchedAt[key]) : null
 return state.known ? state : null;
 }
 
-function seriesOwedRow(state) {
-if (!state || state.owed === null) return '';
-return `<div class="card-owed">${esc(`${state.owed} сезон не переглянуто`)}</div>`;
-}
-
 function cardHtml(m, {rich: rich = false} = {}) {
 const series = seriesStateOf(m);
 const isW = series ? series.watched : isMarked(watched, m);
@@ -7753,7 +7748,7 @@ const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      ${seriesOwedRow(series)}\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
@@ -8405,13 +8400,10 @@ const marks = tmdbId && n !== null ? `<div class="season-marks">\n      ${[ [ 'w
 const lit = seasonMarked(act, tmdbId, n);
 return `<button class="tgl season-tgl ${lit ? `on-${on}` : ''}" type="button"` + ` data-season-act="${act}" data-season="${n}" aria-pressed="${lit}"` + ` title="${title}">${ICON[icon]}</button>`;
 }).join('')}\n    </div>` : '';
-const drop = (kind, label, text) => {
-const open = openList === kind;
-return `<button class="btn pick-drop ${kind}-drop" type="button" data-drop="${kind}" aria-haspopup="listbox"` + ` aria-expanded="${open}" aria-label="${label}"><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
-};
-const list = (kind, items, label, chosen) => `<div class="pick-drop-list" role="listbox" data-list="${kind}">` + items.map((x, i) => `<button class="pick-drop-opt${i === chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === chosen}" data-i="${i}">${esc(label(x))}</button>`).join('') + '</div>';
-const cell = (kind, label, text, items, itemLabel, chosen) => `<div class="pick">\n      <div class="pick-line">\n        ${drop(kind, label, text)}\n        ${kind === 'season' ? marks : ''}\n      </div>\n      ${openList === kind ? list(kind, items, itemLabel, chosen) : ''}\n    </div>`;
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+const drop = text => `<button class="btn pick-drop season-drop" type="button" data-drop="season"` + ` aria-haspopup="listbox" aria-expanded="${!!openList}" aria-label="Сезон"` + `><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
+const row = (kind, i, chosen, label, extra = '') => `<button class="pick-drop-opt${extra}${chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${chosen}" data-kind="${kind}" data-i="${i}">${esc(label)}</button>`;
+const list = () => `<div class="pick-drop-list" role="listbox" data-list="season">` + seasons.map((s, i) => row('season', i, i === pick.season, seasonOptionLabel(s)) + (i === pick.season ? (s && s.eps || []).map((e, j) => row('episode', j, j === pick.episode, episodeOptionLabel(e), ' pick-drop-opt--ep')).join('') : '')).join('') + '</div>';
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      <div class="pick">\n        <div class="pick-line">\n          ${drop(seasonOptionLabel(season))}\n          ${marks}\n        </div>\n        ${openList ? list() : ''}\n      </div>\n    </div>\n    <div class="episode-name">${esc(episodeOptionLabel(eps[pick.episode]))}</div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
 }
 
 async function wireSeasons(m) {
@@ -8457,15 +8449,19 @@ box.addEventListener('click', e => {
 const opt = e.target.closest('.pick-drop-opt');
 if (opt) {
 const i = Number(opt.dataset.i) || 0;
-_seasonPick = openList === 'season' ? {
+if (opt.dataset.kind === 'season') {
+_seasonPick = {
 ..._seasonPick,
 season: i,
 episode: 0
-} : {
+};
+} else {
+_seasonPick = {
 ..._seasonPick,
 episode: i
 };
 openList = null;
+}
 draw();
 return;
 }
@@ -8477,7 +8473,7 @@ return;
 }
 const btn = e.target.closest('.pick-drop');
 if (btn) {
-openList = openList === btn.dataset.drop ? null : btn.dataset.drop;
+openList = openList ? null : 'season';
 draw();
 }
 });
