@@ -1032,6 +1032,11 @@
     border-radius: var(--radius-overlay); overflow: hidden;
   }
   
+  .card-flight-pins {
+    position: absolute; left: 0; top: 0; transform-origin: 0 0;
+    pointer-events: none;
+  }
+  
   .card-flight--turn .card-flight-poster {
     border-radius: var(--radius-overlay);
     
@@ -1065,8 +1070,10 @@
   
   .film-seasons { margin: 4px 0 16px; }
   
-  .seasons-row { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .seasons-row { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
   @media (min-width: 600px) { .seasons-row { grid-template-columns: 1fr 1fr; } }
+  
+  .seasons-row .pick { min-width: 0; }
   
   .btn.pick-drop {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -8246,7 +8253,8 @@ const open = openList === kind;
 return `<button class="btn pick-drop ${kind}-drop" type="button" data-drop="${kind}" aria-haspopup="listbox"` + ` aria-expanded="${open}" aria-label="${label}"><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
 };
 const list = (kind, items, label, chosen) => `<div class="pick-drop-list" role="listbox" data-list="${kind}">` + items.map((x, i) => `<button class="pick-drop-opt${i === chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === chosen}" data-i="${i}">${esc(label(x))}</button>`).join('') + '</div>';
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${drop('season', 'Сезон', seasonOptionLabel(season))}\n      ${drop('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]))}\n    </div>\n    ${openList === 'season' ? list('season', seasons, s => seasonOptionLabel(s), pick.season) : ''}\n    ${openList === 'episode' ? list('episode', eps, e => episodeOptionLabel(e), pick.episode) : ''}\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+const cell = (kind, label, text, items, itemLabel, chosen) => `<div class="pick">\n      ${drop(kind, label, text)}\n      ${openList === kind ? list(kind, items, itemLabel, chosen) : ''}\n    </div>`;
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
 }
 
 async function wireSeasons(m) {
@@ -8368,6 +8376,11 @@ el.classList.remove('is-flying-from');
 }
 }
 
+function posterPinsOf(poster) {
+if (!poster || !poster.querySelectorAll) return [];
+return [ ...poster.querySelectorAll('.card-badge') ].map(el => el.cloneNode(true));
+}
+
 function noteFlightSource(cardEl) {
 const poster = cardEl && cardEl.querySelector('.poster');
 _flightFrom = poster ? poster.getBoundingClientRect() : cardEl ? cardEl.getBoundingClientRect() : null;
@@ -8376,7 +8389,8 @@ _flightFrom = _flightFrom && {
 rect: _flightFrom,
 poster: img ? img.src : null,
 el: cardEl || null,
-radius: posterRadiusOf(poster)
+radius: posterRadiusOf(poster),
+pins: posterPinsOf(poster)
 };
 }
 
@@ -8403,7 +8417,7 @@ copy.setAttribute('aria-hidden', 'true');
 return copy;
 }
 
-function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null, fromRadius: fromRadius = 0} = {}) {
+function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null, fromRadius: fromRadius = 0, fromPins: fromPins = null} = {}) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
@@ -8438,6 +8452,17 @@ height: `${h}px`,
 marginLeft: `${-w / 2}px`,
 marginTop: `${-h / 2}px`
 });
+if (fromPins && fromPins.length) {
+const pins = document.createElement('div');
+pins.className = 'card-flight-pins';
+Object.assign(pins.style, {
+width: `${from.width}px`,
+height: `${from.height}px`,
+transform: `scale(${1 / scale})`
+});
+for (const pin of fromPins) pins.appendChild(pin.cloneNode(true));
+posterFace.appendChild(pins);
+}
 }
 if (cardBox && cardBox.width && cardBox.height) {
 Object.assign(cardFace.style, {
@@ -8534,7 +8559,8 @@ modalBox.classList.add('is-flying');
 hideFlyingTile(from.el);
 _flightEl = buildFlight(to, from.poster, modalSnapshot(), {
 from: from.rect,
-fromRadius: from.radius
+fromRadius: from.radius,
+fromPins: from.pins
 });
 const timing = {
 duration: FLIGHT_MS,
@@ -8581,7 +8607,8 @@ hideFlyingTile(card.el);
 _flightEl = buildFlight(to, card.poster, faceDown ? null : modalSnapshot(), {
 from: card.rect,
 spin: !faceDown,
-fromRadius: card.radius
+fromRadius: card.radius,
+fromPins: card.pins
 });
 const timing = {
 duration: FLIGHT_BACK_MS,
@@ -8722,7 +8749,8 @@ _closingToCard = poster ? {
 rect: poster.getBoundingClientRect(),
 poster: img ? img.src : null,
 el: el,
-radius: posterRadiusOf(poster)
+radius: posterRadiusOf(poster),
+pins: posterPinsOf(poster)
 } : null;
 }
 
