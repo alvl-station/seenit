@@ -260,7 +260,7 @@
     --slate: #5F646E;
 
     
-    --bg: var(--graphite);
+    --bg: var(--surface-key);
     --surface2: var(--graphite);
 
     
@@ -925,22 +925,36 @@
   .genre-section h2 .count { color: var(--text-muted); font-size: 13px; font-weight: 400; }
 
   
-  .grid { display: grid; gap: 22px 14px; }
+  
+  .grid {
+    display: grid; gap: 22px 14px;
+    background: var(--surface-key); box-shadow: var(--field-sunk);
+    border-radius: 20px; padding: 16px 14px;
+  }
   body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 14px; }
   body[data-view="grid-m"] .grid { grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); }
   body[data-view="grid-l"] .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 
   .card {
     
-    cursor: pointer; position: relative;
+    cursor: pointer; position: relative; z-index: 0;
     display: flex; flex-direction: column;
-    background: var(--surface);
-    border-radius: var(--radius);
+    
+    background: transparent;
+    
+    padding: 6px;
+    border-radius: 14px;
     
   }
-  .card > .poster { border-radius: var(--radius) var(--radius) 0 0; }
+  .card::before {
+    content: ''; position: absolute; inset: 0; z-index: -1;
+    border-radius: inherit; background: var(--key);
+    box-shadow: var(--key-out);
+  }
   
-  .card.is-selected::after { border-radius: var(--radius); }
+  .card > .poster { border-radius: 9px; }
+  
+  .card.is-selected::after { border-radius: 14px; }
 
   .poster { position: relative; aspect-ratio: 2/3; background: var(--surface2); overflow: hidden; border-radius: 2px; }
   .poster img { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter .2s; }
@@ -980,7 +994,7 @@
   .card-flight-face {
     position: absolute; inset: 0; border-radius: var(--radius);
     
-    background: var(--surface) center/cover no-repeat;
+    background: var(--key) center/cover no-repeat;
     
     transform: translateZ(calc(var(--flight-thickness) / 2));
     
@@ -1093,7 +1107,7 @@
   body.marks-collection #watchedToggle { display: none; }
 
   
-  .card-body { display: flex; flex-direction: column; padding: 7px 8px 8px; flex: 1; }
+  .card-body { display: flex; flex-direction: column; padding: 7px 2px 2px; flex: 1; }
 
   
   .card-title-row h3 {
