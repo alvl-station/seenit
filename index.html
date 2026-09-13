@@ -291,6 +291,8 @@
       inset 0 -3px 7px 0 rgba(51,51,51,.5),
       inset 0 0 0 1px rgba(5,5,5,.4);
     --relief-radius: 60px;
+    
+    --label-gap: 16px;
     --text: var(--paper);
     --text-muted: var(--ash);
     --like: var(--flash);
@@ -335,6 +337,12 @@
   .lbl, .cf-label, .acc-label, .badge, .card-meta-row .year,
   .genre-section h2 .count, .trend-rank, .trend-year {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  
+  .lbl {
+    font-size: var(--type-size); letter-spacing: var(--type-track);
+    text-transform: uppercase; color: var(--type-ink);
+    margin-bottom: var(--label-gap);
   }
   
   body.scroll-locked {
@@ -869,7 +877,7 @@
   }
   .sheet-label {
     font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
-    text-transform: uppercase; color: var(--type-ink); margin: 30px 0 16px;
+    text-transform: uppercase; color: var(--type-ink); margin: 30px 0 var(--label-gap);
   }
   
   .opts { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -982,7 +990,8 @@
     color: var(--dust); box-shadow: inset 0 0 0 1px var(--steel);
   }
   
-  .film-badges { margin: 10px 0; }
+  
+  .film-badges { margin: 8px 0; }
   .film-badges .card-badge { position: static; font-size: 11px; }
 
   
@@ -1115,19 +1124,22 @@
   }
   .pick-drop-opt:last-child { border-bottom: 0; }
   
-  .pick-drop-opt--ep { padding-left: 28px; font-size: 11px; color: var(--steel); }
-  .pick-drop-opt--ep.active { color: var(--paper); }
   
-  .episode-name {
-    margin-top: 10px; font-size: 12px; letter-spacing: .04em;
-    text-transform: uppercase; color: var(--dust);
+  .pick-drop-nest {
+    background: var(--surface-key); box-shadow: var(--field-sunk);
+    border-radius: 18px; margin: 8px; overflow: hidden;
   }
-  .pick-drop-opt.active { color: var(--paper); box-shadow: inset 3px 0 0 var(--flash); }
-  .episode-state {
-    margin-top: 8px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--ash);
+  .pick-drop-nest .pick-drop-opt:last-child { border-bottom: 0; }
+  
+  .pick-drop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pick-drop-head svg {
+    flex: 0 0 auto; width: 14px; height: 14px; color: var(--flash);
+    transition: transform .15s;
   }
-
+  .pick-drop-head[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .pick-drop-opt--ep { padding-left: 20px; font-size: 11px; }
+  .pick-drop-opt--ep.is-coming { color: var(--steel); }
+  .pick-drop-opt--ep.active { color: var(--paper); }
   
   .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
   .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
@@ -1399,10 +1411,6 @@
     margin-top: 20px; padding: 16px 0 6px;
     border-top: 1px solid var(--border);
   }
-  .modal-providers .lbl {
-    font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track);
-    color: var(--type-ink); margin-bottom: 8px;
-  }
   
   .prov-row { display: flex; flex-wrap: wrap; gap: 14px; }
   a.prov { text-decoration: none; }
@@ -1413,10 +1421,6 @@
     text-align: justify; hyphens: auto;
   }
   .modal-cast { margin-bottom: 16px; }
-  
-  .modal-cast .lbl, .film-seasons .lbl, .film-marks .lbl {
-    font-size: var(--type-size); text-transform: uppercase; letter-spacing: var(--type-track); color: var(--type-ink); margin-bottom: 8px;
-  }
   
   .actor {
     display: inline-block; padding: 9px 13px;
@@ -1499,11 +1503,6 @@
 
   .pick-collection { margin-top: 12px; }
   .pick-collection[hidden] { display: none; }
-  
-  .pick-collection .lbl {
-    font-size: var(--type-size); letter-spacing: var(--type-track); text-transform: uppercase;
-    color: var(--type-ink); margin-bottom: 8px;
-  }
   .pick-collection .opt--has { color: var(--slate); border-color: var(--border); cursor: default; }
   .pick-collection .opt--has svg { margin-left: 6px; vertical-align: -2px; color: var(--blood); }
   
@@ -1630,6 +1629,9 @@
     
     
     padding: 0 max(12px, calc((100% - 1232px) / 2)); gap: 6px;
+    
+    justify-content: space-evenly;
+    justify-content: safe space-evenly;
     
     background: var(--tabbar-row-bg);
   }
@@ -6378,15 +6380,6 @@ const firstReal = list.findIndex(s => Number(s.n) !== 0);
 return firstReal >= 0 ? firstReal : 0;
 }
 
-function episodeStateLine(ep, now = Date.now()) {
-if (!ep) return '';
-const state = episodeState(ep.d, now);
-if (state === 'today') return 'Вийшов сьогодні';
-if (state === 'unknown') return 'Дата виходу невідома';
-const day = formatDay(ep.d);
-return state === 'out' ? `Вийшов ${day}` : `Вийде ${day}`;
-}
-
 const FLIGHT_MS = 1500;
 
 const FLIGHT_BACK_MS = 1e3;
@@ -6781,7 +6774,6 @@ episodeOptionLabel: episodeOptionLabel,
 seasonOptionLabel: seasonOptionLabel,
 currentSeasonIndex: currentSeasonIndex,
 pluralEpisodes: pluralEpisodes,
-episodeStateLine: episodeStateLine,
 seasonMarkKey: seasonMarkKey,
 seasonMarkFilm: seasonMarkFilm,
 seasonMarkNumber: seasonMarkNumber,
@@ -8392,18 +8384,25 @@ seasons: seasons
 return seasons;
 }
 
-function seasonsHtml(seasons, pick, openList = null, tmdbId = null) {
+function seasonsHtml(seasons, pick, openList = null, tmdbId = null, openSeason = null) {
 const season = seasons[pick.season];
-const eps = season && season.eps || [];
 const n = season && Number.isFinite(Number(season.n)) ? Number(season.n) : null;
 const marks = tmdbId && n !== null ? `<div class="season-marks">\n      ${[ [ 'watch', 'eye', 'Переглянуто', 'watched' ], [ 'like', 'heart', 'Рекомендую', 'liked' ], [ 'must', 'starLine', 'Обовʼязково до перегляду', 'must' ] ].map(([act, icon, title, on]) => {
 const lit = seasonMarked(act, tmdbId, n);
 return `<button class="tgl season-tgl ${lit ? `on-${on}` : ''}" type="button"` + ` data-season-act="${act}" data-season="${n}" aria-pressed="${lit}"` + ` title="${title}">${ICON[icon]}</button>`;
 }).join('')}\n    </div>` : '';
 const drop = text => `<button class="btn pick-drop season-drop" type="button" data-drop="season"` + ` aria-haspopup="listbox" aria-expanded="${!!openList}" aria-label="Сезон"` + `><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
-const row = (kind, i, chosen, label, extra = '') => `<button class="pick-drop-opt${extra}${chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${chosen}" data-kind="${kind}" data-i="${i}">${esc(label)}</button>`;
-const list = () => `<div class="pick-drop-list" role="listbox" data-list="season">` + seasons.map((s, i) => row('season', i, i === pick.season, seasonOptionLabel(s)) + (i === pick.season ? (s && s.eps || []).map((e, j) => row('episode', j, j === pick.episode, episodeOptionLabel(e), ' pick-drop-opt--ep')).join('') : '')).join('') + '</div>';
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      <div class="pick">\n        <div class="pick-line">\n          ${drop(seasonOptionLabel(season))}\n          ${marks}\n        </div>\n        ${openList ? list() : ''}\n      </div>\n    </div>\n    <div class="episode-name">${esc(episodeOptionLabel(eps[pick.episode]))}</div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+const list = () => `<div class="pick-drop-list" role="listbox" data-list="season">` + seasons.map((s, i) => {
+const open = i === openSeason;
+const head = `<button class="pick-drop-opt pick-drop-head${i === pick.season ? ' active' : ''}"` + ` type="button" role="option" aria-selected="${i === pick.season}"` + ` aria-expanded="${open}" data-kind="season" data-i="${i}">` + `<span>${esc(seasonOptionLabel(s))}</span>${ICON.down}</button>`;
+if (!open) return head;
+const eps = (s && s.eps || []).map((e, j) => {
+const coming = episodeState(e && e.d) !== 'out';
+return `<button class="pick-drop-opt pick-drop-opt--ep${coming ? ' is-coming' : ''}` + `${i === pick.season && j === pick.episode ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === pick.season && j === pick.episode}"` + ` data-kind="episode" data-i="${j}">${esc(episodeOptionLabel(e))}</button>`;
+}).join('');
+return head + `<div class="pick-drop-nest">${eps}</div>`;
+}).join('') + '</div>';
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      <div class="pick">\n        <div class="pick-line">\n          ${drop(seasonOptionLabel(season))}\n          ${marks}\n        </div>\n        ${openList ? list() : ''}\n      </div>\n    </div>\n    `;
 }
 
 async function wireSeasons(m) {
@@ -8430,8 +8429,9 @@ if (!seasons[pick.season]) pick.season = 0;
 if (!(seasons[pick.season].eps || [])[pick.episode]) pick.episode = 0;
 _seasonPick = pick;
 let openList = null;
+let openSeason = null;
 const draw = () => {
-box.innerHTML = seasonsHtml(seasons, _seasonPick, openList, m.tmdb_id);
+box.innerHTML = seasonsHtml(seasons, _seasonPick, openList, m.tmdb_id, openSeason);
 const chosen = box.querySelector('.pick-drop-opt.active');
 if (chosen && typeof chosen.scrollIntoView === 'function') chosen.scrollIntoView({
 block: 'nearest'
@@ -8445,16 +8445,22 @@ openList = null;
 draw();
 }
 };
-box.addEventListener('click', e => {
+if (box._seasonsOff) box._seasonsOff();
+const onClick = e => {
 const opt = e.target.closest('.pick-drop-opt');
 if (opt) {
 const i = Number(opt.dataset.i) || 0;
 if (opt.dataset.kind === 'season') {
+if (openSeason === i) {
+openSeason = null;
+} else {
 _seasonPick = {
 ..._seasonPick,
 season: i,
 episode: 0
 };
+openSeason = i;
+}
 } else {
 _seasonPick = {
 ..._seasonPick,
@@ -8473,16 +8479,28 @@ return;
 }
 const btn = e.target.closest('.pick-drop');
 if (btn) {
-openList = openList ? null : 'season';
+if (openList) {
+openList = null;
+openSeason = null;
+} else {
+openList = 'seasons';
+openSeason = _seasonPick.season;
+}
 draw();
 }
-});
-box.addEventListener('keydown', e => {
+};
+const onKeydown = e => {
 if (e.key === 'Escape' && openList) {
 e.stopPropagation();
 box._closeDrop();
 }
-});
+};
+box.addEventListener('click', onClick);
+box.addEventListener('keydown', onKeydown);
+box._seasonsOff = () => {
+box.removeEventListener('click', onClick);
+box.removeEventListener('keydown', onKeydown);
+};
 }
 
 document.addEventListener('click', e => {
@@ -8965,6 +8983,23 @@ collectionName: MY_FILMS_NAME
 };
 }
 
+function syncModalMarks(m) {
+if (!modalBox) return;
+const key = markKey(m);
+if (!key) return;
+const state = {
+watch: watched.has(key),
+like: liked.has(key),
+must: must.has(key)
+};
+for (const [act, on] of Object.entries(state)) {
+const btn = modalBox.querySelector(`.modal-actions [data-act="${act}"]`);
+if (!btn) continue;
+btn.classList.toggle('on', on);
+btn.setAttribute('aria-pressed', String(on));
+}
+}
+
 function openModal(m) {
 resetTurn();
 _modalMovie = m;
@@ -8982,7 +9017,7 @@ const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_epis
 const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n      ${controls}\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          \x3c!-- STRAIGHT UNDER THE TITLE (owner's ask). It stood below the\n               facts row, three lines down, where it read as one more fact\n               about the film rather than as the thing it is: a flag on the\n               title saying this one is new. --\x3e\n          ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n      ${controls}\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 resetTrailerControls();
 overlay.classList.add('open');
 navSync();
@@ -9200,6 +9235,11 @@ _unmuteTimers = [ 120, 500, 1200, 2500 ].map(ms => setTimeout(ask, ms));
 
 function closeModal() {
 const faceDown = resetTurn();
+if (typeof shelfNeedsSeasonRedraw === 'function' && shelfNeedsSeasonRedraw()) {
+render({
+keepDrawn: true
+});
+}
 noteFlightTarget(_modalMovie);
 flyCardClosed(() => finishClosingModal(), {
 faceDown: faceDown
@@ -9392,7 +9432,7 @@ const m = findFilm(MOVIES, {
 id: btn.dataset.id,
 tmdbId: btn.dataset.tmdb
 });
-if (m) openModal(m);
+if (m) syncModalMarks(m);
 return;
 }
 if (!e.target.closest('.modal') || e.target.closest(NOT_A_TURN)) return;
@@ -9448,6 +9488,45 @@ const localKey = localMarksKey(uid, list);
 if (localKey) localStore.set(localKey, [ ...setOf(list) ]);
 }
 queueMarks(ops, key);
+spreadToSeasons(movie, ops);
+}
+
+async function spreadToSeasons(movie, ops) {
+if (!movie || !movie.tmdb_id) return;
+if (!String(movie.type || '').startsWith('серіал')) return;
+let seasons = null;
+try {
+seasons = await fetchSeasons(movie);
+} catch (err) {
+return;
+}
+if (!Array.isArray(seasons) || !seasons.length) return;
+const seasonOps = [];
+for (const s of seasons) {
+const key = seasonMarkKey(movie.tmdb_id, s && s.n);
+if (!key) continue;
+for (const op of ops) {
+const set = seasonSetOf(`seasons_${op.list}`);
+if (!set || op.on === set.has(key)) continue;
+if (op.on) set.add(key); else set.delete(key);
+seasonOps.push({
+list: `seasons_${op.list}`,
+on: op.on,
+key: key
+});
+}
+}
+if (!seasonOps.length) return;
+const uid = auth.currentUser && auth.currentUser.uid;
+for (const list of [ 'seasons_watched', 'seasons_liked', 'seasons_must' ]) {
+const localKey = localMarksKey(uid, list);
+if (localKey) localStore.set(localKey, [ ...seasonSetOf(list) ]);
+}
+for (const op of seasonOps) queueMarks([ {
+list: op.list,
+on: op.on
+} ], op.key);
+if (_modalMovie && _modalMovie.id === movie.id) wireSeasons(_modalMovie);
 }
 
 function seasonSetOf(list) {
@@ -9534,11 +9613,18 @@ keepDrawn: true
 });
 queueMarks(filmOps, Number(tmdbId));
 } else {
-render({
-keepDrawn: true
-});
+_shelfStaleFromSeasons = true;
 }
+if (typeof syncModalMarks === 'function' && _modalMovie) syncModalMarks(_modalMovie);
 queueMarks(ops, key);
+}
+
+let _shelfStaleFromSeasons = false;
+
+function shelfNeedsSeasonRedraw() {
+if (!_shelfStaleFromSeasons) return false;
+_shelfStaleFromSeasons = false;
+return true;
 }
 
 let pendingMarks = {};
