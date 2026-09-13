@@ -1945,7 +1945,8 @@
     margin: 12px 0 30px;
   }
   
-  .login-field { display: grid; gap: 6px; margin-bottom: 14px; }
+  
+  .login-field { display: grid; gap: var(--label-gap); margin-bottom: 14px; }
   .login-lbl {
     font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
     text-transform: uppercase; color: var(--type-ink);
@@ -2043,7 +2044,7 @@
   .acc-form[hidden] { display: none; }
   
   .acc-form { margin-top: 18px; }
-  .acc-field { display: grid; gap: 6px; margin-bottom: 12px; }
+  .acc-field { display: grid; gap: var(--label-gap); margin-bottom: 12px; }
   
   .acc-field[hidden] { display: none; }
   .acc-field-lbl {
@@ -2524,7 +2525,11 @@
   .src-divider::before, .src-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
   .src-divider::before { max-width: 24px; }
 
-  .cf-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 var(--label-gap); }
+  
+  .cf-label {
+    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text-muted); margin: 0 0 var(--label-gap);
+  }
   
   .cf-readonly {
     
