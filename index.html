@@ -309,6 +309,9 @@
     
     --wordmark-app: 42px;
     --radius: 3px;
+    
+    --radius-card: 14px;
+    --radius-poster: 9px;
     --radius-overlay: 16px;
     --control-h: 44px;
 
@@ -943,7 +946,7 @@
     background: transparent;
     
     padding: 6px;
-    border-radius: 14px;
+    border-radius: var(--radius-card);
     
   }
   .card::before {
@@ -952,9 +955,9 @@
     box-shadow: var(--key-out);
   }
   
-  .card > .poster { border-radius: 9px; }
+  .card > .poster { border-radius: var(--radius-poster); }
   
-  .card.is-selected::after { border-radius: 14px; }
+  .card.is-selected::after { border-radius: var(--radius-card); }
 
   .poster { position: relative; aspect-ratio: 2/3; background: var(--surface2); overflow: hidden; border-radius: 2px; }
   .poster img { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter .2s; }
@@ -962,9 +965,10 @@
   .poster-initial { font-family: var(--font-display); font-size: 42px; color: var(--steel); }
 
   
+  
   .card-badge {
     position: absolute; top: 6px; right: 6px; z-index: 2;
-    padding: 2px 6px; border-radius: 2px;
+    padding: 2px 7px; border-radius: 999px;
     font-size: 10px; line-height: 1.4; letter-spacing: .04em;
     text-transform: uppercase; white-space: nowrap;
     pointer-events: none;
@@ -992,7 +996,8 @@
   .card-flight-face { transform-style: flat; }
   
   .card-flight-face {
-    position: absolute; inset: 0; border-radius: var(--radius);
+    
+    position: absolute; inset: 0; border-radius: var(--radius-overlay);
     
     background: var(--key) center/cover no-repeat;
     
@@ -1043,6 +1048,8 @@
   .card-flight.is-parked .card-flight-back { opacity: 1; }
   
   .modal.is-flying { opacity: 0; }
+  
+  .card.is-flying-from > .poster { opacity: 0; }
   
   .modal.is-turned { pointer-events: none; }
   
@@ -8345,13 +8352,31 @@ let _flightFrom = null;
 
 let _flightEl = null;
 
+function posterRadiusOf(poster) {
+if (!poster || typeof getComputedStyle !== 'function') return 0;
+return parseFloat(getComputedStyle(poster).borderTopLeftRadius) || 0;
+}
+
+function hideFlyingTile(cardEl) {
+if (cardEl && cardEl.classList) cardEl.classList.add('is-flying-from');
+}
+
+function showFlyingTiles() {
+if (typeof document === 'undefined' || !document.querySelectorAll) return;
+for (const el of document.querySelectorAll('.card.is-flying-from')) {
+el.classList.remove('is-flying-from');
+}
+}
+
 function noteFlightSource(cardEl) {
 const poster = cardEl && cardEl.querySelector('.poster');
 _flightFrom = poster ? poster.getBoundingClientRect() : cardEl ? cardEl.getBoundingClientRect() : null;
 const img = cardEl && cardEl.querySelector('.poster img');
 _flightFrom = _flightFrom && {
 rect: _flightFrom,
-poster: img ? img.src : null
+poster: img ? img.src : null,
+el: cardEl || null,
+radius: posterRadiusOf(poster)
 };
 }
 
@@ -8378,7 +8403,7 @@ copy.setAttribute('aria-hidden', 'true');
 return copy;
 }
 
-function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null} = {}) {
+function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null, fromRadius: fromRadius = 0} = {}) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
@@ -8396,6 +8421,7 @@ if (back) cardFace.appendChild(back);
 let posterBox = null;
 if (from && from.width && from.height && rect.width && rect.height) {
 const scale = Math.max(from.width / rect.width, from.height / rect.height);
+if (fromRadius > 0) posterFace.style.borderRadius = `${fromRadius / scale}px`;
 const w = from.width / scale;
 const h = from.height / scale;
 posterBox = {
@@ -8488,6 +8514,7 @@ if (_flightEl) {
 _flightEl.remove();
 _flightEl = null;
 }
+showFlyingTiles();
 modalBox.classList.remove('is-flying');
 modalBox.classList.remove('is-turned');
 overlay.classList.remove('is-turned');
@@ -8504,8 +8531,10 @@ const to = modalBox.getBoundingClientRect();
 if (!to.width || !to.height) return false;
 endFlight();
 modalBox.classList.add('is-flying');
+hideFlyingTile(from.el);
 _flightEl = buildFlight(to, from.poster, modalSnapshot(), {
-from: from.rect
+from: from.rect,
+fromRadius: from.radius
 });
 const timing = {
 duration: FLIGHT_MS,
@@ -8548,9 +8577,11 @@ return;
 const to = faceDown ? posterBoxIn(box) : box;
 endFlight();
 modalBox.classList.add('is-flying');
+hideFlyingTile(card.el);
 _flightEl = buildFlight(to, card.poster, faceDown ? null : modalSnapshot(), {
 from: card.rect,
-spin: !faceDown
+spin: !faceDown,
+fromRadius: card.radius
 });
 const timing = {
 duration: FLIGHT_BACK_MS,
@@ -8689,7 +8720,9 @@ const poster = el && el.querySelector('.poster');
 const img = el && el.querySelector('.poster img');
 _closingToCard = poster ? {
 rect: poster.getBoundingClientRect(),
-poster: img ? img.src : null
+poster: img ? img.src : null,
+el: el,
+radius: posterRadiusOf(poster)
 } : null;
 }
 
