@@ -1078,9 +1078,18 @@
   
   .seasons-row .pick { min-width: 0; }
   
-  .season-marks { display: flex; gap: 10px; margin-top: 12px; }
-  .tgl.season-tgl { width: var(--control-h); height: var(--control-h); }
-  .tgl.season-tgl svg { width: 20px; height: 20px; }
+  .pick-line { display: flex; align-items: center; gap: 8px; }
+  .pick-line .btn.pick-drop { flex: 1 1 auto; min-width: 0; }
+  .season-marks { display: flex; gap: 6px; flex: 0 0 auto; }
+  
+  .tgl.season-tgl {
+    
+    width: 34px; height: 34px; flex: 0 0 auto;
+  }
+  .tgl.season-tgl::after {
+    content: ''; position: absolute; inset: -5px; border-radius: 50%;
+  }
+  .tgl.season-tgl svg { width: 17px; height: 17px; }
   
   .btn.pick-drop {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -2555,7 +2564,7 @@
   }
 
   
-  .btn, .chip, .opt, .svc, .actor, .film-sound,
+  .btn, .chip, .opt, .svc, .actor, .film-sound, .season-tgl,
   .btn-primary, .btn-ghost, .btn-danger {
     position: relative; z-index: 0;
     background: transparent; border: 0; box-shadow: none;
@@ -2566,7 +2575,8 @@
     transition: color .15s;
   }
   .btn::before, .chip::before, .opt::before, .svc::before, .actor::before,
-  .film-sound::before, .btn-primary::before, .btn-ghost::before, .btn-danger::before {
+  .film-sound::before, .season-tgl::before,
+  .btn-primary::before, .btn-ghost::before, .btn-danger::before {
     content: ''; position: absolute; inset: 0; z-index: -1;
     border-radius: inherit; background: var(--key);
     box-shadow: var(--key-out);
@@ -2574,7 +2584,8 @@
   }
   
   .btn:active::before, .chip:active::before, .opt:active::before, .svc:active::before,
-  .actor:active::before, .film-sound:active::before,
+  .actor:active::before, .film-sound:active::before, .season-tgl:active::before,
+  .season-tgl.on-watched::before, .season-tgl.on-liked::before, .season-tgl.on-must::before,
   .btn-primary:active::before, .btn-ghost:active::before, .btn-danger:active::before,
   .chip.active::before, .opt.active::before, .svc--on::before,
   .btn.b-watched.on::before, .btn.b-liked.on::before, .btn.b-must.on::before,
@@ -8399,8 +8410,8 @@ const open = openList === kind;
 return `<button class="btn pick-drop ${kind}-drop" type="button" data-drop="${kind}" aria-haspopup="listbox"` + ` aria-expanded="${open}" aria-label="${label}"><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
 };
 const list = (kind, items, label, chosen) => `<div class="pick-drop-list" role="listbox" data-list="${kind}">` + items.map((x, i) => `<button class="pick-drop-opt${i === chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === chosen}" data-i="${i}">${esc(label(x))}</button>`).join('') + '</div>';
-const cell = (kind, label, text, items, itemLabel, chosen) => `<div class="pick">\n      ${drop(kind, label, text)}\n      ${openList === kind ? list(kind, items, itemLabel, chosen) : ''}\n    </div>`;
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    ${marks}\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+const cell = (kind, label, text, items, itemLabel, chosen) => `<div class="pick">\n      <div class="pick-line">\n        ${drop(kind, label, text)}\n        ${kind === 'season' ? marks : ''}\n      </div>\n      ${openList === kind ? list(kind, items, itemLabel, chosen) : ''}\n    </div>`;
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
 }
 
 async function wireSeasons(m) {
