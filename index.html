@@ -278,13 +278,14 @@
       inset 0 0 4px .4px rgba(51,51,51,.52),
       inset 0 12px 13px 0 rgba(51,51,51,.16);
     
+    
     --key-in:
+      inset 0 0 0 1px var(--flash),
       0 4px 6px -1px rgba(5,5,5,.34),
       inset 0 -5px 13px 1px rgba(51,51,51,.84),
       0 -3px 5px -1px rgba(51,51,51,.54),
       inset 0 5px 11px 0 rgba(5,5,5,.62),
-      inset 0 0 8px .4px rgba(51,51,51,.42),
-      inset 0 0 0 1px var(--flash);
+      inset 0 0 8px .4px rgba(51,51,51,.42);
     --field-sunk:
       inset 0 4px 9px 0 rgba(5,5,5,.62),
       inset 0 -3px 7px 0 rgba(51,51,51,.5),
@@ -516,8 +517,9 @@
     transition: box-shadow .3s cubic-bezier(.23, 1, .32, 1);
   }
   textarea { border-radius: 22px; }
+  
   input:focus, textarea:focus, select:focus {
-    box-shadow: var(--field-sunk), inset 0 0 0 1px var(--flash);
+    box-shadow: inset 0 0 0 1px var(--flash), var(--field-sunk);
   }
   input::placeholder, textarea::placeholder { color: var(--slate); }
   select { cursor: pointer; height: var(--control-h); }
@@ -749,16 +751,15 @@
   }
 
   
+  
   .topbar-search {
     display: flex; align-items: center; flex: none;
     width: var(--control-h); overflow: hidden;
-    border: 1px solid transparent; border-radius: 3px;
-    transition: width .22s ease-out, border-color .22s, background-color .22s;
+    transition: width .22s ease-out;
   }
   .topbar-search.open {
     
     width: min(44vw, 320px);
-    border-color: var(--border); background: rgba(0, 0, 0, .25);
   }
   
   @media (max-width: 640px) {
