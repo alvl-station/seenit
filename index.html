@@ -306,6 +306,17 @@
       inset 0 4px 8px 0 rgba(30,30,31,.46),
       inset 0 -3px 6px 0 rgba(228,230,234,.72),
       0 1px 2px 0 rgba(30,30,31,.4);
+    
+    --key-red: var(--blood);       
+    --key-red-lit: #9D0F0F;        
+    --key-red-dim: #140000;        
+    --key-red-out:
+      0 4px 6px -1px rgba(20,0,0,.43),
+      inset 0 -2px 2px -1px rgba(20,0,0,.29),
+      0 -3px 5px -1px rgba(157,15,15,.54),
+      inset 0 2px 2px -1px rgba(157,15,15,.48),
+      inset 0 0 4px .4px rgba(157,15,15,.52),
+      inset 0 12px 13px 0 rgba(157,15,15,.16);
     --field-sunk:
       inset 0 4px 9px 0 rgba(5,5,5,.62),
       inset 0 -3px 7px 0 rgba(51,51,51,.5),
@@ -1665,7 +1676,8 @@
   
   .tabbar-window-row .tabbar-tab--window {
     position: relative; z-index: 0;
-    color: var(--coal); background: transparent; border: 0; box-shadow: none;
+    
+    color: var(--paper); background: transparent; border: 0; box-shadow: none;
     text-shadow: none;
     
     height: calc(var(--tabbar-row) - 14px);
@@ -1677,14 +1689,15 @@
   
   .tabbar-window-row .tabbar-tab--window::before {
     content: ''; position: absolute; inset: 0; z-index: -1;
-    border-radius: inherit; background: var(--key-pale);
-    box-shadow: var(--key-pale-out);
-    transition: box-shadow .3s cubic-bezier(.23, 1, .32, 1);
+    border-radius: inherit; background: var(--key-red);
+    box-shadow: var(--key-red-out);
+    transition: box-shadow .3s cubic-bezier(.23, 1, .32, 1), background .3s;
   }
   
+  .tabbar-window-row .tabbar-tab--window.active { color: var(--coal); }
   .tabbar-window-row .tabbar-tab--window:active::before,
   .tabbar-window-row .tabbar-tab--window.active::before {
-    box-shadow: var(--key-pale-in);
+    background: var(--key-pale); box-shadow: var(--key-pale-in);
   }
   
   .tabbar-window-row[hidden] { display: none; }
