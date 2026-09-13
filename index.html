@@ -293,6 +293,7 @@
     --relief-radius: 60px;
     
     --label-gap: 16px;
+    --section-gap: 30px;
     --text: var(--paper);
     --text-muted: var(--ash);
     --like: var(--flash);
@@ -855,7 +856,7 @@
   }
   
   .add-modal > .sheet-title,
-  .add-form > .sheet-title { margin-bottom: 14px; }
+  .add-form > .sheet-title { margin-bottom: var(--label-gap); }
   
   
   .sheet-head,
@@ -873,11 +874,11 @@
   .sheet-head .sheet-title { margin-bottom: 0; }
   .sheet-title {
     font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
-    text-transform: uppercase; color: var(--type-ink); margin-bottom: 6px;
+    text-transform: uppercase; color: var(--type-ink); margin-bottom: var(--label-gap);
   }
   .sheet-label {
     font-family: var(--font-mono); font-size: var(--type-size); letter-spacing: var(--type-track);
-    text-transform: uppercase; color: var(--type-ink); margin: 30px 0 var(--label-gap);
+    text-transform: uppercase; color: var(--type-ink); margin: var(--section-gap) 0 var(--label-gap);
   }
   
   .opts { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -933,7 +934,7 @@
   .genre-section h2 {
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
     letter-spacing: -.01em; font-size: 19px; display: flex; align-items: baseline; gap: 10px;
-    border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 0 0 16px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 0 0 var(--label-gap);
     
   }
   .genre-section h2 .count { color: var(--text-muted); font-size: 13px; font-weight: 400; }
@@ -1395,7 +1396,7 @@
   .awards-part + .awards-part { margin-top: 12px; }
   .awards-part-label {
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--slate); margin-bottom: 8px;
+    text-transform: uppercase; color: var(--slate); margin-bottom: var(--label-gap);
   }
   .awards-part-label b { font-weight: 500; color: var(--dust); }
   .cer + .cer { margin-top: 10px; }
@@ -1750,7 +1751,7 @@
   .stat-block { margin-top: 18px; }
   .stat-head {
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--steel); margin-bottom: 8px;
+    text-transform: uppercase; color: var(--steel); margin-bottom: var(--label-gap);
     padding-bottom: 4px; border-bottom: 1px solid var(--border);
   }
   .stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -1824,7 +1825,7 @@
   
   .friend-head {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding-bottom: 14px; margin-bottom: 16px;
+    padding-bottom: 14px; margin-bottom: var(--label-gap);
     border-bottom: 1px solid var(--border);
   }
   
@@ -2020,7 +2021,7 @@
   }
   .acc-label {
     font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--ash); margin: 18px 0 10px;
+    color: var(--ash); margin: var(--section-gap) 0 var(--label-gap);
   }
   
   .acc-toggle {
@@ -2441,7 +2442,7 @@
   [data-surface="screen"]#addMovieBox { --tpl-pad-x: 0px; --tpl-pad-y: 0px; }
   .add-form { padding: 22px 24px; position: relative; }
   .add-form h2 {
-    margin: 0 0 14px; font-size: 19px;
+    margin: 0 0 var(--label-gap); font-size: 19px;
     font-family: var(--font-display); font-weight: 400;
     text-transform: uppercase; letter-spacing: -.01em;
   }
@@ -2523,7 +2524,7 @@
   .src-divider::before, .src-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
   .src-divider::before { max-width: 24px; }
 
-  .cf-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 4px; }
+  .cf-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 var(--label-gap); }
   
   .cf-readonly {
     
