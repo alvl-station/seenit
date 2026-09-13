@@ -513,13 +513,15 @@
     -webkit-appearance: none; appearance: none;
     background: var(--surface-key); color: var(--text); border: 0;
     border-radius: var(--relief-radius); padding: 12px 20px; font-size: 16px;
-    font-family: inherit; outline: none; box-shadow: var(--field-sunk);
+    font-family: inherit; outline: none;
+    
+    box-shadow: inset 0 0 0 1px var(--flash), var(--field-sunk);
     transition: box-shadow .3s cubic-bezier(.23, 1, .32, 1);
   }
   textarea { border-radius: 22px; }
   
   input:focus, textarea:focus, select:focus {
-    box-shadow: inset 0 0 0 1px var(--flash), var(--field-sunk);
+    box-shadow: inset 0 0 0 2px var(--flash), var(--field-sunk);
   }
   input::placeholder, textarea::placeholder { color: var(--slate); }
   select { cursor: pointer; height: var(--control-h); }
@@ -1075,6 +1077,10 @@
   @media (min-width: 600px) { .seasons-row { grid-template-columns: 1fr 1fr; } }
   
   .seasons-row .pick { min-width: 0; }
+  
+  .season-marks { display: flex; gap: 10px; margin-top: 12px; }
+  .tgl.season-tgl { width: var(--control-h); height: var(--control-h); }
+  .tgl.season-tgl svg { width: 20px; height: 20px; }
   
   .btn.pick-drop {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -3810,6 +3816,7 @@ function usernameToEmail(username) {
 return (username || '').trim().toLowerCase().replace(/\s+/g, '') + AUTH_DOMAIN_SUFFIX;
 }
 const MARK_LISTS = [ 'watched', 'liked', 'must' ];
+const SEASON_LISTS = [ 'seasons_watched', 'seasons_liked', 'seasons_must' ];
 function userMarksPath(uid, list) {
 if (typeof uid !== 'string' || !uid.trim()) return null;
 if (!MARK_LISTS.includes(list)) return null;
@@ -3817,7 +3824,7 @@ if (/[.$#[\]/]/.test(uid)) return null;
 return `kino/users/${uid}/${list}`;
 }
 function localMarksKey(uid, list) {
-if (!MARK_LISTS.includes(list)) return null;
+if (!MARK_LISTS.includes(list) && !SEASON_LISTS.includes(list)) return null;
 return uid ? `seenit_${uid}_${list}` : null;
 }
 function localStatsKey(uid) {
@@ -3854,6 +3861,7 @@ return {
 AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX,
 usernameToEmail: usernameToEmail,
 MARK_LISTS: MARK_LISTS,
+SEASON_LISTS: SEASON_LISTS,
 userMarksPath: userMarksPath,
 localMarksKey: localMarksKey,
 localStatsKey: localStatsKey,
@@ -4196,7 +4204,7 @@ const TITLE_TRIGGER_WORDS = OCR_WORDS.TITLE_TRIGGER_WORDS;
 
 const UI_JUNK_PHRASES = OCR_WORDS.UI_JUNK_PHRASES;
 
-const {AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX, usernameToEmail: usernameToEmail, MARK_LISTS: MARK_LISTS, userMarksPath: userMarksPath, localMarksKey: localMarksKey, localStatsKey: localStatsKey, userServicesPath: userServicesPath, userCatalogPath: userCatalogPath, USERNAME_MIN: USERNAME_MIN, searchNameLongEnough: searchNameLongEnough, normalizeSearchName: normalizeSearchName, defaultDisplayName: defaultDisplayName, defaultSearchName: defaultSearchName} = IS_NODE ? require('./logic/identity.js') : LOGIC_IDENTITY;
+const {AUTH_DOMAIN_SUFFIX: AUTH_DOMAIN_SUFFIX, usernameToEmail: usernameToEmail, MARK_LISTS: MARK_LISTS, SEASON_LISTS: SEASON_LISTS, userMarksPath: userMarksPath, localMarksKey: localMarksKey, localStatsKey: localStatsKey, userServicesPath: userServicesPath, userCatalogPath: userCatalogPath, USERNAME_MIN: USERNAME_MIN, searchNameLongEnough: searchNameLongEnough, normalizeSearchName: normalizeSearchName, defaultDisplayName: defaultDisplayName, defaultSearchName: defaultSearchName} = IS_NODE ? require('./logic/identity.js') : LOGIC_IDENTITY;
 
 const {levenshtein: levenshtein, matches: matches, YEAR_BUCKETS: YEAR_BUCKETS, matchesYearBucket: matchesYearBucket, normalizeForSearch: normalizeForSearch, searchScore: searchScore, rankSearchResults: rankSearchResults} = IS_NODE ? require('./logic/search.js') : LOGIC_SEARCH;
 
@@ -4283,13 +4291,41 @@ function localPendingMarksKey(uid) {
 return uid ? `seenit_${uid}_pending_marks` : null;
 }
 
+function seasonMarkKey(tmdbId, season) {
+const film = Number(tmdbId);
+const n = Number(season);
+if (!Number.isInteger(film) || film <= 0) return null;
+if (!Number.isInteger(n) || n < 0) return null;
+return `${film}:${n}`;
+}
+
+function seasonMarkFilm(key) {
+const m = /^(\d+):(\d+)$/.exec(String(key == null ? '' : key));
+return m ? Number(m[1]) : null;
+}
+
+function seasonMarkNumber(key) {
+const m = /^(\d+):(\d+)$/.exec(String(key == null ? '' : key));
+return m ? Number(m[2]) : null;
+}
+
+function markOpId(list, id) {
+if (SEASON_LISTS.includes(list)) {
+const m = /^(\d+):(\d+)$/.exec(String(id == null ? '' : id));
+return m ? seasonMarkKey(m[1], m[2]) : null;
+}
+if (!MARK_LISTS.includes(list)) return null;
+const n = Number(id);
+return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 function queueMarkOps(pending, ops, tmdbId) {
-const id = Number(tmdbId);
-if (!Number.isInteger(id) || id <= 0) return pending;
 for (const op of ops || []) {
-if (!MARK_LISTS.includes(op && op.list)) continue;
-pending[`${op.list}:${id}`] = {
-list: op.list,
+const list = op && op.list;
+const id = markOpId(list, tmdbId);
+if (id === null) continue;
+pending[`${list}:${id}`] = {
+list: list,
 tmdb_id: id,
 on: !!op.on
 };
@@ -4298,7 +4334,7 @@ return pending;
 }
 
 function pendingMarkOps(pending) {
-return Object.values(pending || {}).filter(op => op && MARK_LISTS.includes(op.list) && Number.isInteger(op.tmdb_id) && op.tmdb_id > 0);
+return Object.values(pending || {}).filter(op => op && markOpId(op.list, op.tmdb_id) !== null);
 }
 
 function chunkMarkOps(ops, max = MARK_BATCH_MAX) {
@@ -6690,6 +6726,11 @@ seasonOptionLabel: seasonOptionLabel,
 currentSeasonIndex: currentSeasonIndex,
 pluralEpisodes: pluralEpisodes,
 episodeStateLine: episodeStateLine,
+seasonMarkKey: seasonMarkKey,
+seasonMarkFilm: seasonMarkFilm,
+seasonMarkNumber: seasonMarkNumber,
+markOpId: markOpId,
+SEASON_LISTS: SEASON_LISTS,
 NAV_SURFACES: NAV_SURFACES,
 topNavSurface: topNavSurface,
 SWIPE_EDGE_PX: SWIPE_EDGE_PX,
@@ -6747,6 +6788,12 @@ let watched = new Set;
 let liked = new Set;
 
 let must = new Set;
+
+let seasonsWatched = new Set;
+
+let seasonsLiked = new Set;
+
+let seasonsMust = new Set;
 
 let markCounts = {};
 
@@ -6937,6 +6984,9 @@ const localKeys = {
 watched: localMarksKey(uid, 'watched'),
 liked: localMarksKey(uid, 'liked'),
 must: localMarksKey(uid, 'must'),
+seasons_watched: localMarksKey(uid, 'seasons_watched'),
+seasons_liked: localMarksKey(uid, 'seasons_liked'),
+seasons_must: localMarksKey(uid, 'seasons_must'),
 watchedAt: localMarksKey(uid, 'watched_at')
 };
 const storedPending = localPendingMarksKey(uid) ? localStore.get(localPendingMarksKey(uid)) : null;
@@ -6945,6 +6995,9 @@ const deviceCopy = () => ({
 watched: localKeys.watched ? localStore.get(localKeys.watched) : [],
 liked: localKeys.liked ? localStore.get(localKeys.liked) : [],
 must: localKeys.must ? localStore.get(localKeys.must) : [],
+seasons_watched: localKeys.seasons_watched ? localStore.get(localKeys.seasons_watched) : [],
+seasons_liked: localKeys.seasons_liked ? localStore.get(localKeys.seasons_liked) : [],
+seasons_must: localKeys.seasons_must ? localStore.get(localKeys.seasons_must) : [],
 watched_at: localKeys.watchedAt ? localStore.get(localKeys.watchedAt) : {}
 });
 const marksNow = () => [ watched, liked, must ].map(set => [ ...set ].sort().join(',')).join('|');
@@ -6955,14 +7008,23 @@ window.watchedAt = watchedAt;
 watched = new Set((source.watched || []).map(String));
 liked = new Set((source.liked || []).map(String));
 must = new Set((source.must || []).map(String));
+seasonsWatched = new Set((source.seasons_watched || []).map(String));
+seasonsLiked = new Set((source.seasons_liked || []).map(String));
+seasonsMust = new Set((source.seasons_must || []).map(String));
 applyPendingMarks(pendingMarks, {
 watched: watched,
 liked: liked,
-must: must
+must: must,
+seasons_watched: seasonsWatched,
+seasons_liked: seasonsLiked,
+seasons_must: seasonsMust
 });
 window.watched = watched;
 window.liked = liked;
 window.must = must;
+window.seasonsWatched = seasonsWatched;
+window.seasonsLiked = seasonsLiked;
+window.seasonsMust = seasonsMust;
 const unchanged = quietIfSame && before === marksNow();
 if (!unchanged && typeof tasteStatsChanged === 'function') tasteStatsChanged();
 if (!fromDevice) window.__marksLoadedCount = (window.__marksLoadedCount || 0) + 3;
@@ -6971,7 +7033,7 @@ keepDrawn: true
 });
 };
 const onDevice = deviceCopy();
-if (onDevice.watched.length || onDevice.liked.length || onDevice.must.length) {
+if (onDevice.watched.length || onDevice.liked.length || onDevice.must.length || onDevice.seasons_watched.length) {
 apply(onDevice, {
 fromDevice: true
 });
@@ -6991,6 +7053,9 @@ if (localKeys.watchedAt) localStore.set(localKeys.watchedAt, watchedAt);
 if (localKeys.watched) localStore.set(localKeys.watched, [ ...watched ]);
 if (localKeys.liked) localStore.set(localKeys.liked, [ ...liked ]);
 if (localKeys.must) localStore.set(localKeys.must, [ ...must ]);
+if (localKeys.seasons_watched) localStore.set(localKeys.seasons_watched, [ ...seasonsWatched ]);
+if (localKeys.seasons_liked) localStore.set(localKeys.seasons_liked, [ ...seasonsLiked ]);
+if (localKeys.seasons_must) localStore.set(localKeys.seasons_must, [ ...seasonsMust ]);
 loadMarkCounts();
 if (pendingMarkOps(pendingMarks).length) flushMarks();
 } catch (err) {
@@ -8246,16 +8311,21 @@ seasons: seasons
 return seasons;
 }
 
-function seasonsHtml(seasons, pick, openList = null) {
+function seasonsHtml(seasons, pick, openList = null, tmdbId = null) {
 const season = seasons[pick.season];
 const eps = season && season.eps || [];
+const n = season && Number.isFinite(Number(season.n)) ? Number(season.n) : null;
+const marks = tmdbId && n !== null ? `<div class="season-marks">\n      ${[ [ 'watch', 'eye', 'Переглянуто', 'watched' ], [ 'like', 'heart', 'Рекомендую', 'liked' ], [ 'must', 'starLine', 'Обовʼязково до перегляду', 'must' ] ].map(([act, icon, title, on]) => {
+const lit = seasonMarked(act, tmdbId, n);
+return `<button class="tgl season-tgl ${lit ? `on-${on}` : ''}" type="button"` + ` data-season-act="${act}" data-season="${n}" aria-pressed="${lit}"` + ` title="${title}">${ICON[icon]}</button>`;
+}).join('')}\n    </div>` : '';
 const drop = (kind, label, text) => {
 const open = openList === kind;
 return `<button class="btn pick-drop ${kind}-drop" type="button" data-drop="${kind}" aria-haspopup="listbox"` + ` aria-expanded="${open}" aria-label="${label}"><span class="pick-drop-text">${esc(text)}</span>${ICON.down}</button>`;
 };
 const list = (kind, items, label, chosen) => `<div class="pick-drop-list" role="listbox" data-list="${kind}">` + items.map((x, i) => `<button class="pick-drop-opt${i === chosen ? ' active' : ''}" type="button" role="option"` + ` aria-selected="${i === chosen}" data-i="${i}">${esc(label(x))}</button>`).join('') + '</div>';
 const cell = (kind, label, text, items, itemLabel, chosen) => `<div class="pick">\n      ${drop(kind, label, text)}\n      ${openList === kind ? list(kind, items, itemLabel, chosen) : ''}\n    </div>`;
-return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
+return `<div class="lbl">Сезони та епізоди</div>\n    <div class="seasons-row">\n      ${cell('season', 'Сезон', seasonOptionLabel(season), seasons, s => seasonOptionLabel(s), pick.season)}\n      ${cell('episode', 'Епізод', episodeOptionLabel(eps[pick.episode]), eps, e => episodeOptionLabel(e), pick.episode)}\n    </div>\n    ${marks}\n    <div class="episode-state">${esc(episodeStateLine(eps[pick.episode]))}</div>`;
 }
 
 async function wireSeasons(m) {
@@ -8283,7 +8353,7 @@ if (!(seasons[pick.season].eps || [])[pick.episode]) pick.episode = 0;
 _seasonPick = pick;
 let openList = null;
 const draw = () => {
-box.innerHTML = seasonsHtml(seasons, _seasonPick, openList);
+box.innerHTML = seasonsHtml(seasons, _seasonPick, openList, m.tmdb_id);
 const chosen = box.querySelector('.pick-drop-opt.active');
 if (chosen && typeof chosen.scrollIntoView === 'function') chosen.scrollIntoView({
 block: 'nearest'
@@ -8310,6 +8380,12 @@ episode: 0
 episode: i
 };
 openList = null;
+draw();
+return;
+}
+const mark = e.target.closest('[data-season-act]');
+if (mark) {
+toggleSeason(mark.dataset.seasonAct, m.tmdb_id, Number(mark.dataset.season));
 draw();
 return;
 }
@@ -9288,6 +9364,57 @@ const uid = auth.currentUser && auth.currentUser.uid;
 for (const list of [ 'watched', 'liked', 'must' ]) {
 const localKey = localMarksKey(uid, list);
 if (localKey) localStore.set(localKey, [ ...setOf(list) ]);
+}
+queueMarks(ops, key);
+}
+
+function seasonSetOf(list) {
+return {
+seasons_watched: seasonsWatched,
+seasons_liked: seasonsLiked,
+seasons_must: seasonsMust
+}[list];
+}
+
+function seasonMarked(act, tmdbId, season) {
+const key = seasonMarkKey(tmdbId, season);
+const list = {
+watch: 'seasons_watched',
+like: 'seasons_liked',
+must: 'seasons_must'
+}[act];
+const set = seasonSetOf(list);
+return !!(key && set && set.has(key));
+}
+
+async function toggleSeason(act, tmdbId, season) {
+const key = seasonMarkKey(tmdbId, season);
+if (!key) {
+toast('error', 'Цей серіал ще без TMDb-ідентифікатора — позначку нема на чому тримати.');
+return;
+}
+const actList = {
+watch: 'seasons_watched',
+like: 'seasons_liked',
+must: 'seasons_must'
+}[act];
+const willBeOn = !seasonSetOf(actList).has(key);
+const ops = markTransition(act, willBeOn, {
+watchedOn: seasonsWatched.has(key),
+likedOn: seasonsLiked.has(key),
+mustOn: seasonsMust.has(key)
+}).map(op => ({
+list: `seasons_${op.list}`,
+on: op.on
+}));
+for (const op of ops) {
+const set = seasonSetOf(op.list);
+if (op.on) set.add(key); else set.delete(key);
+}
+const uid = auth.currentUser && auth.currentUser.uid;
+for (const list of [ 'seasons_watched', 'seasons_liked', 'seasons_must' ]) {
+const localKey = localMarksKey(uid, list);
+if (localKey) localStore.set(localKey, [ ...seasonSetOf(list) ]);
 }
 queueMarks(ops, key);
 }
