@@ -286,37 +286,6 @@
       0 -3px 5px -1px rgba(51,51,51,.54),
       inset 0 5px 11px 0 rgba(5,5,5,.62),
       inset 0 0 8px .4px rgba(51,51,51,.42);
-    
-    --key-pale: var(--dust);       
-    --key-pale-lit: #E4E6EA;       
-    --key-pale-dim: #1E1E1F;       
-    
-    --key-pale-out:
-      0 3px 8px -1px rgba(30,30,31,.62),
-      0 1px 2px 0 rgba(30,30,31,.5),
-      inset 0 -2px 2px -1px rgba(30,30,31,.29),
-      0 -2px 4px -1px rgba(228,230,234,.4),
-      inset 0 2px 2px -1px rgba(228,230,234,.48),
-      inset 0 0 4px .4px rgba(228,230,234,.52),
-      inset 0 12px 13px 0 rgba(228,230,234,.16);
-    
-    
-    --key-pale-in:
-      inset 0 0 0 1px var(--key-pale-dim),
-      inset 0 4px 8px 0 rgba(30,30,31,.46),
-      inset 0 -3px 6px 0 rgba(228,230,234,.72),
-      0 1px 2px 0 rgba(30,30,31,.4);
-    
-    --key-red: var(--blood);       
-    --key-red-lit: #9D0F0F;        
-    --key-red-dim: #140000;        
-    --key-red-out:
-      0 4px 6px -1px rgba(20,0,0,.43),
-      inset 0 -2px 2px -1px rgba(20,0,0,.29),
-      0 -3px 5px -1px rgba(157,15,15,.54),
-      inset 0 2px 2px -1px rgba(157,15,15,.48),
-      inset 0 0 4px .4px rgba(157,15,15,.52),
-      inset 0 12px 13px 0 rgba(157,15,15,.16);
     --field-sunk:
       inset 0 4px 9px 0 rgba(5,5,5,.62),
       inset 0 -3px 7px 0 rgba(51,51,51,.5),
@@ -386,13 +355,40 @@
   header {
     
     
-    padding: calc(8px + var(--safe-top)) max(24px, calc((100% - 1232px) / 2)) 10px;
+    
+    --bar-pad: max(24px, calc((100% - 1232px) / 2));
+    padding: calc(8px + var(--safe-top)) 0 0;
     position: sticky; top: 0; z-index: 46;
     
     background-color: var(--tpl-ground);
-    
-    box-shadow: 0 10px var(--bar-glow);
   }
+  
+  .topbar-tabs {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    height: var(--tabbar-row);
+  }
+  .topbar-tab {
+    
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    min-width: 0; padding: 0 4px;
+    background: none; border: 0; cursor: pointer;
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em;
+    text-transform: uppercase; white-space: nowrap;
+    
+    color: var(--tab-ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .topbar-tab.active { color: var(--tab-ink-on); font-weight: 600; }
+  @media (hover: hover) { .topbar-tab:hover { color: var(--paper); } }
+  
+  .topbar-tab + .topbar-tab::before {
+    content: '•'; position: absolute; left: 0; top: 50%;
+    transform: translate(-50%, -50%);
+    
+    color: var(--tab-ink); opacity: .55; font-size: 11px; line-height: 1;
+  }
+
   
   header::after {
     content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: var(--bar-line);
@@ -400,8 +396,13 @@
     background: var(--blood);
   }
   
-  .topbar { display: flex; align-items: center; justify-content: space-between; }
-  header h1 { margin: 0; font-size: 24px; display: flex; align-items: center; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--bar-pad) 10px;
+  }
+  .topbar::before { content: ''; flex: none; width: var(--control-h); }
+  .topbar.searching::before { display: none; }
+  header h1 { margin: 0; font-size: 24px; flex: 1; display: flex; align-items: center; justify-content: center; }
   .brand-badge svg { width: 100%; height: 100%; display: block; }
   .brand-badge { display: flex; align-items: center; justify-content: center; }
   
@@ -444,7 +445,6 @@
     --tabbar-h: calc(var(--tabbar-base) + var(--bar-line));
   }
   
-  :root { --bar-glow: 18px -8px rgba(var(--blood-rgb), .55); }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
     
@@ -452,8 +452,6 @@
     
     border-top: var(--bar-line) solid var(--blood);
     padding-bottom: var(--safe-bottom);
-    
-    box-shadow: 0 -10px var(--bar-glow);
   }
 
   .tabbar-scroll {
@@ -485,8 +483,8 @@
 
   
   
-  .tabbar-scroll .tabbar-tab.active:not([data-tab="shelf"]) { position: relative; }
-  .tabbar-scroll .tabbar-tab.active:not([data-tab="shelf"])::before {
+  .tabbar-scroll .tabbar-tab.active { position: relative; }
+  .tabbar-scroll .tabbar-tab.active::before {
     content: ''; position: absolute; z-index: -1;
     inset: 0 0 var(--tongue-foot) 0;
     background: var(--tabbar-row-bg);
@@ -494,7 +492,7 @@
     border-radius: 0 0 var(--tongue-radius) var(--tongue-radius);
   }
   
-  .tabbar-scroll .tabbar-tab.active:not([data-tab="shelf"])::after {
+  .tabbar-scroll .tabbar-tab.active::after {
     content: ''; position: absolute; z-index: -1;
     top: 0; height: var(--tongue-radius);
     left: calc(var(--tongue-radius) * -1); right: calc(var(--tongue-radius) * -1);
@@ -572,7 +570,8 @@
 
   .delete-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    margin-top: 12px; padding: 10px 12px; border-radius: 6px;
+    
+    margin: 12px var(--bar-pad) 0; padding: 10px 12px; border-radius: 6px;
     border: 1px solid rgba(194,20,20,.5); background: rgba(194,20,20,.12);
   }
   .delete-bar[hidden] { display: none; }
@@ -706,6 +705,8 @@
   
   .mark-row {
     display: flex; align-items: center; gap: 10px; padding: 6px 0 2px;
+    
+    margin: 0 var(--bar-pad);
     border-bottom: 1px solid var(--border);
   }
   .mark-row[hidden] { display: none; }
@@ -720,56 +721,6 @@
   
 
   
-  
-  .chips-row { display: flex; align-items: center; gap: 4px; margin-top: 16px; }
-  .chips {
-    flex: 1; min-width: 0;
-    display: flex; flex-wrap: nowrap; gap: 14px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    
-    scrollbar-width: none;
-  }
-  .chips::-webkit-scrollbar { display: none; }
-  
-  .chips-arrow {
-    flex: none; width: 32px; height: 32px; padding: 0; position: relative;
-    display: flex; align-items: center; justify-content: center;
-    background: none; border: none; border-radius: 2px;
-    color: var(--blood); cursor: pointer; transition: color .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .chips-arrow::after { content: ''; position: absolute; inset: -6px; }
-  .chips-arrow:active { color: var(--flash); }
-  .chips-arrow[hidden] { display: none; }
-  @media (hover: hover) { .chips-arrow:hover { color: var(--flash); } }
-  
-  
-  body[data-genres="all"] .chips {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-    overflow-x: visible;
-  }
-  body[data-genres="all"] .chips-arrow { display: none; }
-  
-  body[data-genres="all"].genres-folded .chips {
-    max-height: var(--genre-row-h, none);
-    overflow: hidden;
-  }
-  
-  .genre-fold {
-    display: none; width: 100%; height: 26px; margin-top: 2px;
-    align-items: center; justify-content: center;
-    background: none; border: none; padding: 0;
-    color: var(--blood); cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  body[data-genres="all"] .genre-fold:not([hidden]) { display: flex; }
-  .genre-fold:active { color: var(--flash); }
-  @media (hover: hover) { .genre-fold:hover { color: var(--flash); } }
-  
-  .genre-fold svg { transition: transform .18s ease-out; }
-  body.genres-folded .genre-fold svg { transform: none; }
-  .genre-fold svg { transform: rotate(180deg); }
-  body[data-genres="all"] .chip { flex: none; }
   .chip {
     padding: 8px 12px; font-size: 12px;
     font-family: var(--font-mono); white-space: nowrap;
@@ -963,6 +914,8 @@
   main { max-width: 1280px; margin: 0 auto; padding: 0 24px 60px; padding-bottom: 38vh; }
   .genre-section { margin-top: 32px; }
   
+  #main > .genre-section:first-child:not(:has(h2)) { margin-top: 12px; }
+  
   .genre-section h2 {
     font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
     letter-spacing: -.01em; font-size: 19px; display: flex; align-items: baseline; gap: 10px;
@@ -973,11 +926,7 @@
 
   
   
-  .grid {
-    display: grid; gap: 22px 14px;
-    background: var(--surface-key); box-shadow: var(--field-sunk);
-    border-radius: 20px; padding: 16px 14px;
-  }
+  .grid { display: grid; gap: 22px 14px; }
   body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 14px; }
   body[data-view="grid-m"] .grid { grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); }
   body[data-view="grid-l"] .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -1661,10 +1610,10 @@
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
     
     
-    padding: 0 max(12px, calc((100% - 1232px) / 2)); gap: 6px;
+    padding: 0 max(12px, calc((100% - 1232px) / 2)); gap: 10px;
     
-    justify-content: space-evenly;
-    justify-content: safe space-evenly;
+    justify-content: center;
+    justify-content: safe center;
     
     background: var(--tabbar-row-bg);
   }
@@ -1675,29 +1624,19 @@
   
   
   .tabbar-window-row .tabbar-tab--window {
-    position: relative; z-index: 0;
+    background: transparent; border: 0; box-shadow: none; border-radius: 0;
+    color: rgba(242, 243, 246, .55); text-shadow: none;
     
-    color: var(--paper); background: transparent; border: 0; box-shadow: none;
-    text-shadow: none;
-    
-    height: calc(var(--tabbar-row) - 14px);
-    
-    border-radius: 8px;
-    
+    height: var(--tabbar-row);
+    font-size: 11.5px; letter-spacing: .06em; font-weight: 400;
     flex-direction: row; justify-content: center; gap: 0;
+    padding: 0 2px;
   }
+  .tabbar-window-row .tabbar-tab--window.active { color: var(--paper); font-weight: 600; }
   
-  .tabbar-window-row .tabbar-tab--window::before {
-    content: ''; position: absolute; inset: 0; z-index: -1;
-    border-radius: inherit; background: var(--key-red);
-    box-shadow: var(--key-red-out);
-    transition: box-shadow .3s cubic-bezier(.23, 1, .32, 1), background .3s;
-  }
-  
-  .tabbar-window-row .tabbar-tab--window.active { color: var(--coal); }
-  .tabbar-window-row .tabbar-tab--window:active::before,
-  .tabbar-window-row .tabbar-tab--window.active::before {
-    background: var(--key-pale); box-shadow: var(--key-pale-in);
+  .tabbar-window-row .tabbar-tab--window + .tabbar-tab--window::before {
+    content: '•'; margin-right: 10px;
+    color: var(--paper); opacity: .38; font-size: 11px; line-height: 1;
   }
   
   .tabbar-window-row[hidden] { display: none; }
@@ -2393,7 +2332,9 @@
 
   
   @media (max-width: 640px) {
-    header { padding: calc(18px + var(--safe-top)) 18px 12px; }
+    
+    header { --bar-pad: 18px; padding: calc(18px + var(--safe-top)) 0 0; }
+    .topbar { padding-bottom: 12px; }
     main { padding-left: 18px; padding-right: 18px; }
     
     .col-plate, .col-plate-actions { width: calc(100% - 36px); }
@@ -2852,30 +2793,6 @@
     <button class="tab mark-word" data-mark="liked" type="button">Рекомендую</button>
     <button class="tab mark-word" data-mark="must" type="button">Обовʼязково</button>
   </div>
-  <!-- The genre ribbon: one line under the navigation, a tap filters, a
-       second tap clears (U-6). That it SCROLLS was invisible (owner-
-       reported), so the line now says so out loud — a blood chevron at each
-       end, tappable, and the travel is circular: past the last genre comes
-       the first. Whoever would rather not scroll at all switches the ribbon
-       to «All at once» in the FILTER drawer, and every genre wraps into
-       view. -->
-  <div class="chips-row" id="genreRow">
-    <button class="chips-arrow" id="genrePrev" type="button" title="Попередні жанри" hidden>
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>
-    </button>
-    <div class="chips" id="genreChips"></div>
-    <button class="chips-arrow" id="genreNext" type="button" title="Наступні жанри" hidden>
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>
-    </button>
-  </div>
-  <!-- «All at once» lays every genre out at once, and with a full catalogue
-       that is four or five rows before a single poster (owner-reported).
-       This folds it back to the first row and out again. It appears ONLY
-       when there is a second row to hide — a control that does nothing is
-       worse than no control. -->
-  <button class="genre-fold" id="genreFold" type="button" hidden aria-expanded="true">
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 12 16 19 9"/></svg>
-  </button>
   <!-- Delete mode lives in the menu now; this bar appears once the mode is
        on and is the mode's only visible chrome in normal browsing. -->
   <div class="delete-bar" id="deleteBar" hidden>
@@ -2891,6 +2808,15 @@
     <button type="button" class="delete-bar-btn delete-bar-btn--go" id="addConfirmBtn" disabled>Додати</button>
     <button type="button" class="delete-bar-btn" id="addCancelBtn">Скасувати</button>
   </div>
+  <!-- THE PLACES YOU GO, along the header's bottom edge (owner's ask): the
+       shelf, collections, friends, the account. The same panel the strip
+       carries under it — red ground, words and a bullet between them, no
+       drawings — so the two bars say one thing in one voice, the top for
+       where you ARE and the bottom for what you DO.
+       Drawn by the app (see renderTopbarTabs in 24-tabbar.js) rather than
+       written out here: «Friends» and «Account» exist only once somebody is
+       signed in, and a tab is shown when the control it presses is. -->
+  <div class="topbar-tabs" id="topbarTabs"></div>
 </header>
 
 <!-- The state plate (§07): the ONE place white text lies on blood — mono,
@@ -2943,7 +2869,7 @@
 
 <!-- The search layer: a full screen of its own (§07 — a layer is for a
      separate ACTION), sliding in from the right (§09). Results are the
-     whole catalogue searched, untouched by tabs or the genre ribbon. -->
+     whole catalogue searched, untouched by tabs or by the genre filter. -->
 <!-- The menu sheet: what the slimmed header no longer carries. Rows keep
      their historical ids — all the wiring and the tests hold onto them. -->
 <!-- The handle that sets how much of the screen the bottom band takes.
@@ -3065,16 +2991,13 @@
      still live here because they are the originals the strip mirrors and
      presses; see WINDOW_TABS in 24-tabbar.js.
 
-     Three switches and no labels above them, because each says its own
-     name: the ribbon, the scores, and the three shapes a card can take. -->
+     Two switches and no labels above them, because each says its own name:
+     the scores, and the three shapes a card can take. A third switched the
+     genre ribbon between a line and a block, and went with the ribbon —
+     genre is a filter and sits in the filter drawer now, where it needs no
+     layout of its own. -->
 <div class="sheet-backdrop sheet-backdrop--headless" id="settingsBackdrop" hidden></div>
 <div class="sheet sheet--headless" id="settingsSheet" data-surface="window" data-material="solid" aria-hidden="true">
-  <!-- Genres as a ribbon, or all of them at once. ONE switch, not two
-       options: «all at once» is the absence of the ribbon, and naming the
-       absence made a row of two where a reader only ever has one question. -->
-  <div class="opts" id="genreLayoutOpts">
-    <button class="opt active" id="ribbonToggle" data-settings-switch type="button" aria-pressed="true">Стрічка</button>
-  </div>
   <!-- The scores and the awards travel together (owner's call). They were
        two switches, «No awards» and «No scores», and they were two answers
        to one question: whether a card carries its marks or only its film. -->
@@ -3112,11 +3035,11 @@
   <div id="trashList"></div>
 </div>
 
-<!-- The FILTER drawer (§07): what narrows the list — sorting, "recommended
-     by", type. What changes how the SAME list is drawn (the card, the view
-     mode, the genre ribbon) moved to SETTINGS in the menu (owner's
-     call): a filter answers «which films», a setting answers «how they
-     look», and one drawer holding both made neither obvious. -->
+<!-- The FILTER drawer (§07): what narrows the list — sorting, genre,
+     "recommended by", type. What changes how the SAME list is drawn (the
+     card, the view mode) moved to SETTINGS in the menu (owner's call): a
+     filter answers «which films», a setting answers «how they look», and
+     one drawer holding both made neither obvious. -->
 <!-- The dice's answer: four films drawn by the person's own taste
      (userTasteStats/rollDice in logic.js). A sheet like FILTER — the same
      strip of glass at the same edge — filled by renderDiceResults(). -->
@@ -3171,6 +3094,15 @@
   <div class="opts" id="awardsSortOpts">
     <button class="opt" data-awards-first="1" type="button">Спершу з нагородами</button>
   </div>
+  <!-- GENRE, which used to be a ribbon under the header (owner's ask: move
+       it in here and clear the top panel out). It is a filter, and this is
+       where the filters are — and unlike a ribbon it can show every genre at
+       once without pushing the shelf off the screen, so the fold, the two
+       chevrons and the circular travel go with it.
+       Built by the app rather than written out here, because every option
+       carries the count of what picking it would give you. -->
+  <div class="sheet-label" id="genreLabel">Жанр</div>
+  <div class="opts" id="genreOpts"></div>
   <!-- What is out now and what is not out yet. The same function decides
        this and the badge on the card (releaseBadge in logic.js), so a card
        wearing the badge is a card this shows. -->
@@ -4158,9 +4090,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_SEAR
 
 const LOGIC_TABBAR = function() {
 const TABBAR_TABS = [ {
-id: 'shelf',
-label: 'Полиця'
-}, {
 id: 'seen',
 label: 'Архів'
 }, {
@@ -4172,12 +4101,6 @@ label: 'Кубик'
 }, {
 id: 'filter',
 label: 'Фільтр'
-}, {
-id: 'recs',
-label: 'Добірки'
-}, {
-id: 'friends',
-label: 'Друзі'
 }, {
 id: 'account',
 label: 'Акаунт'
@@ -4194,6 +4117,24 @@ label: 'Кошик'
 id: 'admin',
 label: 'Адмін'
 } ];
+const HEADER_TABS = [ {
+id: 'films',
+label: 'Фільми',
+type: 'фільм'
+}, {
+id: 'series',
+label: 'Серіали',
+type: 'серіал'
+}, {
+id: 'recs',
+label: 'Добірки'
+}, {
+id: 'friends',
+label: 'Друзі'
+} ];
+const HEADER_TAB_IDS = HEADER_TABS.map(t => t.id);
+const HEADER_TAB_TYPE = {};
+for (const t of HEADER_TABS) if (t.type) HEADER_TAB_TYPE[t.id] = t.type;
 const TABBAR_IDS = TABBAR_TABS.map(t => t.id);
 const TABBAR_HIDDEN_BY_DEFAULT = [];
 function normalizeTabbar(saved) {
@@ -4246,12 +4187,20 @@ function tabbarIsDefault(saved) {
 const arr = normalizeTabbar(saved);
 return arr.order.join() === TABBAR_IDS.join() && arr.hidden.join() === TABBAR_HIDDEN_BY_DEFAULT.join();
 }
+function headerTabs(available) {
+const may = typeof available === 'function' ? available : () => true;
+return HEADER_TABS.filter(t => may(t.id));
+}
 return {
 TABBAR_TABS: TABBAR_TABS,
 TABBAR_IDS: TABBAR_IDS,
+HEADER_TABS: HEADER_TABS,
+HEADER_TAB_IDS: HEADER_TAB_IDS,
+HEADER_TAB_TYPE: HEADER_TAB_TYPE,
 TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT,
 normalizeTabbar: normalizeTabbar,
 tabbarLayout: tabbarLayout,
+headerTabs: headerTabs,
 moveTab: moveTab,
 toggleTab: toggleTab,
 tabbarIsDefault: tabbarIsDefault
@@ -4288,7 +4237,7 @@ const {SWIPE_EDGE_PX: SWIPE_EDGE_PX, SWIPE_AXIS_PX: SWIPE_AXIS_PX, SWIPE_AXIS_RA
 
 const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason, ENRICHMENT_RECHECK_DAYS: ENRICHMENT_RECHECK_DAYS, enrichmentCheckedRecently: enrichmentCheckedRecently} = IS_NODE ? require('./logic/maintenance.js') : LOGIC_MAINTENANCE;
 
-const {TABBAR_TABS: TABBAR_TABS, TABBAR_IDS: TABBAR_IDS, TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT, normalizeTabbar: normalizeTabbar, tabbarLayout: tabbarLayout, moveTab: moveTab, toggleTab: toggleTab, tabbarIsDefault: tabbarIsDefault} = IS_NODE ? require('./logic/tabbar.js') : LOGIC_TABBAR;
+const {TABBAR_TABS: TABBAR_TABS, TABBAR_IDS: TABBAR_IDS, HEADER_TABS: HEADER_TABS, HEADER_TAB_IDS: HEADER_TAB_IDS, HEADER_TAB_TYPE: HEADER_TAB_TYPE, TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT, normalizeTabbar: normalizeTabbar, tabbarLayout: tabbarLayout, headerTabs: headerTabs, moveTab: moveTab, toggleTab: toggleTab, tabbarIsDefault: tabbarIsDefault} = IS_NODE ? require('./logic/tabbar.js') : LOGIC_TABBAR;
 
 const CATALOGUE_PAGE = 2500;
 
@@ -6270,13 +6219,6 @@ function countWatchedIn(list, watchedIds) {
 return (list || []).reduce((n, m) => n + (isMarked(watchedIds, m) ? 1 : 0), 0);
 }
 
-function genreStep(genres, current, dir) {
-const list = [ 'all', ...genres || [] ];
-const i = Math.max(0, list.indexOf(current || 'all'));
-const next = swipeStep(list.length, i, dir);
-return next === null ? null : list[next];
-}
-
 function nextGenreWithFilms(order, current, counts) {
 const list = (order || []).filter(g => g);
 const has = g => Number((counts || {})[g]) > 0;
@@ -6800,9 +6742,13 @@ needsFilmDetail: needsFilmDetail,
 localSeasonsKey: localSeasonsKey,
 TABBAR_TABS: TABBAR_TABS,
 TABBAR_IDS: TABBAR_IDS,
+HEADER_TABS: HEADER_TABS,
+HEADER_TAB_IDS: HEADER_TAB_IDS,
+HEADER_TAB_TYPE: HEADER_TAB_TYPE,
 TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT,
 normalizeTabbar: normalizeTabbar,
 tabbarLayout: tabbarLayout,
+headerTabs: headerTabs,
 moveTab: moveTab,
 toggleTab: toggleTab,
 tabbarIsDefault: tabbarIsDefault,
@@ -6840,7 +6786,6 @@ swipeStartAllowed: swipeStartAllowed,
 swipeAxis: swipeAxis,
 swipeVerdict: swipeVerdict,
 swipeStep: swipeStep,
-genreStep: genreStep,
 nextGenreWithFilms: nextGenreWithFilms,
 swipeDismisses: swipeDismisses,
 anyFilterSet: anyFilterSet,
@@ -7433,7 +7378,7 @@ let filterDraft = null;
 
 let genreBeforeSearch = null;
 
-const DRAWER_FILTER_KEYS = [ 'sort', 'awardsFirst', 'release', 'recommender', 'type', 'years', 'provider', 'actors', 'directors' ];
+const DRAWER_FILTER_KEYS = [ 'sort', 'awardsFirst', 'genre', 'release', 'recommender', 'type', 'years', 'provider', 'actors', 'directors' ];
 
 function filterView() {
 return filterDraft || state;
@@ -7469,8 +7414,7 @@ actors: state.actors,
 directors: state.directors,
 trailerSound: state.trailerSound,
 tabbar: state.tabbar,
-view: document.body.dataset.view,
-genres: document.body.dataset.genres
+view: document.body.dataset.view
 }));
 } catch (e) {}
 }
@@ -7791,7 +7735,7 @@ const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- rich: the dice's own hand names the genre too (owner's ask) —\n             four films chosen FOR you are worth a word about what they are,\n             where the shelf already stands under a genre heading. --\x3e\n        <span class="year">${m.year ? `${m.year} · ` : ''}${esc(m.type)}${rich && m.genre ? ` · ${esc(m.genre)}` : ''}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
@@ -7816,7 +7760,8 @@ if (!grid) {
 const section = document.createElement('section');
 section.className = 'genre-section';
 section.dataset.group = head.group;
-section.innerHTML = `<h2>${esc(head.group)} <span class="count">${head.total}</span></h2><div class="grid"></div>`;
+const head2 = head.title ? `<h2>${esc(head.title)} <span class="count">${head.total}</span></h2>` : '';
+section.innerHTML = `${head2}<div class="grid"></div>`;
 main.appendChild(section);
 grid = section.querySelector('.grid');
 }
@@ -7869,6 +7814,8 @@ _batchObserver.observe(sentinel);
 
 const SEARCH_RESULTS_GROUP = 'Знайдено';
 
+const SHELF_GROUP = 'shelf';
+
 function render(opts = {}) {
 const main = document.getElementById('main');
 document.body.classList.toggle('search-shelf', !!state.query);
@@ -7910,7 +7857,7 @@ const widerBtn = main.querySelector('#searchWiderBtn');
 if (widerBtn) widerBtn.addEventListener('click', () => {
 state.searchScope = 'all';
 syncSearchScope();
-renderChips();
+renderGenreOptions();
 render();
 });
 const addFromSearch = main.querySelector('#searchAddBtn');
@@ -7939,25 +7886,18 @@ if (state.query) {
 const ranked = rankSearchResults(sortForShelf(items, shelfOpts), state.query);
 _renderQueue.push({
 group: SEARCH_RESULTS_GROUP,
+title: SEARCH_RESULTS_GROUP,
 total: ranked.length,
 movies: ranked
 });
 } else {
-const groups = new Map;
-for (const m of items) {
-const g = m.genre_group || 'Інше';
-if (!groups.has(g)) groups.set(g, []);
-groups.get(g).push(m);
-}
-for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
-if (!groups.has(g)) continue;
-const list = sortForShelf(groups.get(g), shelfOpts);
+const list = sortForShelf(items, shelfOpts);
 _renderQueue.push({
-group: g,
+group: SHELF_GROUP,
+title: '',
 total: list.length,
 movies: list
 });
-}
 }
 if (patchDrawnShelf(main)) return;
 main.innerHTML = '';
@@ -8049,12 +7989,13 @@ awardsFirst: filterDraft.awardsFirst
 };
 }
 syncTabs();
-renderChips();
+renderGenreOptions();
 refreshFilterDrawer();
 updateFilterGlow();
-renderChips();
+renderGenreOptions();
 render();
 saveSettings();
+if (typeof syncTabbar === 'function') syncTabbar();
 }
 
 let _lockedScrollY = 0;
@@ -9811,7 +9752,7 @@ state.genre = 'all';
 state.genre = genreBeforeSearch;
 genreBeforeSearch = null;
 }
-renderChips();
+renderGenreOptions();
 render();
 });
 
@@ -9892,7 +9833,7 @@ searchScopeEl.title = wide ? 'Шукаю в усій фільмотеці — н
 searchScopeEl.addEventListener('click', () => {
 state.searchScope = state.searchScope === 'all' ? 'here' : 'all';
 syncSearchScope();
-renderChips();
+renderGenreOptions();
 render();
 });
 
@@ -10558,10 +10499,6 @@ const plateActionsEl = document.getElementById('collectionPlateActions');
 const syncPlateHeight = () => {
 const h = Math.round(collectionPlateEl.getBoundingClientRect().height);
 if (h > 0) document.documentElement.style.setProperty('--plate-h', `${h}px`);
-const shown = !collectionPlateEl.hidden && h > 0;
-const actionsH = plateActionsEl && !plateActionsEl.hidden ? Math.round(plateActionsEl.getBoundingClientRect().height) : 0;
-const block = !shown ? 0 : actionsH > 0 ? h + 12 + actionsH : h + 8;
-document.documentElement.style.setProperty('--plate-block-h', `${block}px`);
 };
 syncPlateHeight();
 if (typeof ResizeObserver === 'function') {
@@ -10643,7 +10580,7 @@ function tasteStatsChanged() {
 _tasteStats = null;
 if (typeof updatePeopleFilters === 'function') updatePeopleFilters();
 if (window.__catalogueLoaded) {
-if (typeof renderChips === 'function') renderChips();
+if (typeof renderGenreOptions === 'function') renderGenreOptions();
 if (typeof render === 'function') render({
 keepDrawn: true
 });
@@ -10880,7 +10817,7 @@ state.onlyLiked = false;
 state.onlyMust = false;
 }
 syncTabs();
-renderChips();
+renderGenreOptions();
 render();
 saveSettings();
 if (typeof navSync === 'function') navSync();
@@ -10894,16 +10831,16 @@ const on = mark === 'liked' ? !state.onlyLiked : mark === 'must' ? !state.onlyMu
 state.onlyLiked = mark === 'liked' && on;
 state.onlyMust = mark === 'must' && on;
 syncTabs();
-renderChips();
+renderGenreOptions();
 render();
 saveSettings();
 });
 
-const genreChipsEl = document.getElementById('genreChips');
+const genreOptsEl = document.getElementById('genreOpts');
 
-let _chipsHtml = null;
+let _genreOptsHtml = null;
 
-function renderChips() {
+function renderGenreOptions() {
 const counts = {};
 for (const m of filterCatalog(searchSource(), {
 query: state.query,
@@ -10933,142 +10870,33 @@ saveSettings();
 state.genre = 'all';
 saveSettings();
 }
-const activeG = state.genre || 'all';
-let html = '';
+const activeG = filterView().genre || 'all';
+let html = '<button class="opt" data-g="all" type="button">Усі</button>';
 for (const g of orderGenresByTaste(GENRE_ORDER, tasteStats().genres)) {
-if (counts[g]) html += `<button class="chip${activeG === g ? ' active' : ''}" data-g="${g}">${g} (${counts[g]})</button>`;
+if (counts[g]) html += `<button class="opt" data-g="${g}" type="button">${g}</button>`;
 }
-if (html !== _chipsHtml) {
-genreChipsEl.innerHTML = html;
-_chipsHtml = html;
+if (html !== _genreOptsHtml) {
+genreOptsEl.innerHTML = html;
+_genreOptsHtml = html;
 }
-syncGenreArrows();
-syncGenreFold();
-}
-
-const GENRE_FOLD_KEY = 'seenit_genres_folded';
-
-const genreFoldBtn = document.getElementById('genreFold');
-
-let genresFolded = (() => {
-try {
-return localStorage.getItem(GENRE_FOLD_KEY) === '1';
-} catch (err) {
-return false;
-}
-})();
-
-function syncGenreFold() {
-const all = document.body.dataset.genres === 'all';
-const first = genreChipsEl.firstElementChild;
-const rowH = first ? first.offsetHeight : 0;
-if (rowH > 0) document.documentElement.style.setProperty('--genre-row-h', `${rowH}px`);
-document.body.classList.remove('genres-folded');
-const manyRows = all && rowH > 0 && genreChipsEl.scrollHeight > rowH + 2;
-document.body.classList.toggle('genres-folded', all && genresFolded && manyRows);
-if (genreFoldBtn) {
-genreFoldBtn.hidden = !manyRows;
-const open = !(all && genresFolded && manyRows);
-genreFoldBtn.setAttribute('aria-expanded', String(open));
-genreFoldBtn.title = open ? 'Згорнути жанри' : 'Показати всі жанри';
-genreFoldBtn.setAttribute('aria-label', genreFoldBtn.title);
-}
+syncGenreOpts();
 }
 
-if (genreFoldBtn) genreFoldBtn.addEventListener('click', () => {
-genresFolded = !genresFolded;
-try {
-localStorage.setItem(GENRE_FOLD_KEY, genresFolded ? '1' : '0');
-} catch (err) {}
-syncGenreFold();
-});
+function syncGenreOpts() {
+const view = filterView().genre || 'all';
+genreOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.g === view));
+}
 
-genreChipsEl.addEventListener('click', e => {
-const b = e.target.closest('.chip');
+genreOptsEl.addEventListener('click', e => {
+const b = e.target.closest('.opt');
 if (!b) return;
-state.genre = state.genre === b.dataset.g ? 'all' : b.dataset.g;
-genreBeforeSearch = null;
-renderChips();
-render();
-saveSettings();
+const g = b.dataset.g;
+editFilterDraft(d => {
+d.genre = g === 'all' || d.genre === g ? 'all' : g;
+});
 });
 
-const genrePrev = document.getElementById('genrePrev');
-
-const genreNext = document.getElementById('genreNext');
-
-function syncGenreArrows() {
-const travels = document.body.dataset.genres !== 'all' && genreChipsEl.scrollWidth > genreChipsEl.clientWidth + 2;
-genrePrev.hidden = !travels;
-genreNext.hidden = !travels;
-}
-
-let ribbonAnim = 0;
-
-let ribbonFallback = 0;
-
-function glideRibbon(to) {
-const el = genreChipsEl;
-if (typeof requestAnimationFrame !== 'function') {
-el.scrollLeft = to;
-return;
-}
-cancelAnimationFrame(ribbonAnim);
-clearTimeout(ribbonFallback);
-const from = el.scrollLeft;
-const dist = to - from;
-const t0 = Date.now();
-const ms = 240;
-const step = () => {
-const k = Math.min(1, (Date.now() - t0) / ms);
-el.scrollLeft = from + dist * (1 - Math.pow(1 - k, 3));
-if (k < 1) ribbonAnim = requestAnimationFrame(step);
-};
-ribbonAnim = requestAnimationFrame(step);
-ribbonFallback = setTimeout(() => {
-if (Math.abs(el.scrollLeft - to) > 2) {
-cancelAnimationFrame(ribbonAnim);
-el.scrollLeft = to;
-}
-}, ms + 120);
-}
-
-function scrollRibbon(dir) {
-const el = genreChipsEl;
-const max = el.scrollWidth - el.clientWidth;
-if (max <= 0) return;
-const step = Math.max(el.clientWidth * .8, 120);
-const left = dir > 0 ? el.scrollLeft >= max - 2 ? 0 : Math.min(el.scrollLeft + step, max) : el.scrollLeft <= 2 ? max : Math.max(el.scrollLeft - step, 0);
-glideRibbon(left);
-}
-
-genrePrev.addEventListener('click', () => scrollRibbon(-1));
-
-genreNext.addEventListener('click', () => scrollRibbon(1));
-
-window.addEventListener('resize', syncGenreArrows);
-
-function setGenreLayout(mode) {
-document.body.dataset.genres = mode === 'all' ? 'all' : 'ribbon';
-const btn = document.getElementById('ribbonToggle');
-if (btn) {
-const on = document.body.dataset.genres === 'ribbon';
-btn.classList.toggle('active', on);
-btn.setAttribute('aria-pressed', String(on));
-}
-syncGenreArrows();
-syncGenreFold();
-}
-
-document.getElementById('genreLayoutOpts').addEventListener('click', e => {
-if (!e.target.closest('#ribbonToggle')) return;
-setGenreLayout(document.body.dataset.genres === 'ribbon' ? 'all' : 'ribbon');
-saveSettings();
-});
-
-setGenreLayout('ribbon');
-
-renderChips();
+renderGenreOptions();
 
 const recommenderFilterEl = document.getElementById('recommenderFilter');
 
@@ -11267,9 +11095,10 @@ return DRAWER_FILTER_KEYS.some(key => JSON.stringify(filterDraft[key]) !== JSON.
 function applyFilterDraft() {
 if (filterDraft) Object.assign(state, copyFilterChoices(filterDraft));
 updateFilterGlow();
-renderChips();
+renderGenreOptions();
 render();
 saveSettings();
+if (typeof syncTabbar === 'function') syncTabbar();
 filterSheet.close();
 }
 
@@ -11293,6 +11122,7 @@ function refreshFilterDrawer() {
 const facets = filterDraft ? filterFacets(searchSource(), filterOptsFor(filterDraft, shelfKeepsWatched())) : null;
 syncSortOpts();
 syncAwardsSort();
+syncGenreOpts();
 syncReleaseOpts(facets);
 syncTypeOpts(facets);
 syncYearOpts(facets);
@@ -11317,7 +11147,6 @@ const view = savedSettings.view === 'grid-l' ? 'grid-m' : savedSettings.view;
 document.body.dataset.view = view;
 document.querySelectorAll('#viewToggle button').forEach(x => x.classList.toggle('active', x.dataset.v === view));
 }
-if (savedSettings.genres) setGenreLayout(savedSettings.genres);
 })();
 
 let moviesLoaded = false;
@@ -11362,7 +11191,7 @@ if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
 window.__catalogueShowable = true;
-renderChips();
+renderGenreOptions();
 render();
 }
 let liveVersion = null;
@@ -11380,7 +11209,7 @@ moviesLoaded = true;
 window.__catalogueLoaded = true;
 window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
-renderChips();
+renderGenreOptions();
 updateRecommenderFilter();
 render({
 keepDrawn: true
@@ -11429,7 +11258,7 @@ moviesLoaded = true;
 window.__catalogueLoaded = true;
 window.__catalogueShowable = true;
 if (typeof tasteStatsChanged === 'function') tasteStatsChanged();
-renderChips();
+renderGenreOptions();
 updateRecommenderFilter();
 render({
 keepDrawn: true
@@ -11464,7 +11293,7 @@ if (catalogueAccepts(m)) MOVIES.push(shelveFilm(m));
 });
 moviesLoaded = true;
 if (first) {
-renderChips();
+renderGenreOptions();
 updateRecommenderFilter();
 render();
 window.__catalogueShowable = true;
@@ -11478,7 +11307,7 @@ after = next;
 await catalogueCache.write(collected);
 if (liveVersion) localStore.set(localCatalogueVersionKey(), liveVersion);
 localStore.set(localCatalogueSyncedAtKey(), loadStartedAt);
-renderChips();
+renderGenreOptions();
 updateRecommenderFilter();
 render({
 keepDrawn: true
@@ -13044,7 +12873,7 @@ if (friendsOverlay.classList.contains('open')) closeFriends();
 window.scrollTo(0, 0);
 state.searchScope = 'here';
 syncSearchScope();
-renderChips();
+renderGenreOptions();
 render();
 }
 
@@ -13058,7 +12887,7 @@ document.body.classList.remove('marks-collection');
 syncDeleteAvailability();
 state.searchScope = 'here';
 syncSearchScope();
-renderChips();
+renderGenreOptions();
 render();
 const from = collectionOrigin;
 collectionOrigin = null;
@@ -14238,52 +14067,7 @@ key: key,
 box: box
 } : null;
 }
-const main = document.getElementById('main');
-if (main && target && main.contains(target)) return {
-key: 'shelf',
-box: main
-};
 return null;
-}
-
-function centreActiveChip() {
-const chip = genreChipsEl.querySelector('.chip.active');
-if (!chip) {
-glideRibbon(0);
-return;
-}
-const max = Math.max(0, genreChipsEl.scrollWidth - genreChipsEl.clientWidth);
-const to = chip.offsetLeft - (genreChipsEl.clientWidth - chip.offsetWidth) / 2;
-glideRibbon(Math.max(0, Math.min(to, max)));
-}
-
-function bounceRibbon(dir) {
-if (swipeStill()) return;
-const box = genreChipsEl;
-if (!box) return;
-box.style.transition = 'transform .12s ease-out';
-box.style.transform = `translateX(${dir === 'right' ? 12 : -12}px)`;
-setTimeout(() => {
-box.style.transform = '';
-setTimeout(() => {
-box.style.transition = '';
-}, 160);
-}, 120);
-}
-
-function swipeToGenre(dir) {
-const genres = [ ...genreChipsEl.querySelectorAll('.chip') ].map(el => el.dataset.g);
-const next = genreStep(genres, state.genre || 'all', dir);
-if (next === null) {
-bounceRibbon(dir);
-return;
-}
-state.genre = next;
-renderChips();
-render();
-saveSettings();
-centreActiveChip();
-swipeFadeIn(document.getElementById('main'));
 }
 
 function swipeStill() {
@@ -14293,12 +14077,6 @@ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduc
 function swipeMoveBox(box, dx, dy = 0) {
 box.style.transition = 'none';
 box.style.transform = dy ? `translateY(${dy}px)` : `translateX(${dx}px)`;
-}
-
-function swipeFadeBox(box, k) {
-if (!box) return;
-box.style.transition = 'none';
-box.style.opacity = String(k);
 }
 
 function swipeReleaseBox(box) {
@@ -14338,7 +14116,7 @@ t0: Date.now(),
 axis: null,
 dx: 0,
 dy: 0,
-atTop: surface.key !== 'shelf' && atScrollTop(e.target, surface.box)
+atTop: atScrollTop(e.target, surface.box)
 };
 }, {
 passive: true
@@ -14362,10 +14140,6 @@ _swipe.dy = dy;
 if (e.cancelable) e.preventDefault();
 if (_swipe.axis === 'y') {
 swipeMoveBox(_swipe.box, 0, Math.max(0, dy));
-return;
-}
-if (_swipe.key === 'shelf') {
-swipeFadeBox(_swipe.box, 1 - Math.min(.18, Math.abs(dx) / 900));
 return;
 }
 const shown = _swipe.key === 'filmCard' ? dx : Math.max(0, dx);
@@ -14403,10 +14177,6 @@ if (s.key === 'filmCard') {
 swipeToNeighbourFilm(dir);
 return;
 }
-if (s.key === 'shelf') {
-swipeToGenre(dir);
-return;
-}
 if (dir === 'right') history.back();
 }, {
 passive: true
@@ -14442,20 +14212,6 @@ openModal(m);
 swipeSlideIn(modalBox, dir, 100);
 }
 
-function swipeFadeIn(box) {
-if (!box || swipeStill()) return;
-box.style.transition = 'none';
-box.style.opacity = '0.45';
-const nextFrame = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : fn => setTimeout(fn, 16);
-nextFrame(() => {
-box.style.transition = 'opacity .2s ease-out';
-box.style.opacity = '';
-setTimeout(() => {
-box.style.transition = '';
-}, 240);
-});
-}
-
 function swipeSlideIn(box, dir, percent) {
 if (!box || swipeStill()) return;
 const from = dir === 'left' ? 1 : -1;
@@ -14473,6 +14229,8 @@ box.style.transition = '';
 
 const tabbarEl = document.getElementById('tabbar');
 
+const topbarTabsEl = document.getElementById('topbarTabs');
+
 const tabbarScroll = document.getElementById('tabbarScroll');
 
 const tabbarWindowRow = document.getElementById('tabbarWindowRow');
@@ -14482,7 +14240,6 @@ const tabbarRows = document.getElementById('tabbarRows');
 const tabbarSheet = wireSheet('tabbarSheet', 'tabbarBackdrop');
 
 const TABBAR_ICON = {
-shelf: 'shelf',
 seen: 'seen',
 search: 'find',
 dice: 'top',
@@ -14528,7 +14285,7 @@ const TABBAR_MENU_SCREENS = new Set([ 'recs', 'friends', 'account', 'settings', 
 
 function tabAvailable(id) {
 const ctl = TABBAR_CONTROL[id] && document.getElementById(TABBAR_CONTROL[id]);
-if (!ctl) return id === 'shelf';
+if (!ctl) return !!HEADER_TAB_TYPE[id];
 if (ctl.hidden) return false;
 return ctl.style.display !== 'none';
 }
@@ -14597,9 +14354,25 @@ requestAnimationFrame(() => requestAnimationFrame(done));
 setTimeout(done, 120);
 }
 
-function pressTab(id) {
-if (id === 'shelf') {
+function showShelfType(type) {
+let open = null;
+try {
+open = topNavSurface(navOpenNow());
+} catch (err) {
+open = null;
+}
+state.type = !open && state.type === type ? 'all' : type;
+syncTypeOpts();
+renderGenreOptions();
 goToShelf();
+render();
+saveSettings();
+syncTabbar();
+}
+
+function pressTab(id) {
+if (HEADER_TAB_TYPE[id]) {
+showShelfType(HEADER_TAB_TYPE[id]);
 return;
 }
 const mine = id === 'arrange' ? 'tabbar' : TABBAR_SURFACE[id];
@@ -14697,6 +14470,16 @@ function tabHtml(tab, iconName) {
 return `<button class="tabbar-tab" type="button" data-tab="${tab.id}" title="${esc(tab.label)}" aria-label="${esc(tab.label)}">` + `${ICON[iconName] || ''}<span class="tabbar-tab-label">${esc(tab.label)}</span></button>`;
 }
 
+function renderTopbarTabs() {
+if (!topbarTabsEl) return;
+topbarTabsEl.innerHTML = headerTabs(tabAvailable).map(t => `<button class="topbar-tab" type="button" data-tab="${t.id}"` + ` title="${esc(t.label)}" aria-label="${esc(t.label)}">${esc(t.label)}</button>`).join('');
+}
+
+topbarTabsEl && topbarTabsEl.addEventListener('click', e => {
+const btn = e.target.closest('.topbar-tab');
+if (btn) pressTab(btn.dataset.tab);
+});
+
 let _stripShows = null;
 
 function renderTabbar() {
@@ -14712,6 +14495,7 @@ tabbarWindowRow.hidden = !borrowed;
 }
 tabbarScroll.innerHTML = tabs.map(t => tabHtml(t, TABBAR_ICON[t.id])).join('') + `<button class="tabbar-tab tabbar-tab--arrange" type="button" data-tab="arrange" title="Меню" aria-label="Меню">` + `${ICON.arrange}<span class="tabbar-tab-label">Меню</span></button>`;
 tabbarScroll.scrollLeft = left;
+renderTopbarTabs();
 syncTabbar();
 }
 
@@ -14736,10 +14520,16 @@ open = navOpenNow();
 open = null;
 }
 const top = open ? topNavSurface(open) : null;
+if (topbarTabsEl) {
+for (const btn of topbarTabsEl.querySelectorAll('.topbar-tab')) {
+const id = btn.dataset.tab;
+btn.classList.toggle('active', HEADER_TAB_TYPE[id] ? !top && state.type === HEADER_TAB_TYPE[id] : TABBAR_SURFACE[id] === top);
+}
+}
 for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
 const id = btn.dataset.tab;
 let lit;
-if (id === 'shelf') lit = !top; else if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
+if (id === 'arrange') lit = top === 'tabbar'; else lit = TABBAR_SURFACE[id] === top;
 btn.classList.toggle('active', lit);
 }
 }
@@ -14787,7 +14577,7 @@ attributeFilter: [ 'hidden' ]
 function renderTabbarRows() {
 if (!tabbarRows) return;
 const arr = normalizeTabbar(state.tabbar);
-const rows = arr.order.filter(id => tabAvailable(id));
+const rows = arr.order.filter(id => !HEADER_TAB_IDS.includes(id) && tabAvailable(id));
 tabbarRows.innerHTML = rows.map((id, i) => {
 const tab = TABBAR_TABS.find(t => t.id === id);
 const off = arr.hidden.includes(id);
