@@ -200,7 +200,7 @@
   .col-plate-name { --type-size: 11px; --type-track: .14em; --type-ink: var(--paper); }
 
   
-  .tab, .add-tab, .tabbar-tab {
+  .tab, .add-tab, .tabbar-tab, .topbar-tab {
     --tab-ink: var(--ash);
     --tab-ink-on: var(--paper);
     --tab-rule: 2px;
@@ -379,7 +379,8 @@
     color: var(--tab-ink);
     -webkit-tap-highlight-color: transparent;
   }
-  .topbar-tab.active { color: var(--tab-ink-on); font-weight: 600; }
+  
+  .topbar-tab.active { color: var(--flash); }
   @media (hover: hover) { .topbar-tab:hover { color: var(--paper); } }
   
   .topbar-tab + .topbar-tab::before {
@@ -599,7 +600,8 @@
   
   body.add-mode .card.is-selected::after { background: rgba(242,243,246,.38); }
   .card-select-mark {
-    position: absolute; top: 8px; left: 8px; z-index: 3;
+    
+    position: absolute; top: calc(var(--card-head) + 8px); left: 8px; z-index: 3;
     width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid rgba(255,255,255,.75); background: rgba(0,0,0,.45);
     display: flex; align-items: center; justify-content: center; color: #fff;
@@ -939,6 +941,8 @@
     background: transparent;
     
     padding: 6px;
+    
+    --card-head: 32px;
     border-radius: var(--radius-card);
     
   }
@@ -1142,12 +1146,8 @@
   .card-body { display: flex; flex-direction: column; padding: 7px 2px 2px; flex: 1; }
 
   
-  .card-title-row h3 {
-    font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    letter-spacing: -.01em; margin: 0; font-size: 12.5px; line-height: 1.14;
-    min-height: 2.28em; overflow: hidden; overflow-wrap: break-word;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  }
+  
+  .card-title-row { display: none; }
 
   
   .card-meta-row {
@@ -1188,7 +1188,14 @@
   
   
   
-  .card-toggles { display: flex; gap: 10px; margin-top: auto; padding-top: 6px; }
+  .card-toggles {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    
+    height: var(--card-head); box-sizing: border-box; padding-bottom: 6px;
+  }
+  
+  .card-toggles .tgl { width: auto; }
+  .card-toggles .tgl::after { inset: -9px 0; }
   .tgl {
     width: 26px; height: 26px; padding: 0; border: none; border-radius: 2px;
     background: none; color: var(--slate); cursor: pointer; position: relative;
@@ -1213,21 +1220,6 @@
   body[data-view="grid-s"] .card-body { padding-top: 6px; }
 
   
-  body[data-view="list"] .grid { display: flex; flex-direction: column; gap: 8px; }
-  body[data-view="list"] .card { flex-direction: row; align-items: center; }
-  body[data-view="list"] .poster { width: 52px; min-width: 52px; aspect-ratio: 2/3; border-radius: 2px; margin: 4px 8px 4px 4px; }
-  body[data-view="list"] .poster-initial { font-size: 18px; }
-  
-  body[data-view="list"] .card-body {
-    display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 4px 8px 4px 0; flex-wrap: wrap;
-  }
-  body[data-view="list"] .card-title-row { flex: 1 1 170px; min-width: 170px; order: 1; }
-  
-  body[data-view="list"] .card-title-row h3 { min-height: 0; }
-  body[data-view="list"] .card-meta-row { order: 2; flex: 0 0 auto; margin-top: 0; }
-  body[data-view="list"] .critic-row { order: 3; margin-top: 0; flex: 0 0 96px; }
-  body[data-view="list"] .card-awards { order: 4; margin-top: 0; }
-  body[data-view="list"] .card-toggles { order: 5; margin-top: 0; margin-left: auto; margin-right: 4px; padding-top: 0; }
 
     
   
@@ -1431,14 +1423,12 @@
   .btn.b-collect:active, .btn.b-collect[aria-expanded="true"] { box-shadow: var(--key-in); }
   
   
-  .dice-results { display: flex; flex-direction: column; gap: 16px; }
-  .dice-results .card { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; cursor: pointer; }
-  .dice-results .poster { width: 64px; min-width: 64px; aspect-ratio: 2/3; margin: 0; }
-  .dice-results .poster-initial { font-size: 20px; }
-  .dice-results .card-body { padding-top: 0; min-width: 0; }
   
-  .dice-results .card-title-row h3 { min-height: 0; }
-  .dice-results .card-toggles { margin-top: 6px; padding-top: 0; }
+  .dice-results {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 18px 14px; align-items: start;
+  }
+  .dice-results .card-body { padding-top: 6px; }
   
   .card-toggles--counted .tgl { display: inline-flex; align-items: center; gap: 3px; }
   .tgl-n {
@@ -1447,22 +1437,7 @@
   }
   .tgl.on-watched .tgl-n, .tgl.on-liked .tgl-n, .tgl.on-must .tgl-n { color: currentColor; }
   
-  
-  .dice-why {
-    margin: 0 0 6px; padding-bottom: 4px;
-    
-    min-height: 1.2em;
-    border-bottom: 1px solid var(--border);
-    display: flex; flex-wrap: wrap; gap: 2px 14px;
-    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .05em;
-    text-transform: uppercase; color: var(--ash);
-  }
-  .dice-why-tag { white-space: nowrap; }
-  
-  .dice-why-tag b { font-weight: 500; color: var(--flash); }
-  
-  .dice-why-tag i { font-style: normal; color: var(--steel); }
-  .dice-why-tag--luck { color: var(--steel); font-style: italic; text-transform: none; }
+
   
   body.tabs-in-bar #diceSheet .acc-actions { display: none; }
 
@@ -1571,22 +1546,53 @@
   .bot-stat { flex: 0 0 auto; font-size: 12px; color: var(--ash); }
   .bot-stat i { font-style: normal; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; opacity: .7; }
   
-  .col-top-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 0; border-bottom: 1px solid var(--border);
+  .col-list { display: flex; flex-direction: column; }
+  .col-block { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .col-block-head { display: flex; align-items: baseline; gap: 10px; }
+  
+  .col-block-open {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px;
+    background: none; border: none; padding: 0; text-align: left; color: inherit;
   }
-  .col-top-open {
-    flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;
-    background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit;
-  }
-  .col-top-name {
-    font-size: 14px; color: var(--paper);
+  button.col-block-open { cursor: pointer; }
+  .col-block-name {
+    flex: 0 1 auto; min-width: 0; font-size: 14px; color: var(--paper);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .col-top-meta {
+  .col-block-by {
+    flex: 0 0 auto;
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
-    text-transform: uppercase; color: var(--ash);
+    text-transform: uppercase; color: var(--ash); white-space: nowrap;
   }
+
+  
+  .col-strip {
+    position: relative; margin-top: 8px;
+    background: var(--surface-key); border-radius: 14px;
+  }
+  .col-strip::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: var(--field-sunk); pointer-events: none;
+  }
+  .col-strip-rail {
+    display: flex; gap: 6px; padding: 8px; border-radius: inherit;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .col-strip-rail::-webkit-scrollbar { display: none; }
+  .col-strip-film {
+    flex: 0 0 auto; width: 38px; aspect-ratio: 2/3; border-radius: 3px;
+    overflow: hidden; background: var(--surface2);
+  }
+  .col-strip-film img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .col-strip-film--bare {
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 15px; color: var(--steel);
+  }
+
+  
+  .friend-picks { margin-bottom: 4px; }
+  .friend-picked:empty { display: none; }
   
   
   body.tabs-in-bar #recsBox > .add-tabs,
@@ -1823,8 +1829,7 @@
   }
 
   
-  .friend-block { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .friend-block .friend-cols, .friend-block .friend-cols-more, .friend-block .friend-cols-wait { margin-left: 12px; }
+  
   
   .friend-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .friend-fold-mark {
@@ -3005,7 +3010,11 @@
     <button class="opt active" id="scoresToggle" data-settings-switch type="button" aria-pressed="true">Оцінки</button>
   </div>
   <div class="opts" id="viewToggle">
-    <button class="opt" data-settings-switch data-v="list" type="button" title="Список"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+    <!-- THE LIST IS GONE (owner's ask, 2026-09-15). It laid the same card
+         out sideways — a 52px cover with the text beside it — and once the
+         names left the shelf there was nothing left for a row to be good
+         at: a list of films you cannot name is a list of nothing. Two
+         shapes now, and both of them are grids of posters. -->
     <button class="opt" data-settings-switch data-v="grid-s" type="button" title="Мала сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="3" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="3" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="3" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1"/><rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1"/></svg></button>
     <button class="opt active" data-settings-switch data-v="grid-m" type="button" title="Сітка"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></button>
   </div>
@@ -3113,11 +3122,12 @@
   </div>
   <div class="sheet-label" id="recommenderLabel" style="display:none">Ким рекомендовано</div>
   <div class="opts" id="recommenderFilter" style="display:none"></div>
-  <div class="sheet-label" id="typeLabel">Тип</div>
-  <div class="opts" id="typeOpts">
-    <button class="opt" data-type="фільм" type="button">Фільми</button>
-    <button class="opt" data-type="серіал" type="button">Серіали</button>
-  </div>
+  <!-- FILMS vs SERIES IS NOT HERE ANY MORE (owner's ask, 2026-09-14). The
+       header asks it — two words along the bar's bottom edge, in sight the
+       whole time — and a second place to answer the same question is a
+       second place for the two answers to disagree. What it set is
+       untouched: `state.type`, held fixed while this window is open, the
+       way the query and the archive toggle are. -->
   <!-- Decades. The labels are half-open on purpose: «1980-1990» next to
        «1990-2000» puts 1990 in two places at once, and a person who picks
        one and does not find a film they know is there has been lied to by a
@@ -4239,6 +4249,19 @@ const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason,
 
 const {TABBAR_TABS: TABBAR_TABS, TABBAR_IDS: TABBAR_IDS, HEADER_TABS: HEADER_TABS, HEADER_TAB_IDS: HEADER_TAB_IDS, HEADER_TAB_TYPE: HEADER_TAB_TYPE, TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT, normalizeTabbar: normalizeTabbar, tabbarLayout: tabbarLayout, headerTabs: headerTabs, moveTab: moveTab, toggleTab: toggleTab, tabbarIsDefault: tabbarIsDefault} = IS_NODE ? require('./logic/tabbar.js') : LOGIC_TABBAR;
 
+const SERIES_TYPE = 'серіал';
+
+const FILM_TYPE = 'фільм';
+
+function isSeriesType(type) {
+return String(type || '').startsWith(SERIES_TYPE);
+}
+
+function matchesShelfType(movie, type) {
+if (!type || type === 'all') return true;
+return isSeriesType(movie && movie.type) === (type === SERIES_TYPE);
+}
+
 const CATALOGUE_PAGE = 2500;
 
 const CATALOGUE_FIRST_PAGE = 300;
@@ -5176,7 +5199,7 @@ return false;
 }
 if (genre && genre !== 'all' && m.genre_group !== genre) return false;
 if (!matchesRelease(m, release)) return false;
-if (type && type !== 'all' && m.type !== type) return false;
+if (!matchesShelfType(m, type)) return false;
 if (recommender && recommender !== 'all' && (m.recommended_by || '') !== recommender) return false;
 if (!matchesYearBucket(m, years)) return false;
 if (!hasProvider(m, provider)) return false;
@@ -5223,7 +5246,7 @@ if (wantRecommender && (m.recommended_by || '') !== wantRecommender) {
 failures += 1;
 failedAt = 1;
 }
-if (failures < 2 && wantType && m.type !== wantType) {
+if (failures < 2 && wantType && !matchesShelfType(m, wantType)) {
 failures += 1;
 failedAt = 2;
 }
@@ -5889,12 +5912,6 @@ fresh: parts.mult > 1 ? Math.max(1, Math.round((1 - 1 / parts.mult) * 100)) : 0
 };
 }
 
-const DICE_RECEIPT_KINDS = [ 'director', 'actor', 'genre' ];
-
-function receiptReasons(reasons) {
-return (reasons || []).filter(r => r && DICE_RECEIPT_KINDS.includes(r.kind));
-}
-
 function diceReasons(m, stats, opts = {}) {
 const {max: max = 3, now: now} = opts;
 const reasons = [];
@@ -6253,7 +6270,7 @@ if (!m) return null;
 const today = Math.floor(now / BADGE_DAY_MS) * BADGE_DAY_MS;
 const released = releaseDayMs(m.release_date);
 const lastEp = releaseDayMs(m.last_episode_date);
-const isSeries = !!(m.last_episode_date || m.next_episode_date) || String(m.type || '').startsWith('серіал');
+const isSeries = !!(m.last_episode_date || m.next_episode_date) || isSeriesType(m.type);
 if (released !== null && released > today) {
 return released - today <= BADGE_SOON_DAYS * BADGE_DAY_MS ? {
 kind: 'soon',
@@ -6736,6 +6753,10 @@ BADGE_NEW_EPISODE_DAYS: BADGE_NEW_EPISODE_DAYS,
 BADGE_SOON_DAYS: BADGE_SOON_DAYS,
 releaseDayMs: releaseDayMs,
 releaseBadge: releaseBadge,
+SERIES_TYPE: SERIES_TYPE,
+FILM_TYPE: FILM_TYPE,
+isSeriesType: isSeriesType,
+matchesShelfType: matchesShelfType,
 poolSeasonsUrl: poolSeasonsUrl,
 poolFilmUrl: poolFilmUrl,
 needsFilmDetail: needsFilmDetail,
@@ -6795,9 +6816,7 @@ statsDecade: statsDecade,
 statsTop: statsTop,
 STATS_TOP_PEOPLE: STATS_TOP_PEOPLE,
 STATS_MONTH_MS: STATS_MONTH_MS,
-STATS_YEAR_MS: STATS_YEAR_MS,
-DICE_RECEIPT_KINDS: DICE_RECEIPT_KINDS,
-receiptReasons: receiptReasons
+STATS_YEAR_MS: STATS_YEAR_MS
 };
 }
 // The catalogue lives on D1 and is fetched at sign-in (loadCatalog in
@@ -7352,7 +7371,7 @@ recommender: 'all',
 showWatched: false,
 hideAwards: false,
 hideScores: false,
-type: 'all',
+type: FILM_TYPE,
 years: 'all',
 provider: 'all',
 release: 'all',
@@ -7378,7 +7397,7 @@ let filterDraft = null;
 
 let genreBeforeSearch = null;
 
-const DRAWER_FILTER_KEYS = [ 'sort', 'awardsFirst', 'genre', 'release', 'recommender', 'type', 'years', 'provider', 'actors', 'directors' ];
+const DRAWER_FILTER_KEYS = [ 'sort', 'awardsFirst', 'genre', 'release', 'recommender', 'years', 'provider', 'actors', 'directors' ];
 
 function filterView() {
 return filterDraft || state;
@@ -7434,7 +7453,9 @@ if (savedSettings.hideAwards) state.hideAwards = true;
 
 if (savedSettings.hideScores) state.hideScores = true;
 
-if (savedSettings.type) state.type = savedSettings.type;
+if (savedSettings.type) {
+state.type = savedSettings.type === SERIES_TYPE ? SERIES_TYPE : FILM_TYPE;
+}
 
 if (savedSettings.years) state.years = savedSettings.years;
 
@@ -7496,7 +7517,7 @@ onlyLiked: state.onlyLiked,
 onlyMust: state.onlyMust,
 genre: state.genre,
 recommender: choices.recommender,
-type: choices.type,
+type: state.type,
 years: choices.years,
 provider: choices.provider,
 actors: choices.actors,
@@ -7680,11 +7701,11 @@ return `<div class="awards-part"><div class="awards-part-label">${label} <b>${co
 return `<div class="film-awards">\n    <button class="film-awards-row" type="button" aria-expanded="false">\n      ${tally.won ? `<span class="aw aw--won">НАГОРОДИ <b>${tally.won}</b></span>` : ''}\n      ${tally.nominated ? `<span class="aw aw--nom">НОМІНАЦІЇ <b>${tally.nominated}</b></span>` : ''}\n      <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>\n    </button>\n    <div class="film-awards-breakdown" hidden>\n      ${section('Нагороди', m.awards_won, tally.won)}${section('Номінації', m.awards_nominated, tally.nominated)}\n    </div>\n  </div>`;
 }
 
-function posterHtml(m, cls) {
+function posterHtml(m, cls, inside = '') {
 if (m.poster_url) {
-return `<div class="${cls}">\n      <img src="${esc(m.poster_url)}" alt="${esc(m.canonical_title_uk)}" loading="lazy"\n        onerror="var p=this.parentElement;this.remove();if(p){p.classList.add('fallback');p.insertAdjacentHTML('beforeend','<span class=poster-initial>${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>')}">\n    </div>`;
+return `<div class="${cls}">\n      <img src="${esc(m.poster_url)}" alt="${esc(m.canonical_title_uk)}" loading="lazy"\n        onerror="var p=this.parentElement;this.remove();if(p){p.classList.add('fallback');p.insertAdjacentHTML('afterbegin','<span class=poster-initial>${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>')}">${inside}\n    </div>`;
 }
-return `<div class="${cls} fallback"><span class="poster-initial">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span></div>`;
+return `<div class="${cls} fallback"><span class="poster-initial">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>${inside}</div>`;
 }
 
 function releaseBadgeHtml(m) {
@@ -7735,7 +7756,8 @@ const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    ${picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : ''}\n    ${posterHtml(m, 'poster')}\n    ${releaseBadgeHtml(m)}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n      <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n        <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n        <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n        <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n      </div>\n    </div>\n  </div>`;
+const selectMark = picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : '';
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
@@ -7975,7 +7997,6 @@ state.onlyLiked = false;
 state.onlyMust = false;
 state.genre = 'all';
 state.recommender = 'all';
-state.type = 'all';
 state.years = 'all';
 state.provider = 'all';
 state.release = 'all';
@@ -10109,25 +10130,6 @@ function updateFilterGlow() {
 document.getElementById('filterBtn').classList.remove('filter-on');
 }
 
-const typeOptsEl = document.getElementById('typeOpts');
-
-function syncTypeOpts(facets) {
-if (facets === undefined && filterDraft) {
-refreshFilterDrawer();
-return;
-}
-const view = filterView();
-offerOnly(typeOptsEl, document.getElementById('typeLabel'), 'type', facets ? facets.type : null, key => key === view.type);
-}
-
-typeOptsEl.addEventListener('click', e => {
-const b = e.target.closest('.opt');
-if (!b) return;
-editFilterDraft(d => {
-d.type = d.type === b.dataset.type ? 'all' : b.dataset.type;
-});
-});
-
 const yearOptsEl = document.getElementById('yearOpts');
 
 if (yearOptsEl) {
@@ -10620,18 +10622,9 @@ let _dicePicks = [];
 
 function renderDiceResults(picks) {
 _dicePicks = picks;
-const stats = tasteStats();
-diceResultsEl.innerHTML = picks.map(m => {
-const reasons = diceReasons(m, stats, {
-markCounts: markCounts,
-accounts: markingAccounts
-});
-const shown = receiptReasons(reasons);
-const why = shown.length ? shown.map(r => `<span class="dice-why-tag">${esc(r.text)} <i>•</i> <b>${r.pct}%</b></span>`).join('') : reasons.length ? '' : '<span class="dice-why-tag dice-why-tag--luck">випадкова карта</span>';
-return `<div class="dice-cell"><div class="dice-why">${why}</div>${cardHtml(m, {
+diceResultsEl.innerHTML = picks.map(m => cardHtml(m, {
 rich: true
-})}</div>`;
-}).join('');
+})).join('');
 }
 
 function rollTheDice() {
@@ -10736,6 +10729,8 @@ input.focus();
 });
 });
 }
+
+const RETIRED_VIEWS = new Set([ 'grid-l', 'list' ]);
 
 const sortOptsEl = document.getElementById('sortOpts');
 
@@ -11124,7 +11119,6 @@ syncSortOpts();
 syncAwardsSort();
 syncGenreOpts();
 syncReleaseOpts(facets);
-syncTypeOpts(facets);
 syncYearOpts(facets);
 updateRecommenderFilter(facets);
 updateProviderFilter(facets);
@@ -11137,13 +11131,12 @@ if (apply) apply.classList.toggle('active', filterDraftPending());
 syncTabs();
 syncSortOpts();
 syncAwardsSort();
-syncTypeOpts();
 syncYearOpts();
 syncReleaseOpts();
 applyCardLayers();
 updateFilterGlow();
 if (savedSettings.view) {
-const view = savedSettings.view === 'grid-l' ? 'grid-m' : savedSettings.view;
+const view = RETIRED_VIEWS.has(savedSettings.view) ? 'grid-m' : savedSettings.view;
 document.body.dataset.view = view;
 document.querySelectorAll('#viewToggle button').forEach(x => x.classList.toggle('active', x.dataset.v === view));
 }
@@ -12841,7 +12834,7 @@ if (recsOverlay.classList.contains('open')) {
 return {
 kind: 'recs',
 source: recsSource,
-person: _recsFriend && _recsFriend.username
+person: [ ..._friendOpen ][0] || null
 };
 }
 return null;
@@ -12899,7 +12892,13 @@ return;
 if (from.kind === 'recs') {
 recsSource = from.source || 'top';
 openRecs();
-if (from.person) openRecsFriend(from.person);
+if (from.person) {
+_friendOpen.clear();
+_friendColsOpen.clear();
+_friendOpen.add(from.person);
+loadFriendCollections(from.person);
+renderRecs();
+}
 }
 }
 
@@ -13070,7 +13069,8 @@ syncSheetNav();
 }
 
 function closeRecs() {
-_recsFriend = null;
+_friendOpen.clear();
+_friendColsOpen.clear();
 _recsCreate = false;
 recsOverlay.classList.remove('open');
 unlockScroll(recsOverlay);
@@ -13448,27 +13448,6 @@ friendsOverlay.addEventListener('click', e => {
 if (e.target === friendsOverlay) exitFriends();
 });
 
-let _recsFriend = null;
-
-async function openRecsFriend(username) {
-const body = recsBox.querySelector('#recsbody');
-if (body) body.innerHTML = '<div class="add-hint">Відкриваю…</div>';
-try {
-const res = await fetch(`${API_PROXY}/library/users/${encodeURIComponent(username)}`, {
-headers: await proxyHeaders({
-accept: 'application/json'
-})
-});
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-_recsFriend = await res.json();
-} catch (err) {
-_recsFriend = null;
-if (body) body.innerHTML = '<div class="add-hint">Не вдалося відкрити — перевір звʼязок і спробуй ще раз.</div>';
-return;
-}
-renderRecs();
-}
-
 const _friendCols = {};
 
 const _friendOpen = new Set;
@@ -13476,6 +13455,35 @@ const _friendOpen = new Set;
 const _friendColsOpen = new Set;
 
 const _friendColsLoading = new Set;
+
+let _filmsByKey = null;
+
+let _filmsByKeyLen = -1;
+
+function filmsByKey() {
+if (_filmsByKey && _filmsByKeyLen === MOVIES.length) return _filmsByKey;
+_filmsByKey = new Map;
+for (const m of MOVIES) {
+const k = markKey(m);
+if (k) _filmsByKey.set(k, m);
+}
+_filmsByKeyLen = MOVIES.length;
+return _filmsByKey;
+}
+
+const COL_STRIP_MAX = 24;
+
+function colStripHtml(ids) {
+const by = filmsByKey();
+const films = (ids || []).map(id => by.get(String(id))).filter(Boolean).slice(0, COL_STRIP_MAX);
+if (!films.length) return '';
+return `<div class="col-strip"><div class="col-strip-rail">${films.map(m => m.poster_url ? `<span class="col-strip-film"><img src="${esc(m.poster_url)}" alt="${esc(m.canonical_title_uk)}" loading="lazy"></span>` : `<span class="col-strip-film col-strip-film--bare">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>`).join('')}</div></div>`;
+}
+
+function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', open: open = true, openAttr: openAttr = ''}) {
+const head = `<span class="col-block-name">${esc(name)}</span>` + `<span class="col-block-by">${esc(by || '')}${count ? ` · ${count}` : ''}</span>`;
+return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + colStripHtml(ids) + '</div>';
+}
 
 async function loadFriendCollections(username) {
 if (!username || _friendCols[username] || _friendColsLoading.has(username)) return;
@@ -13490,39 +13498,63 @@ if (res.ok) _friendCols[username] = await res.json();
 } catch (err) {} finally {
 _friendColsLoading.delete(username);
 }
-if (recsOverlay.classList.contains('open') && recsSource === 'friends' && !_recsFriend && _friendOpen.has(username)) renderRecs();
+if (recsOverlay.classList.contains('open') && recsSource === 'friends' && _friendOpen.has(username)) renderRecs();
 }
 
-function friendBlockHtml(p) {
-const open = _friendOpen.has(p.username);
-let inner = '';
-if (open) {
-const person = _friendCols[p.username];
+function friendPickedHtml() {
+const name = [ ..._friendOpen ][0];
+if (!name) return '';
+const person = _friendCols[name];
 if (!person) {
-inner = `<div class="friend-cols-wait">${_friendColsLoading.has(p.username) ? 'Завантажую добірки…' : 'Не вдалося завантажити — тапни ще раз.'}</div>`;
-} else {
-const all = friendColRows(person);
-if (!all.length) {
-inner = '<div class="friend-cols-wait">Відкритих добірок немає.</div>';
-} else {
-const expanded = _friendColsOpen.has(p.username);
-const {rows: rows, hidden: hidden} = foldRows(all, expanded);
-inner = `<div class="friend-cols">${rows.join('')}</div>${hidden || expanded ? `<button class="friend-cols-more" type="button" data-fold="${esc(p.username)}" aria-expanded="${expanded}">\n               <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>\n               <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>\n             </button>` : ''}`;
+return `<div class="friend-cols-wait">${_friendColsLoading.has(name) ? 'Завантажую добірки…' : 'Не вдалося завантажити — тапни ще раз.'}</div>`;
 }
+const out = [];
+if ((person.recommended || []).length) {
+out.push(colBlockHtml({
+key: `${esc(name)}/recommends`,
+name: 'Рекомендує',
+by: name,
+count: person.recommended.length,
+ids: person.recommended,
+openAttr: ` data-open-recommends-of="${esc(name)}"`
+}));
 }
+if ((person.must_see || []).length) {
+out.push(colBlockHtml({
+key: `${esc(name)}/must`,
+name: 'Обовʼязково до перегляду',
+by: name,
+count: person.must_see.length,
+ids: person.must_see,
+openAttr: ` data-open-must-of="${esc(name)}"`
+}));
 }
-return `<div class="friend-block">${personRowHtml(p, {
-fold: open
-})}${inner}</div>`;
+const takenFrom = new Set(shelf.filter(c => c.from && c.from.uid && c.from.collection_id).map(c => `${c.from.uid}/${c.from.collection_id}`));
+for (const c of collectionsByRecency(person.collections || [])) {
+const have = takenFrom.has(c.key);
+out.push(colBlockHtml({
+key: c.key,
+name: c.name,
+by: name,
+count: c.count,
+ids: c.film_ids,
+open: false,
+extra: have ? '<span class="friend-col-have">вже в тебе</span>' : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`
+}));
+}
+if (!out.length) return '<div class="friend-cols-wait">Відкритих добірок немає.</div>';
+const {rows: rows, hidden: hidden} = foldRows(out, _friendColsOpen.has(name));
+const expanded = _friendColsOpen.has(name);
+return `<div class="col-list">${rows.join('')}</div>${hidden || expanded ? `<button class="friend-cols-more" type="button" data-fold="${esc(name)}" aria-expanded="${expanded}">\n         <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>\n         <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>\n       </button>` : ''}`;
 }
 
-function wireFriendBlocks(body) {
+function wireFriendPicks(body) {
 body.querySelectorAll('[data-person]').forEach(el => el.addEventListener('click', () => {
 const name = el.dataset.person;
-if (_friendOpen.has(name)) {
-_friendOpen.delete(name);
-_friendColsOpen.delete(name);
-} else {
+const was = _friendOpen.has(name);
+_friendOpen.clear();
+_friendColsOpen.clear();
+if (!was) {
 _friendOpen.add(name);
 loadFriendCollections(name);
 }
@@ -13548,36 +13580,6 @@ e.stopPropagation();
 const person = _friendCols[el.dataset.openMustOf];
 if (person) openMustOf(person);
 }));
-}
-
-function renderRecsFriend(body) {
-const p = _recsFriend;
-body.innerHTML = `\n    <div class="friend-head">\n      <button class="hicon friend-back" id="recsFriendBack" type="button" title="Назад" aria-label="Назад до списку">${ICON.back}</button>\n      <span class="friend-title">${esc(p.username)}</span>\n    </div>\n    ${friendColsHtml(p.collections, p)}`;
-body.querySelector('#recsFriendBack').addEventListener('click', () => {
-_recsFriend = null;
-renderRecs();
-});
-const openRec = body.querySelector('[data-open-recommends]');
-if (openRec) {
-openRec.addEventListener('click', () => openRecommendsOf(p));
-openRec.addEventListener('keydown', e => {
-if (e.key === 'Enter' || e.key === ' ') {
-e.preventDefault();
-openRecommendsOf(p);
-}
-});
-}
-const openMust = body.querySelector('[data-open-must]');
-if (openMust) {
-openMust.addEventListener('click', () => openMustOf(p));
-openMust.addEventListener('keydown', e => {
-if (e.key === 'Enter' || e.key === ' ') {
-e.preventDefault();
-openMustOf(p);
-}
-});
-}
-body.querySelectorAll('[data-add-col]').forEach(el => el.addEventListener('click', () => addPersonCollection(el.dataset.addCol, el)));
 }
 
 let _recsCreate = false;
@@ -13630,13 +13632,15 @@ const src = (id, label) => `<button class="add-tab ${!_recsCreate && recsSource 
 recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n      <button class="add-tab${_recsCreate ? ' active' : ''}" data-recs-new="1" type="button">Створити</button>\n    </div>\n    <div id="recsbody"></div>`;
 recsBox.querySelectorAll('[data-recs-src]').forEach(el => el.addEventListener('click', () => {
 recsSource = el.dataset.recsSrc;
-_recsFriend = null;
+_friendOpen.clear();
+_friendColsOpen.clear();
 _recsCreate = false;
 renderRecs();
 }));
 recsBox.querySelector('[data-recs-new]').addEventListener('click', () => {
 _recsCreate = true;
-_recsFriend = null;
+_friendOpen.clear();
+_friendColsOpen.clear();
 renderRecs();
 });
 const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
@@ -13649,12 +13653,8 @@ renderTopCollections(body);
 return;
 }
 if (recsSource === 'friends') {
-if (_recsFriend) {
-renderRecsFriend(body);
-return;
-}
-body.innerHTML = subs.subscriptions.length ? `<div class="friend-list">${subs.subscriptions.map(friendBlockHtml).join('')}</div>` : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину в «Друзях» — там пошук за імʼям, і звідти ж можна підписатися.</div>';
-wireFriendBlocks(body);
+body.innerHTML = subs.subscriptions.length ? `<div class="opts opts--people friend-picks">${subs.subscriptions.map(p => `<button class="opt${_friendOpen.has(p.username) ? ' active' : ''}" type="button"` + ` data-person="${esc(p.username)}" aria-expanded="${_friendOpen.has(p.username)}">` + `${esc(p.username)}</button>`).join('')}</div>` + `<div class="friend-picked">${friendPickedHtml()}</div>` : '<div class="add-hint">Ти ще ні на кого не підписаний. Знайди людину в «Друзях» — там пошук за імʼям, і звідти ж можна підписатися.</div>';
+wireFriendPicks(body);
 return;
 }
 if (recsSource === 'mine') {
@@ -13744,7 +13744,14 @@ wired: false
 
 function topColRowHtml(c) {
 const key = `${c.owner}/${c.collection_id}`;
-return `<div class="col-top-row" data-col="${esc(key)}">` + `<button class="col-top-open" type="button" data-key="${esc(key)}">` + `<span class="col-top-name">${esc(c.name)}</span>` + `<span class="col-top-meta">${esc(c.owner_name || 'хтось')} · ${c.count}</span></button>` + `<span class="col-score" title="Подобається ${c.likes}, не подобається ${c.dislikes}">` + `<span class="col-score-up">${ICON.thumbUp}${c.likes}</span>` + `<span class="col-score-down">${ICON.thumbDown}${c.dislikes}</span></span>` + '</div>';
+return colBlockHtml({
+key: key,
+name: c.name,
+by: c.owner_name || 'хтось',
+count: c.count,
+ids: c.film_ids,
+extra: `<span class="col-score" title="Подобається ${c.likes}, не подобається ${c.dislikes}">` + `<span class="col-score-up">${ICON.thumbUp}${c.likes}</span>` + `<span class="col-score-down">${ICON.thumbDown}${c.dislikes}</span></span>`
+});
 }
 
 async function loadTopCollections(body, {append: append = false} = {}) {
@@ -13768,7 +13775,7 @@ if (!st.rows.length) {
 body.innerHTML = '<div class="add-hint">Поки що жодної відкритої добірки. Відкрий свою в «Моїх» — і вона зʼявиться тут.</div>';
 return;
 }
-body.innerHTML = `<div class="col-top">${st.rows.map(topColRowHtml).join('')}</div>`;
+body.innerHTML = `<div class="col-list">${st.rows.map(topColRowHtml).join('')}</div>`;
 } catch (err) {
 if (!append) body.innerHTML = '<div class="add-hint">Не вдалося прочитати топ добірок.</div>';
 st.more = false;
@@ -13799,7 +13806,7 @@ append: true
 passive: true
 });
 recsBox.addEventListener('click', e => {
-const open = e.target.closest('.col-top-open');
+const open = e.target.closest('.col-block-open');
 if (!open || recsSource !== 'top') return;
 const row = _topCols.rows.find(c => `${c.owner}/${c.collection_id}` === open.dataset.key);
 if (!row) return;
@@ -14281,6 +14288,8 @@ trash: 'trash',
 admin: 'admin'
 };
 
+const SHELF_KEPT = new Set([ 'seen', 'settings', 'search' ]);
+
 const TABBAR_MENU_SCREENS = new Set([ 'recs', 'friends', 'account', 'settings', 'trash', 'admin' ]);
 
 function tabAvailable(id) {
@@ -14355,18 +14364,14 @@ setTimeout(done, 120);
 }
 
 function showShelfType(type) {
-let open = null;
-try {
-open = topNavSurface(navOpenNow());
-} catch (err) {
-open = null;
-}
-state.type = !open && state.type === type ? 'all' : type;
-syncTypeOpts();
-renderGenreOptions();
+const moved = state.type !== type;
+state.type = type;
+if (moved) renderGenreOptions();
 goToShelf();
+if (moved) {
 render();
 saveSettings();
+}
 syncTabbar();
 }
 
@@ -14521,9 +14526,10 @@ open = null;
 }
 const top = open ? topNavSurface(open) : null;
 if (topbarTabsEl) {
+const covered = !!top && !SHELF_KEPT.has(top);
 for (const btn of topbarTabsEl.querySelectorAll('.topbar-tab')) {
 const id = btn.dataset.tab;
-btn.classList.toggle('active', HEADER_TAB_TYPE[id] ? !top && state.type === HEADER_TAB_TYPE[id] : TABBAR_SURFACE[id] === top);
+btn.classList.toggle('active', HEADER_TAB_TYPE[id] ? !covered && state.type === HEADER_TAB_TYPE[id] : TABBAR_SURFACE[id] === top);
 }
 }
 for (const btn of tabbarScroll.querySelectorAll('.tabbar-tab')) {
