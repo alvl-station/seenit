@@ -1070,7 +1070,9 @@
   
   .modal.is-flying { opacity: 0; }
   
+  
   .card.is-flying-from > .poster { opacity: 0; }
+  .col-strip-film.is-flying-from { opacity: 0; }
   
   .modal.is-turned { pointer-events: none; }
   
@@ -1178,12 +1180,14 @@
   .card-rating { color: var(--dust); white-space: nowrap; cursor: pointer; }
 
   
-  .card-score, .card-awards {
-    position: absolute; bottom: 6px; z-index: 2; cursor: pointer;
+  
+  .card-score, .card-awards, .card-rate {
+    position: absolute; z-index: 2; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
     border-radius: 999px; -webkit-tap-highlight-color: transparent;
   }
+  .card-score, .card-rate { bottom: 6px; }
   
   .card-score {
     right: 6px; gap: 4px;
@@ -1200,16 +1204,36 @@
   }
   
   
+  
   .card-awards {
-    left: 6px; gap: 5px; padding: 4px 9px 4px 7px;
+    top: 6px; left: 6px; gap: 5px; padding: 4px 9px 4px 7px;
     background: var(--surface); border: 2px solid var(--amber);
     color: var(--amber);
+  }
+  
+  body.add-mode .card-awards,
+  body.delete-mode .card-awards { display: none; }
+  
+  .card-rate {
+    left: 6px; padding: 4px 9px;
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
+    color: var(--paper); font-size: 11px; line-height: 1.1;
+    letter-spacing: .02em; white-space: nowrap;
   }
   .card-awards b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
   .card-awards svg { display: block; flex: none; }
   
   body[data-view="grid-s"] .card-score i { display: none; }
+  
   body[data-view="grid-s"] .card-score { gap: 0; }
+  body[data-view="grid-s"] .card-awards { top: 32px; }
+  body[data-view="grid-s"] .card-score { left: 6px; right: auto; bottom: 34px; }
+  @media (max-width: 640px) {
+    .card-score { left: 6px; right: auto; bottom: 34px; }
+  }
 
   
   
@@ -2422,7 +2446,15 @@
       right: 0; width: auto; border-radius: 0;
       padding: 22px max(24px, calc((100% - 1232px) / 2)) 30px;
       transform: none; transition: none;
+      
+      top: var(--header-h, 0px);
+      bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+      height: auto; max-height: none;
+      overscroll-behavior: contain;
     }
+    
+    #diceSheet, #recsOverlay { z-index: 40; }
+    .modal-overlay:not([data-band]).open { z-index: 55; }
     
     #diceBackdrop { display: none; }
   }
@@ -5323,6 +5355,7 @@ const recommender = new Set;
 const type = new Set;
 const years = new Set;
 const provider = new Set;
+const genre = new Set;
 const actors = new Map;
 const directors = new Map;
 const base = filterCatalog(movies, {
@@ -5340,6 +5373,7 @@ const wantRelease = o.release && o.release !== 'all' ? o.release : null;
 const wantRecommender = o.recommender && o.recommender !== 'all' ? o.recommender : null;
 const wantType = o.type && o.type !== 'all' ? o.type : null;
 const wantProvider = o.provider && o.provider !== 'all' ? o.provider : null;
+const wantGenre = o.genre && o.genre !== 'all' ? o.genre : null;
 for (const m of base) {
 const badge = releaseBadge(m, now);
 const rows = visibleProviders(m.providers);
@@ -5373,6 +5407,10 @@ if (failures < 2 && !hasDirector(m, o.directors)) {
 failures += 1;
 failedAt = 6;
 }
+if (failures < 2 && wantGenre && m.genre_group !== wantGenre) {
+failures += 1;
+failedAt = 7;
+}
 if (failures > 1) continue;
 const every = failures === 0;
 if ((every || failedAt === 0) && badge) release.add(badge.kind);
@@ -5392,6 +5430,7 @@ if (name) actors.set(name, (actors.get(name) || 0) + 1);
 if (every || failedAt === 6) {
 for (const d of new Set(splitPeople(m.director))) directors.set(d, (directors.get(d) || 0) + 1);
 }
+if ((every || failedAt === 7) && m.genre_group) genre.add(m.genre_group);
 }
 const counted = map => [ ...map ].map(([name, count]) => ({
 name: name,
@@ -5403,6 +5442,7 @@ recommender: recommender,
 type: type,
 years: years,
 provider: provider,
+genre: genre,
 actors: counted(actors),
 directors: counted(directors)
 };
@@ -7643,7 +7683,7 @@ showWatched: showWatched,
 keepWatched: keepWatched,
 onlyLiked: state.onlyLiked,
 onlyMust: state.onlyMust,
-genre: state.genre,
+genre: choices.genre,
 recommender: choices.recommender,
 type: state.type,
 years: choices.years,
@@ -7768,6 +7808,13 @@ function esc(s) {
 return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function ratingBadgeHtml(m) {
+if (!m.rating) return '';
+const n = ratingNum(m);
+const turn = n >= 0 ? Math.max(0, Math.min(1, n / 10)) : 0;
+return `<span class="card-rating rating-badge card-rate" data-rating="${esc(m.rating)}" role="button" tabindex="0"\n      style="--score-turn: ${turn.toFixed(4)}turn">${esc(m.rating)}</span>`;
+}
+
 function metaLine(parts) {
 return parts.filter(Boolean).join('<span class="meta-sep">·</span>');
 }
@@ -7889,7 +7936,7 @@ const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
 const selectMark = picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : '';
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m) + criticBadgeHtml(m) + cardAwardsRow(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             THE GENRE IS BACK, on every card rather than only in the die's\n             hand (owner's ask, 2026-09-15). Year, genre and score on one\n             dot-separated line — which is also the measure: the tile is\n             cut to the width of that line's longest form (--tile-max).\n             Separators are their own elements so every gap on the line is\n             the one figure, rather than a flex gap next to a typed space. --\x3e\n        ${metaLine([ m.year ? `<span class="year">${esc(String(m.year))}</span>` : '', m.genre ? `<span class="year genre">${esc(m.genre)}</span>` : '', m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : '' ])}\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m) + criticBadgeHtml(m) + cardAwardsRow(m) + ratingBadgeHtml(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             THE GENRE IS BACK, on every card rather than only in the die's\n             hand (owner's ask, 2026-09-15). The score left this line the\n             same day to become a label on the picture (ratingBadgeHtml),\n             so what is left is the year and the genre — but the width the\n             tile is cut to (--tile-max) is still the line as it stood with\n             all three on it: that figure is the card's SIZE and the owner\n             chose it, not a measurement to be retaken every time the line\n             loses a word.\n             Separators are their own elements so every gap on the line is\n             the one figure, rather than a flex gap next to a typed space. --\x3e\n        ${metaLine([ m.year ? `<span class="year">${esc(String(m.year))}</span>` : '', m.genre ? `<span class="year genre">${esc(m.genre)}</span>` : '' ])}\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
@@ -8693,7 +8740,7 @@ if (cardEl && cardEl.classList) cardEl.classList.add('is-flying-from');
 
 function showFlyingTiles() {
 if (typeof document === 'undefined' || !document.querySelectorAll) return;
-for (const el of document.querySelectorAll('.card.is-flying-from')) {
+for (const el of document.querySelectorAll('.is-flying-from')) {
 el.classList.remove('is-flying-from');
 }
 }
@@ -8703,12 +8750,17 @@ if (!poster || !poster.querySelectorAll) return [];
 return [ ...poster.querySelectorAll('.card-badge') ].map(el => el.cloneNode(true));
 }
 
+function pictureBoxOf(cardEl) {
+if (!cardEl) return null;
+return cardEl.querySelector('.poster') || cardEl;
+}
+
 function noteFlightSource(cardEl) {
-const poster = cardEl && cardEl.querySelector('.poster');
-_flightFrom = poster ? poster.getBoundingClientRect() : cardEl ? cardEl.getBoundingClientRect() : null;
-const img = cardEl && cardEl.querySelector('.poster img');
-_flightFrom = _flightFrom && {
-rect: _flightFrom,
+const poster = pictureBoxOf(cardEl);
+const rect = poster ? poster.getBoundingClientRect() : null;
+const img = poster && poster.querySelector('img');
+_flightFrom = rect && {
+rect: rect,
 poster: img ? img.src : null,
 el: cardEl || null,
 radius: posterRadiusOf(poster),
@@ -9399,7 +9451,7 @@ if (_diceReturn) {
 _diceReturn = false;
 if (_dicePicks.length) {
 renderDiceResults(_dicePicks);
-diceSheet.open();
+if (!diceSheet.isOpen || !diceSheet.isOpen()) diceSheet.open();
 }
 }
 const frame = modalBox.querySelector('.modal-trailer iframe');
@@ -10030,9 +10082,11 @@ navSync();
 backdrop.addEventListener('click', () => {
 if (MENU_SHEET_IDS.includes(sheetId)) exitScreen(close); else close();
 });
+const isOpen = () => sheet.classList.contains('open');
 return {
 open: open,
-close: close
+close: close,
+isOpen: isOpen
 };
 }
 
@@ -10803,7 +10857,6 @@ tmdbId: card.dataset.tmdb
 };
 const m = findFilm(MOVIES, where) || findFilm(catalogSource(), where);
 if (!m) return;
-diceSheet.close();
 _diceReturn = true;
 rememberCardWalk(card);
 openModal(m);
@@ -11011,9 +11064,13 @@ _genreOptsHtml = html;
 syncGenreOpts();
 }
 
-function syncGenreOpts() {
+function syncGenreOpts(facets) {
+if (facets === undefined && filterDraft) {
+refreshFilterDrawer();
+return;
+}
 const view = filterView().genre || 'all';
-genreOptsEl.querySelectorAll('.opt').forEach(b => b.classList.toggle('active', b.dataset.g === view));
+offerOnly(genreOptsEl, document.getElementById('genreLabel'), 'g', facets ? facets.genre : null, key => key === view);
 }
 
 genreOptsEl.addEventListener('click', e => {
@@ -11251,7 +11308,7 @@ function refreshFilterDrawer() {
 const facets = filterDraft ? filterFacets(searchSource(), filterOptsFor(filterDraft, shelfKeepsWatched())) : null;
 syncSortOpts();
 syncAwardsSort();
-syncGenreOpts();
+syncGenreOpts(facets);
 syncReleaseOpts(facets);
 syncYearOpts(facets);
 updateRecommenderFilter(facets);
