@@ -935,17 +935,18 @@
 
   
   
-  .grid { display: grid; gap: 12px; }
+  .grid { display: grid; gap: 8px; }
   
   body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-s, 110px), 1fr)); }
   @media (min-width: 641px) { body[data-view="grid-s"] .grid { --tile-s: 136px; } }
   
-  .grid { --tile-m: 155px; --tile-max: 226px; }
-  @media (min-width: 641px) { .grid { --tile-m: 210px; } }
+  .grid, .dice-results { --tile-m: 155px; --tile-max: 226px; }
+  @media (min-width: 641px) { .grid, .dice-results { --tile-m: 210px; } }
   
   
-  .grid .card { max-width: var(--tile-max); margin-inline: auto; width: 100%; }
-  body[data-view="grid-m"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-m), 1fr)); }
+  .grid .card, .dice-results .card { max-width: var(--tile-max); margin-inline: auto; width: 100%; }
+  body[data-view="grid-m"] .grid,
+  .dice-results { grid-template-columns: repeat(auto-fill, minmax(var(--tile-m), 1fr)); }
   body[data-view="grid-l"] .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 
   .card {
@@ -955,7 +956,7 @@
     
     background: transparent;
     
-    padding: 4px;
+    padding: 4px 0;
     
     --card-head: 24px;
     border-radius: var(--radius-card);
@@ -1162,7 +1163,7 @@
 
   
   
-  .card-body { display: flex; flex-direction: column; padding: 4px 2px 0; flex: 1; }
+  .card-body { display: flex; flex-direction: column; padding: 4px 6px 0; flex: 1; }
 
   
   
@@ -1234,10 +1235,8 @@
   body[data-view="grid-s"] .card-score i { display: none; }
   
   body[data-view="grid-s"] .card-score { gap: 0; }
-  body[data-view="grid-s"] .card-awards { top: 30px; }
-  body[data-view="grid-s"] .card-score { left: 6px; right: auto; bottom: 30px; }
   @media (max-width: 389px) {
-    .card-score { left: 6px; right: auto; bottom: 30px; }
+    .card-score { left: 4px; right: auto; bottom: 28px; }
   }
 
   
@@ -1491,11 +1490,8 @@
   
   
   
-  .dice-results {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
-    gap: 12px; align-items: start;
-  }
-  .dice-results .card-body { padding-top: 6px; }
+  
+  .dice-results { display: grid; gap: 8px; align-items: start; }
   
   .card-toggles--counted .tgl { display: inline-flex; align-items: center; gap: 3px; }
   .tgl-n {
@@ -8764,7 +8760,10 @@ if (!cardEl) return null;
 return cardEl.querySelector('.poster') || cardEl;
 }
 
+let _flightScope = null;
+
 function noteFlightSource(cardEl) {
+_flightScope = cardEl && typeof walkScopeOf === 'function' ? walkScopeOf(cardEl) : null;
 const poster = pictureBoxOf(cardEl);
 const rect = poster ? poster.getBoundingClientRect() : null;
 const img = poster && poster.querySelector('img');
@@ -9124,10 +9123,18 @@ window.addEventListener('resize', resetTurn);
 
 let _closingToCard = null;
 
+function tileForFlight(id) {
+if (!id) return null;
+const sel = `.card[data-tmdb="${id}"], .col-strip-film[data-tmdb="${id}"]`;
+if (!_flightScope) return document.querySelector(sel);
+if (_flightScope.isConnected) return _flightScope.querySelector(sel);
+return [ ...document.querySelectorAll(sel) ].find(el => !el.closest('#main')) || null;
+}
+
 function noteFlightTarget(movie) {
-const el = movie && document.querySelector(movie.tmdb_id ? `.card[data-tmdb="${movie.tmdb_id}"]` : null);
-const poster = el && el.querySelector('.poster');
-const img = el && el.querySelector('.poster img');
+const el = tileForFlight(movie && movie.tmdb_id);
+const poster = pictureBoxOf(el);
+const img = poster && poster.querySelector('img');
 _closingToCard = poster ? {
 rect: poster.getBoundingClientRect(),
 poster: img ? img.src : null,
