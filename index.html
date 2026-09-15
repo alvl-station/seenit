@@ -935,8 +935,10 @@
 
   
   
-  .grid { display: grid; gap: 22px 14px; }
-  body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 14px; }
+  .grid { display: grid; gap: 12px; }
+  
+  body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-s, 110px), 1fr)); }
+  @media (min-width: 641px) { body[data-view="grid-s"] .grid { --tile-s: 136px; } }
   
   .grid { --tile-m: 155px; --tile-max: 226px; }
   @media (min-width: 641px) { .grid { --tile-m: 210px; } }
@@ -953,9 +955,9 @@
     
     background: transparent;
     
-    padding: 6px;
+    padding: 4px;
     
-    --card-head: 26px;
+    --card-head: 24px;
     border-radius: var(--radius-card);
     
   }
@@ -966,7 +968,7 @@
   }
   
   
-  .card > .poster { border-radius: var(--radius-poster); }
+  .card > .poster { border-radius: 0; }
   
   .card.is-selected::after { border-radius: var(--radius-card); }
 
@@ -980,9 +982,9 @@
   
   
   .card-badge {
-    position: absolute; top: 6px; right: 0; z-index: 2;
-    padding: 2px 6px; border-radius: 999px 0 0 999px;
-    font-size: 8.5px; line-height: 1.4; letter-spacing: .05em;
+    position: absolute; top: 4px; right: 0; z-index: 2;
+    padding: 2px 5px; border-radius: 999px 0 0 999px;
+    font-size: 8px; line-height: 1.35; letter-spacing: .05em;
     text-transform: uppercase; white-space: nowrap;
     pointer-events: none;
   }
@@ -1189,26 +1191,26 @@
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
     border-radius: 999px; -webkit-tap-highlight-color: transparent;
   }
-  .card-score, .card-rate { bottom: 6px; }
+  .card-score, .card-rate { bottom: 4px; }
   
   .card-score {
-    right: 6px; gap: 3px;
-    padding: 3px 7px; border: 2px solid transparent;
+    right: 4px; gap: 3px;
+    padding: 2px 6px; border: 2px solid transparent;
     background:
       linear-gradient(var(--bg), var(--bg)) padding-box,
       conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
   }
-  .card-score b { font-weight: 400; font-size: 9.5px; color: var(--paper); line-height: 1.1; }
+  .card-score b { font-weight: 400; font-size: 8.5px; color: var(--paper); line-height: 1.1; }
   
   .card-score i {
-    font-style: normal; font-size: 8px; letter-spacing: .06em;
+    font-style: normal; font-size: 7px; letter-spacing: .06em;
     text-transform: uppercase; color: var(--slate); line-height: 1.1;
   }
   
   
   
   .card-awards {
-    top: 6px; left: 6px; gap: 4px; padding: 3px 7px 3px 6px;
+    top: 4px; left: 4px; gap: 3px; padding: 2px 6px 2px 5px;
     background: var(--bg); border: 2px solid var(--amber);
     color: var(--amber);
   }
@@ -1217,17 +1219,17 @@
   body.delete-mode .card-awards { display: none; }
   
   .card-rate {
-    left: 6px; padding: 3px 7px;
+    left: 4px; padding: 2px 6px;
     border: 2px solid transparent;
     background:
       linear-gradient(var(--bg), var(--bg)) padding-box,
       conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
-    color: var(--paper); font-size: 9.5px; line-height: 1.1;
+    color: var(--paper); font-size: 8.5px; line-height: 1.1;
     letter-spacing: .02em; white-space: nowrap;
   }
-  .card-awards b { font-weight: 400; font-size: 9.5px; color: var(--paper); line-height: 1.1; }
+  .card-awards b { font-weight: 400; font-size: 8.5px; color: var(--paper); line-height: 1.1; }
   
-  .card-awards svg { display: block; flex: none; width: 10px; height: 10px; }
+  .card-awards svg { display: block; flex: none; width: 9px; height: 9px; }
   
   body[data-view="grid-s"] .card-score i { display: none; }
   
@@ -1245,7 +1247,7 @@
   .card-toggles {
     display: grid; grid-template-columns: repeat(3, 1fr);
     
-    height: var(--card-head); box-sizing: border-box; padding-bottom: 4px;
+    height: var(--card-head); box-sizing: border-box; padding-bottom: 2px;
   }
   
   .card-toggles .tgl { width: auto; height: 22px; }
@@ -1491,7 +1493,7 @@
   
   .dice-results {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
-    gap: 18px 14px; align-items: start;
+    gap: 12px; align-items: start;
   }
   .dice-results .card-body { padding-top: 6px; }
   
