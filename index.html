@@ -935,6 +935,8 @@
 
   
   
+  
+  body.header-page #main { display: none; }
   .grid { display: grid; gap: 8px; }
   
   body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-s, 110px), 1fr)); }
@@ -2516,6 +2518,8 @@
     .sheet-backdrop { background: none; bottom: auto; height: var(--header-h, 0px); }
     
     #recsOverlay { top: var(--header-h, 0px); }
+    
+    #recsOverlay { padding-top: 0; }
     #diceBackdrop { display: none; }
 
     
@@ -14247,8 +14251,18 @@ let _navGuard = false;
 
 let _navExpectPop = false;
 
+const HEADER_PAGE_IDS = [ 'recsOverlay', 'diceSheet' ];
+
+function headerPageShowing() {
+return HEADER_PAGE_IDS.some(id => {
+const el = document.getElementById(id);
+return !!el && el.classList.contains('open');
+});
+}
+
 function navSync() {
 if (typeof syncTabbar === 'function') syncTabbar();
+document.body.classList.toggle('header-page', headerPageShowing());
 const showing = !!topNavSurface(navOpenNow());
 if (showing === _navGuard) return;
 if (showing) {
