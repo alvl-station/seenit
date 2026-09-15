@@ -955,7 +955,7 @@
     
     padding: 6px;
     
-    --card-head: 30px;
+    --card-head: 26px;
     border-radius: var(--radius-card);
     
   }
@@ -978,18 +978,20 @@
   
   
   
+  
   .card-badge {
     position: absolute; top: 6px; right: 0; z-index: 2;
-    padding: 2px 7px; border-radius: 999px 0 0 999px;
-    font-size: 10px; line-height: 1.4; letter-spacing: .04em;
+    padding: 2px 6px; border-radius: 999px 0 0 999px;
+    font-size: 8.5px; line-height: 1.4; letter-spacing: .05em;
     text-transform: uppercase; white-space: nowrap;
     pointer-events: none;
   }
   
   .card-badge--new { background: var(--flash); color: var(--paper); }
   .card-badge--soon { background: var(--amber); color: var(--ink); }
+  
   .card-badge--date {
-    background: rgba(var(--coal-rgb), .82);
+    background: var(--bg);
     color: var(--dust); box-shadow: inset 0 0 0 1px var(--steel);
   }
   
@@ -1190,24 +1192,24 @@
   .card-score, .card-rate { bottom: 6px; }
   
   .card-score {
-    right: 6px; gap: 4px;
-    padding: 4px 9px; border: 2px solid transparent;
+    right: 6px; gap: 3px;
+    padding: 3px 7px; border: 2px solid transparent;
     background:
-      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(var(--bg), var(--bg)) padding-box,
       conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
   }
-  .card-score b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
+  .card-score b { font-weight: 400; font-size: 9.5px; color: var(--paper); line-height: 1.1; }
   
   .card-score i {
-    font-style: normal; font-size: 9px; letter-spacing: .06em;
+    font-style: normal; font-size: 8px; letter-spacing: .06em;
     text-transform: uppercase; color: var(--slate); line-height: 1.1;
   }
   
   
   
   .card-awards {
-    top: 6px; left: 6px; gap: 5px; padding: 4px 9px 4px 7px;
-    background: var(--surface); border: 2px solid var(--amber);
+    top: 6px; left: 6px; gap: 4px; padding: 3px 7px 3px 6px;
+    background: var(--bg); border: 2px solid var(--amber);
     color: var(--amber);
   }
   
@@ -1215,24 +1217,25 @@
   body.delete-mode .card-awards { display: none; }
   
   .card-rate {
-    left: 6px; padding: 4px 9px;
+    left: 6px; padding: 3px 7px;
     border: 2px solid transparent;
     background:
-      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(var(--bg), var(--bg)) padding-box,
       conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
-    color: var(--paper); font-size: 11px; line-height: 1.1;
+    color: var(--paper); font-size: 9.5px; line-height: 1.1;
     letter-spacing: .02em; white-space: nowrap;
   }
-  .card-awards b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
-  .card-awards svg { display: block; flex: none; }
+  .card-awards b { font-weight: 400; font-size: 9.5px; color: var(--paper); line-height: 1.1; }
+  
+  .card-awards svg { display: block; flex: none; width: 10px; height: 10px; }
   
   body[data-view="grid-s"] .card-score i { display: none; }
   
   body[data-view="grid-s"] .card-score { gap: 0; }
-  body[data-view="grid-s"] .card-awards { top: 32px; }
-  body[data-view="grid-s"] .card-score { left: 6px; right: auto; bottom: 34px; }
-  @media (max-width: 640px) {
-    .card-score { left: 6px; right: auto; bottom: 34px; }
+  body[data-view="grid-s"] .card-awards { top: 30px; }
+  body[data-view="grid-s"] .card-score { left: 6px; right: auto; bottom: 30px; }
+  @media (max-width: 389px) {
+    .card-score { left: 6px; right: auto; bottom: 30px; }
   }
 
   
@@ -1245,8 +1248,10 @@
     height: var(--card-head); box-sizing: border-box; padding-bottom: 4px;
   }
   
-  .card-toggles .tgl { width: auto; }
-  .card-toggles .tgl::after { inset: -9px 0; }
+  .card-toggles .tgl { width: auto; height: 22px; }
+  
+  .card-toggles .tgl::after { inset: -11px 0; }
+  .card-toggles .tgl svg { width: 13px; height: 13px; }
   .tgl {
     width: 26px; height: 26px; padding: 0; border: none; border-radius: 2px;
     background: none; color: var(--slate); cursor: pointer; position: relative;
