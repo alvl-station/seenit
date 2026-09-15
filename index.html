@@ -938,8 +938,11 @@
   .grid { display: grid; gap: 22px 14px; }
   body[data-view="grid-s"] .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 14px; }
   
-  .grid { --tile-m: 156px; }
-  @media (min-width: 641px) { .grid { --tile-m: 200px; } }
+  .grid { --tile-m: 155px; --tile-max: 226px; }
+  @media (min-width: 641px) { .grid { --tile-m: 210px; } }
+  
+  
+  .grid .card { max-width: var(--tile-max); margin-inline: auto; width: 100%; }
   body[data-view="grid-m"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-m), 1fr)); }
   body[data-view="grid-l"] .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 
@@ -952,7 +955,7 @@
     
     padding: 6px;
     
-    --card-head: 32px;
+    --card-head: 30px;
     border-radius: var(--radius-card);
     
   }
@@ -963,7 +966,7 @@
   }
   
   
-  .card > .poster { border-radius: var(--radius-poster); aspect-ratio: 1; }
+  .card > .poster { border-radius: var(--radius-poster); }
   
   .card.is-selected::after { border-radius: var(--radius-card); }
 
@@ -1152,20 +1155,26 @@
   body.marks-collection #watchedToggle { display: none; }
 
   
-  .card-body { display: flex; flex-direction: column; padding: 7px 2px 2px; flex: 1; }
+  
+  .card-body { display: flex; flex-direction: column; padding: 4px 2px 0; flex: 1; }
 
   
   
   .card-title-row { display: none; }
 
   
+  
   .card-meta-row {
-    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
-    gap: 6px; margin-top: 5px;
+    display: flex; flex-wrap: nowrap; justify-content: center; align-items: baseline;
+    gap: 5px;
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
     font-size: 10.5px; letter-spacing: .04em;
   }
   .card-meta-row .year { color: var(--ash); text-transform: uppercase; white-space: nowrap; }
+  
+  .card-meta-row .meta-sep { color: var(--steel); }
+  
+  .card-meta-row .genre { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .card-rating { color: var(--dust); white-space: nowrap; cursor: pointer; }
 
   
@@ -1209,7 +1218,7 @@
   .card-toggles {
     display: grid; grid-template-columns: repeat(3, 1fr);
     
-    height: var(--card-head); box-sizing: border-box; padding-bottom: 6px;
+    height: var(--card-head); box-sizing: border-box; padding-bottom: 4px;
   }
   
   .card-toggles .tgl { width: auto; }
@@ -7759,6 +7768,10 @@ function esc(s) {
 return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function metaLine(parts) {
+return parts.filter(Boolean).join('<span class="meta-sep">·</span>');
+}
+
 function criticBadgeHtml(m) {
 if (m.critic_score === undefined || m.critic_score === null || m.critic_score === '') return '';
 const pct = Math.max(0, Math.min(100, Math.round(m.critic_score)));
@@ -7876,7 +7889,7 @@ const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
 const selectMark = picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : '';
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m) + criticBadgeHtml(m) + cardAwardsRow(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m) + criticBadgeHtml(m) + cardAwardsRow(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             THE GENRE IS BACK, on every card rather than only in the die's\n             hand (owner's ask, 2026-09-15). Year, genre and score on one\n             dot-separated line — which is also the measure: the tile is\n             cut to the width of that line's longest form (--tile-max).\n             Separators are their own elements so every gap on the line is\n             the one figure, rather than a flex gap next to a typed space. --\x3e\n        ${metaLine([ m.year ? `<span class="year">${esc(String(m.year))}</span>` : '', m.genre ? `<span class="year genre">${esc(m.genre)}</span>` : '', m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : '' ])}\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
