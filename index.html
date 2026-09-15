@@ -1580,14 +1580,29 @@
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
   }
   .col-strip-rail::-webkit-scrollbar { display: none; }
+  
   .col-strip-film {
-    flex: 0 0 auto; width: 38px; aspect-ratio: 2/3; border-radius: 3px;
-    overflow: hidden; background: var(--surface2);
+    flex: 0 0 auto; width: 76px; aspect-ratio: 2/3; border-radius: 5px;
+    overflow: hidden; padding: 0; border: 0; background: var(--surface2);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: opacity .12s;
   }
+  .col-strip-film:active { opacity: .7; }
   .col-strip-film img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .col-strip-film--bare {
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-size: 15px; color: var(--steel);
+  
+  .col-strip-film { position: relative; }
+  .col-strip-film.is-watched img,
+  .col-strip-film.is-watched .col-strip-bare { filter: grayscale(1) brightness(.45); }
+  .col-strip-seen {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--blood); color: var(--paper);
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: .04em;
+    text-transform: uppercase; text-align: center; line-height: 1.8;
+    pointer-events: none;
+  }
+  .col-strip-bare {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+    font-family: var(--font-display); font-size: 26px; color: var(--steel);
   }
 
   
@@ -9268,6 +9283,7 @@ renderDiceResults(_dicePicks);
 diceSheet.open();
 }
 }
+if (typeof reopenRecsAfterCard === 'function') reopenRecsAfterCard();
 const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame) frame.remove();
 _unmuteTimers.forEach(clearTimeout);
@@ -13473,16 +13489,57 @@ return _filmsByKey;
 
 const COL_STRIP_MAX = 24;
 
+const FRIEND_OWN_KEEP = 2;
+
 function colStripHtml(ids) {
 const by = filmsByKey();
 const films = (ids || []).map(id => by.get(String(id))).filter(Boolean).slice(0, COL_STRIP_MAX);
 if (!films.length) return '';
-return `<div class="col-strip"><div class="col-strip-rail">${films.map(m => m.poster_url ? `<span class="col-strip-film"><img src="${esc(m.poster_url)}" alt="${esc(m.canonical_title_uk)}" loading="lazy"></span>` : `<span class="col-strip-film col-strip-film--bare">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>`).join('')}</div></div>`;
+const cell = m => {
+const seen = isMarked(watched, m);
+return `<button class="col-strip-film${seen ? ' is-watched' : ''}" type="button"` + ` data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}` + ` title="${esc(m.canonical_title_uk)}" aria-label="${esc(m.canonical_title_uk)}">` + (m.poster_url ? `<img src="${esc(m.poster_url)}" alt="" loading="lazy">` : `<span class="col-strip-bare">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>`) + (seen ? '<span class="col-strip-seen">переглянуто</span>' : '') + '</button>';
+};
+return `<div class="col-strip"><div class="col-strip-rail">${films.map(cell).join('')}</div></div>`;
 }
 
-function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', open: open = true, openAttr: openAttr = ''}) {
-const head = `<span class="col-block-name">${esc(name)}</span>` + `<span class="col-block-by">${esc(by || '')}${count ? ` · ${count}` : ''}</span>`;
-return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + colStripHtml(ids) + '</div>';
+let _recsReturn = null;
+
+function openFilmFromStrip(el) {
+const where = {
+id: el.dataset.id,
+tmdbId: el.dataset.tmdb
+};
+const m = findFilm(MOVIES, where) || findFilm(catalogSource(), where);
+if (!m) return;
+_recsReturn = {
+source: recsSource,
+person: [ ..._friendOpen ][0] || null,
+expanded: [ ..._friendColsOpen ][0] || null
+};
+closeRecs();
+openModal(m);
+}
+
+function reopenRecsAfterCard() {
+const back = _recsReturn;
+_recsReturn = null;
+if (!back) return false;
+recsSource = back.source;
+_friendOpen.clear();
+_friendColsOpen.clear();
+if (back.person) {
+_friendOpen.add(back.person);
+loadFriendCollections(back.person);
+}
+if (back.expanded) _friendColsOpen.add(back.expanded);
+openRecs();
+return true;
+}
+
+function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', open: open = true, openAttr: openAttr = ''}) {
+const sub = [ by, count || null ].filter(Boolean).join(' · ');
+const head = `<span class="col-block-name">${esc(name)}</span>` + (sub ? `<span class="col-block-by">${esc(sub)}</span>` : '');
+return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + note + colStripHtml(ids) + '</div>';
 }
 
 async function loadFriendCollections(username) {
@@ -13508,9 +13565,10 @@ const person = _friendCols[name];
 if (!person) {
 return `<div class="friend-cols-wait">${_friendColsLoading.has(name) ? 'Завантажую добірки…' : 'Не вдалося завантажити — тапни ще раз.'}</div>`;
 }
+const head = [];
 const out = [];
 if ((person.recommended || []).length) {
-out.push(colBlockHtml({
+head.push(colBlockHtml({
 key: `${esc(name)}/recommends`,
 name: 'Рекомендує',
 by: name,
@@ -13520,7 +13578,7 @@ openAttr: ` data-open-recommends-of="${esc(name)}"`
 }));
 }
 if ((person.must_see || []).length) {
-out.push(colBlockHtml({
+head.push(colBlockHtml({
 key: `${esc(name)}/must`,
 name: 'Обовʼязково до перегляду',
 by: name,
@@ -13542,11 +13600,16 @@ open: false,
 extra: have ? '<span class="friend-col-have">вже в тебе</span>' : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`
 }));
 }
-if (!out.length) return '<div class="friend-cols-wait">Відкритих добірок немає.</div>';
-const {rows: rows, hidden: hidden} = foldRows(out, _friendColsOpen.has(name));
+if (!head.length && !out.length) return '<div class="friend-cols-wait">Відкритих добірок немає.</div>';
 const expanded = _friendColsOpen.has(name);
-return `<div class="col-list">${rows.join('')}</div>${hidden || expanded ? `<button class="friend-cols-more" type="button" data-fold="${esc(name)}" aria-expanded="${expanded}">\n         <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>\n         <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>\n       </button>` : ''}`;
+const {rows: rows, hidden: hidden} = foldRows(out, expanded, FRIEND_OWN_KEEP);
+return `<div class="col-list">${head.join('')}${rows.join('')}</div>${hidden || expanded ? `<button class="friend-cols-more" type="button" data-fold="${esc(name)}" aria-expanded="${expanded}">\n         <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>\n         <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>\n       </button>` : ''}`;
 }
+
+recsBox.addEventListener('click', e => {
+const film = e.target.closest('.col-strip-film');
+if (film) openFilmFromStrip(film);
+});
 
 function wireFriendPicks(body) {
 body.querySelectorAll('[data-person]').forEach(el => el.addEventListener('click', () => {
@@ -13659,16 +13722,30 @@ return;
 }
 if (recsSource === 'mine') {
 const own = shelf.filter(c => c.source === 'own');
-const credit = c => c.from && c.from.username ? `<span class="recs-list-from">від ${esc(c.from.username)}</span>` : '';
 const takers = c => c.views === undefined && c.copies === undefined ? '' : '<span class="recs-list-takers" title="Скільки людей відкрили посилання, і скільки зберегли добірку собі">' + `${c.views || 0}&nbsp;відкрили&nbsp;&middot;&nbsp;${c.copies || 0}&nbsp;зберегли</span>`;
-const chipFor = c => `<span class="recs-list-pair">\n         <button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>\n         ${credit(c)}${takers(c)}\n         \x3c!-- Beside the collection rather than inside it: opening a\n              collection and deleting it are different intentions, and\n              one target for both is how a list gets deleted by a\n              thumb aiming to open it. --\x3e\n         <button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">\n           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>\n         </button>\n       </span>`;
-const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="recs-lists">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
+const chipFor = c => colBlockHtml({
+key: c.key,
+name: c.name,
+by: c.from && c.from.username ? `від ${c.from.username}` : '',
+count: c.count,
+ids: c.film_ids,
+note: takers(c),
+extra: `<button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">` + '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>' + '</button>'
+});
+const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="col-list">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
 const at = level => own.filter(c => visibilityOf(c) === level);
 const ownHtml = groupHtml('Приватні добірки', at('private'), chipFor, at('private').length ? 'Видно лише тобі.' : '') + groupHtml('Для підписників', at('followers'), chipFor, at('followers').length ? 'Бачать ті, хто на тебе підписаний.' : '') + groupHtml('Відкриті добірки', at('public'), chipFor, at('public').length ? 'Їх видно в пошуку за твоїм імʼям — і за посиланням, навіть без акаунта.' : '');
 const recommended = MOVIES.filter(m => isMarked(liked, m));
 const mustSee = MOVIES.filter(m => isMarked(must, m));
-const chip = (list, label, count) => `<button class="recs-list-chip" data-own-marks="${list}" ${count ? '' : 'disabled'}>${label} · ${count}</button>`;
-const markHtml = `<div class="recs-group"><div class="cf-label">Мої списки</div>\n       <div class="recs-lists">\n         ${chip('liked', 'Рекомендую', recommended.length)}\n         ${chip('must', 'Обовʼязково до перегляду', mustSee.length)}\n       </div>\n       ${recommended.length || mustSee.length ? '<div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>' : '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» і зіркою «обовʼязково до перегляду».</div>'}\n     </div>`;
+const chip = (list, label, films) => colBlockHtml({
+key: '',
+name: label,
+by: '',
+count: films.length,
+ids: films.map(markKey),
+openAttr: ` data-own-marks="${list}"${films.length ? '' : ' disabled'}`
+});
+const markHtml = `<div class="recs-group"><div class="cf-label">Мої списки</div>\n       <div class="col-list">\n         ${chip('liked', 'Рекомендую', recommended)}\n         ${chip('must', 'Обовʼязково до перегляду', mustSee)}\n       </div>\n       ${recommended.length || mustSee.length ? '<div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>' : '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» і зіркою «обовʼязково до перегляду».</div>'}\n     </div>`;
 body.innerHTML = ownHtml + markHtml;
 body.querySelectorAll('[data-own-marks]').forEach(el => el.addEventListener('click', () => openOwnMarks(el.dataset.ownMarks)));
 body.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => {
@@ -13696,7 +13773,13 @@ const groups = [ [ 'default', 'Добірки SeenIt' ] ];
 body.innerHTML = groups.map(([source, title]) => {
 const list = shelf.filter(c => c.source === source);
 if (!list.length) return '';
-return `<div class="recs-group"><div class="cf-label">${esc(title)}</div>\n      <div class="recs-lists">${list.map(c => `<button class="recs-list-chip" data-key="${esc(c.key)}">${esc(c.name)} · ${c.count}</button>`).join('')}</div></div>`;
+return `<div class="recs-group"><div class="cf-label">${esc(title)}</div>\n      <div class="col-list">${list.map(c => colBlockHtml({
+key: c.key,
+name: c.name,
+by: '',
+count: c.count,
+ids: c.film_ids
+})).join('')}</div></div>`;
 }).join('') || '<div class="add-hint">Тут поки порожньо.</div>';
 body.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => {
 const col = shelf.find(c => c.key === el.dataset.key);
