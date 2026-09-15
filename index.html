@@ -365,8 +365,11 @@
     background-color: var(--tpl-ground);
   }
   
+  
   .topbar-tabs {
-    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    --topbar-gap: 30px;
+    display: flex; gap: var(--topbar-gap);
+    padding: 0 var(--bar-pad);
     height: var(--tabbar-row);
   }
   .topbar-tab {
@@ -386,7 +389,9 @@
   @media (hover: hover) { .topbar-tab:hover { color: var(--paper); } }
   
   .topbar-tab + .topbar-tab::before {
-    content: '•'; position: absolute; left: 0; top: 50%;
+    content: '•'; position: absolute; top: 50%;
+    
+    left: calc(var(--topbar-gap, 0px) / -2);
     transform: translate(-50%, -50%);
     
     color: var(--tab-ink); opacity: .55; font-size: 11px; line-height: 1;
@@ -1164,29 +1169,34 @@
   .card-rating { color: var(--dust); white-space: nowrap; cursor: pointer; }
 
   
-  .critic-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer; min-width: 0; }
-  .critic-track { flex: 1; height: 3px; background: var(--steel); min-width: 32px; }
-  .critic-fill { display: block; height: 100%; }
-  .critic-fill--paper { background: var(--paper); }
-  .critic-fill--dust { background: var(--dust); }
-  .critic-fill--ash { background: var(--ash); }
-  .critic-num {
+  .card-score, .card-awards {
+    position: absolute; bottom: 6px; z-index: 2; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 10.5px; color: var(--dust); min-width: 2ch; text-align: right;
+    border-radius: 999px; -webkit-tap-highlight-color: transparent;
   }
-
   
+  .card-score {
+    left: 6px; flex-direction: column; gap: 0;
+    padding: 3px 8px 4px; border: 2px solid transparent;
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
+  }
+  .card-score b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
+  
+  .card-score i {
+    font-style: normal; font-size: 6.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--slate); line-height: 1.2;
+  }
   
   .card-awards {
-    display: flex; flex-direction: column; gap: 3px; margin-top: 7px; cursor: pointer;
-    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 9.5px; letter-spacing: .06em; color: var(--slate);
-    min-width: 0; max-width: 100%; overflow: hidden;
+    right: 6px; gap: 5px; padding: 4px 9px 4px 7px;
+    background: var(--surface); box-shadow: inset 0 0 0 2px var(--amber);
+    color: var(--amber);
   }
-  .card-awards .aw { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
-  .card-awards b { font-weight: 500; }
-  .aw--won b { color: var(--flash); }
-  .aw--nom b { color: var(--dust); }
+  .card-awards b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
+  .card-awards svg { display: block; flex: none; }
 
   
   
@@ -1218,7 +1228,7 @@
 
   
   body.hide-awards .card-awards { display: none; }
-  body.hide-scores .card .critic-row,
+  body.hide-scores .card .card-score,
   body.hide-scores .card-rating { display: none; }
 
   body[data-view="grid-s"] .card-body { padding-top: 6px; }
@@ -1358,7 +1368,8 @@
   .film-digital b { font-weight: 400; color: var(--amber); }
   .film-scores { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
   .film-scores .card-rating { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px; }
-  .film-scores .critic-row { flex: 1; margin-top: 0; max-width: 200px; }
+  
+  .film-scores .card-score { position: static; }
 
   
   .film-awards { margin-bottom: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -1438,6 +1449,8 @@
   .dice-results {
     display: grid; grid-template-columns: repeat(2, 1fr);
     gap: 18px 14px; align-items: start;
+    
+    max-width: 560px;
   }
   .dice-results .card-body { padding-top: 6px; }
   
@@ -2347,9 +2360,25 @@
       border-radius: 0 16px 16px 0; border-left: 0;
       animation: drawer-in .22s ease-out;
     }
-    #recsOverlay > .modal { --sheet-w: 520px; }
     #friendsOverlay > .modal { --sheet-w: 460px; }
     #accountOverlay > .modal { --sheet-w: 440px; }
+
+    
+    
+    #recsOverlay {
+      bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+    }
+    #recsOverlay > .modal {
+      width: 100%; max-width: none; border-radius: 0;
+      animation: none;
+    }
+    #diceSheet {
+      right: 0; width: auto; border-radius: 0;
+      padding: 22px max(24px, calc((100% - 1232px) / 2)) 30px;
+      transform: none; transition: none;
+    }
+    
+    #diceBackdrop { display: none; }
   }
   
   @keyframes drawer-in {
@@ -2367,6 +2396,12 @@
     
     header { --bar-pad: 18px; padding: calc(18px + var(--safe-top)) 0 0; }
     .topbar { padding-bottom: 12px; }
+    
+    .topbar-tabs {
+      --topbar-gap: 0px;
+      display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+      padding: 0;
+    }
     main { padding-left: 18px; padding-right: 18px; }
     
     .col-plate, .col-plate-actions { width: calc(100% - 36px); }
@@ -3482,6 +3517,11 @@ const UI_DATA = {
      than two drawings — a like and a dislike are the same gesture turned
      over, and drawing them separately is how they end up subtly different
      weights on screen. */
+  /* The cup, from the owner's own drawing (labels.svg, 2026-09-15). Its own
+     18-unit box rather than the app's 24, and the viewBox keeps the artwork
+     exactly where it was drawn instead of a translate nobody can check
+     against the original. */
+  trophy: '<svg viewBox="39 102 18 18" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M46.4999 112.995V114.215C46.497 114.472 46.4282 114.724 46.3001 114.947C46.1719 115.169 45.9886 115.355 45.7678 115.487C45.2991 115.834 44.9179 116.286 44.6543 116.806C44.3908 117.326 44.2523 117.901 44.2497 118.484M49.5001 112.995V114.215C49.503 114.472 49.5718 114.724 49.7 114.947C49.8281 115.169 50.0114 115.355 50.2322 115.487C50.7009 115.834 51.0821 116.286 51.3457 116.806C51.6092 117.326 51.7477 117.901 51.7503 118.484M52.5004 108.75H53.6255C54.1228 108.75 54.5997 108.552 54.9514 108.201C55.303 107.849 55.5006 107.372 55.5006 106.875C55.5006 106.377 55.303 105.9 54.9514 105.549C54.5997 105.197 54.1228 105 53.6255 105H52.5004M52.5004 108.75C52.5004 109.943 52.0262 111.088 51.1822 111.932C50.3383 112.776 49.1936 113.25 48 113.25C46.8064 113.25 45.6617 112.776 44.8178 111.932C43.9738 111.088 43.4996 109.943 43.4996 108.75M52.5004 108.75V104.249C52.5004 104.051 52.4213 103.86 52.2807 103.719C52.14 103.578 51.9492 103.499 51.7503 103.499H44.2497C44.0508 103.499 43.86 103.578 43.7193 103.719C43.5787 103.86 43.4996 104.051 43.4996 104.249V108.75M43.4996 108.75H42.3746C41.8772 108.75 41.4003 108.552 41.0486 108.201C40.697 107.849 40.4994 107.372 40.4994 106.875C40.4994 106.377 40.697 105.9 41.0486 105.549C41.4003 105.197 41.8772 105 42.3746 105H43.4996M41.9995 118.501H54.0005"/></svg>',
   thumbUp: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21V10l4-7a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 21z"/><rect x="2.5" y="10" width="4.5" height="11" rx="1"/></svg>',
   thumbDown: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(180 12 12)"><path d="M7 21V10l4-7a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 21z"/><rect x="2.5" y="10" width="4.5" height="11" rx="1"/></g></svg>',
   back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
@@ -7691,7 +7731,7 @@ return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt
 function criticBadgeHtml(m) {
 if (m.critic_score === undefined || m.critic_score === null || m.critic_score === '') return '';
 const pct = Math.max(0, Math.min(100, Math.round(m.critic_score)));
-return `<span class="critic-row critic-badge" data-critic-pct="${pct}" role="button" tabindex="0">\n      <span class="critic-track"><span class="critic-fill critic-fill--${criticBarTone(pct)}" style="width:${pct}%"></span></span>\n      <span class="critic-num">${pct}</span>\n    </span>`;
+return `<span class="card-score critic-badge" data-critic-pct="${pct}" role="button" tabindex="0"\n      style="--score-turn: ${(pct / 100).toFixed(4)}turn">\n      <b>${pct}%</b><i>score</i>\n    </span>`;
 }
 
 function criticScoreToast(anchorEl, pct) {
@@ -7763,9 +7803,9 @@ return badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label
 
 function cardAwardsRow(m) {
 const tally = awardsTally(m.awards_won, m.awards_nominated);
-if (!tally.won && !tally.nominated) return '';
+if (!tally.won) return '';
 const idx = _cardAwardMovies.push(m) - 1;
-return `<div class="card-awards" data-card-award-idx="${idx}" role="button" tabindex="0">\n      ${tally.won ? `<span class="aw aw--won">НАГОРОДИ <b>${tally.won}</b></span>` : ''}\n      ${tally.nominated ? `<span class="aw aw--nom">НОМІНАЦІЇ <b>${tally.nominated}</b></span>` : ''}\n    </div>`;
+return `<span class="card-awards" data-card-award-idx="${idx}" role="button" tabindex="0"\n      title="Нагороди">${ICON.trophy}<b>${tally.won}</b></span>`;
 }
 
 function crowdCount(m, idx) {
@@ -7800,12 +7840,11 @@ const series = seriesStateOf(m);
 const isW = series ? series.watched : isMarked(watched, m);
 const isL = series ? series.liked : isMarked(liked, m);
 const isM = series ? series.must : isMarked(must, m);
-const critic = criticBadgeHtml(m);
 const picking = deleteMode || addMode;
 const chosen = deleteMode ? selectedForDelete : selectedForAdd;
 const sel = picking && chosen.has(m.id);
 const selectMark = picking ? `<div class="card-select-mark${addMode ? ' card-select-mark--tap' : ''}">${sel ? ICON.check : ''}</div>` : '';
-return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n      ${critic}\n      ${cardAwardsRow(m)}\n    </div>\n  </div>`;
+return `<div class="card ${isW ? 'is-watched' : ''} ${sel ? 'is-selected' : ''}" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''}>\n    <div class="card-toggles${rich ? ' card-toggles--counted' : ''}">\n      <button class="tgl ${isW ? 'on-watched' : ''}" data-act="watch" title="Переглянуто">${ICON.eye}${rich ? crowdCount(m, 0) : ''}</button>\n      <button class="tgl ${isL ? 'on-liked' : ''}" data-act="like" title="Рекомендую">${ICON.heart}${rich ? crowdCount(m, 1) : ''}</button>\n      <button class="tgl ${isM ? 'on-must' : ''}" data-act="must" title="Обовʼязково до перегляду">${ICON.starLine}${rich ? crowdCount(m, 2) : ''}</button>\n    </div>\n    ${posterHtml(m, 'poster', releaseBadgeHtml(m) + criticBadgeHtml(m) + cardAwardsRow(m))}\n    ${selectMark}\n    <div class="card-body">\n      <div class="card-title-row"><h3>${esc(m.canonical_title_uk)}</h3></div>\n      <div class="card-meta-row">\n        \x3c!-- NO «ФІЛЬМ» / «СЕРІАЛ» HERE (owner's ask, 2026-09-14). The header\n             asks that question now — the shelf is films or series before a\n             card is drawn — so the word on every card was answering\n             something already answered, in the place the score wanted.\n             rich: the dice's own hand names the genre instead (owner's ask)\n             — four films chosen FOR you are worth a word about what they\n             are, where a shelf you narrowed yourself is not. --\x3e\n        <span class="year">${[ m.year, rich && m.genre ? esc(m.genre) : null ].filter(Boolean).join(' · ')}</span>\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n      </div>\n    </div>\n  </div>`;
 }
 
 const RENDER_FIRST = 25;
