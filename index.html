@@ -1058,33 +1058,15 @@
     pointer-events: none;
   }
   
-  .card-flight--turn .card-flight-poster {
-    border-radius: var(--radius-overlay);
-    
-  }
-  
   .card-flight-card > .modal {
     width: 100%; height: 100%; max-width: none; pointer-events: none;
   }
-  
-  .card-flight.is-parked { pointer-events: auto; cursor: pointer; }
-  
-  .card-flight.is-parked .card-flight-edge { opacity: 0; }
-  .card-flight.is-parked .card-flight-front { opacity: 0; }
-  .card-flight.is-parked .card-flight-back { opacity: 1; }
   
   .modal.is-flying { opacity: 0; }
   
   
   .card.is-flying-from > .poster { opacity: 0; }
   .col-strip-film.is-flying-from { opacity: 0; }
-  
-  .modal.is-turned { pointer-events: none; }
-  
-  .modal-overlay.is-turned {
-    background: rgba(0, 0, 0, .35);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
   @media (prefers-reduced-motion: reduce) {
     .card-flight { display: none; }
     .modal.is-flying { opacity: 1; }
@@ -1492,6 +1474,11 @@
   
   
   .dice-results { display: grid; gap: 8px; align-items: start; }
+  
+  .dice-empty {
+    grid-column: 1 / -1; margin: 0; padding: 28px 0;
+    color: var(--ash); text-align: center; font-size: 13px; line-height: 1.6;
+  }
   
   .card-toggles--counted .tgl { display: inline-flex; align-items: center; gap: 3px; }
   .tgl-n {
@@ -6565,8 +6552,6 @@ const FLIGHT_MS = 1500;
 
 const FLIGHT_BACK_MS = 1e3;
 
-const FLIGHT_TURN_MS = 900;
-
 const FLIGHT_PERSPECTIVE = 1200;
 
 const FLIGHT_EASING = 'cubic-bezier(.45,.05,.35,1)';
@@ -6948,7 +6933,6 @@ toggleTab: toggleTab,
 tabbarIsDefault: tabbarIsDefault,
 FLIGHT_MS: FLIGHT_MS,
 FLIGHT_BACK_MS: FLIGHT_BACK_MS,
-FLIGHT_TURN_MS: FLIGHT_TURN_MS,
 FLIGHT_HALF_TURN: FLIGHT_HALF_TURN,
 FLIGHT_PERSPECTIVE: FLIGHT_PERSPECTIVE,
 FLIGHT_EASING: FLIGHT_EASING,
@@ -8799,7 +8783,7 @@ copy.setAttribute('aria-hidden', 'true');
 return copy;
 }
 
-function buildFlight(rect, posterSrc, back, {posterOnBack: posterOnBack = false, from: from = null, spin: spin = true, cardBox: cardBox = null, fromRadius: fromRadius = 0, fromPins: fromPins = null} = {}) {
+function buildFlight(rect, posterSrc, back, {from: from = null, spin: spin = true, cardBox: cardBox = null, fromRadius: fromRadius = 0, fromPins: fromPins = null} = {}) {
 const el = document.createElement('div');
 el.className = 'card-flight';
 el.style.left = `${rect.left}px`;
@@ -8807,11 +8791,11 @@ el.style.top = `${rect.top}px`;
 el.style.width = `${rect.width}px`;
 el.style.height = `${rect.height}px`;
 const front = document.createElement('div');
-front.className = `card-flight-face card-flight-front card-flight-${posterOnBack ? 'card' : 'poster'}`;
+front.className = 'card-flight-face card-flight-front card-flight-poster';
 const backFace = document.createElement('div');
-backFace.className = `card-flight-face card-flight-back card-flight-${posterOnBack ? 'poster' : 'card'}`;
-const posterFace = posterOnBack ? backFace : front;
-const cardFace = posterOnBack ? front : backFace;
+backFace.className = 'card-flight-face card-flight-back card-flight-card';
+const posterFace = front;
+const cardFace = backFace;
 if (posterSrc) posterFace.style.backgroundImage = `url("${posterSrc}")`;
 if (back) cardFace.appendChild(back);
 let posterBox = null;
@@ -8923,8 +8907,6 @@ _flightEl = null;
 }
 showFlyingTiles();
 modalBox.classList.remove('is-flying');
-modalBox.classList.remove('is-turned');
-overlay.classList.remove('is-turned');
 }
 
 function flyCardOpen() {
@@ -8966,7 +8948,7 @@ nudgeTrailerToPlay();
 return true;
 }
 
-function flyCardClosed(onDone, {faceDown: faceDown = false} = {}) {
+function flyCardClosed(onDone) {
 const card = _closingToCard;
 _closingToCard = null;
 if (!card || !modalBox.animate || !flightAllowed({
@@ -8982,13 +8964,13 @@ if (!box.width || !box.height) {
 onDone();
 return;
 }
-const to = faceDown ? posterBoxIn(box) : box;
+const to = box;
 endFlight();
 modalBox.classList.add('is-flying');
 hideFlyingTile(card.el);
-_flightEl = buildFlight(to, card.poster, faceDown ? null : modalSnapshot(), {
+_flightEl = buildFlight(to, card.poster, modalSnapshot(), {
 from: card.rect,
-spin: !faceDown,
+spin: true,
 fromRadius: card.radius,
 fromPins: card.pins
 });
@@ -8999,11 +8981,11 @@ fill: 'both'
 };
 const run = playFlight(_flightEl, card.rect, to, timing, {
 back: true,
-spin: !faceDown
+spin: true
 }) || _flightEl.animate([ {
 opacity: 1
 } ], timing);
-if (!faceDown) playFaces(_flightEl, faceKeyframes({
+playFaces(_flightEl, faceKeyframes({
 back: true
 }), timing);
 run.finished.catch(() => {}).then(() => {
@@ -9011,115 +8993,6 @@ endFlight();
 onDone();
 });
 }
-
-let _turned = false;
-
-let _turning = false;
-
-let _turnTrailer = null;
-
-function posterBoxIn(rect) {
-const width = Math.min(rect.width, rect.height * 2 / 3);
-const height = width * 3 / 2;
-return {
-width: width,
-height: height,
-left: rect.left + (rect.width - width) / 2,
-top: rect.top + (rect.height - height) / 2
-};
-}
-
-function openCardPoster() {
-if (_modalMovie && _modalMovie.poster_url) return _modalMovie.poster_url;
-const img = modalBox.querySelector('.modal-poster img');
-return img ? img.src : null;
-}
-
-function stopTrailerForTurn() {
-const frame = modalBox.querySelector('.modal-trailer iframe');
-_turnTrailer = frame || null;
-if (frame) frame.remove();
-}
-
-function restartTrailerAfterTurn() {
-const box = modalBox.querySelector('.modal-trailer');
-const frame = _turnTrailer;
-_turnTrailer = null;
-if (!box || !frame || box.querySelector('iframe')) return;
-box.appendChild(frame.cloneNode(false));
-unmuteTrailer();
-nudgeTrailerToPlay();
-}
-
-function parkTurn(el) {
-cancelFlightAnimations(el);
-el.style.transform = `perspective(${FLIGHT_PERSPECTIVE}px) rotateY(180deg)`;
-el.classList.add('is-parked');
-el.addEventListener('click', turnOpenCard);
-modalBox.classList.add('is-turned');
-overlay.classList.add('is-turned');
-}
-
-function cancelFlightAnimations(el) {
-for (const node of [ el, ...el.querySelectorAll('*') ]) {
-if (typeof node.getAnimations !== 'function') continue;
-for (const anim of node.getAnimations()) anim.cancel();
-}
-}
-
-function turnOpenCard() {
-if (_turning) return;
-const poster = openCardPoster();
-if (!poster) return;
-const card = modalBox.getBoundingClientRect();
-if (!card.width || !card.height) return;
-const rect = posterBoxIn(card);
-const back = _turned;
-if (!back) stopTrailerForTurn();
-_turning = true;
-endFlight();
-modalBox.classList.add('is-flying');
-_flightEl = buildFlight(rect, poster, modalSnapshot(), {
-posterOnBack: true,
-cardBox: {
-width: card.width,
-height: card.height
-}
-});
-_flightEl.classList.add('card-flight--turn');
-const timing = {
-duration: FLIGHT_TURN_MS,
-easing: FLIGHT_EASING,
-fill: 'both'
-};
-const run = playFlight(_flightEl, rect, rect, timing, {
-back: back
-});
-playFaces(_flightEl, faceKeyframes({
-back: back
-}), timing);
-const settle = () => {
-_turning = false;
-_turned = !back;
-if (_turned) parkTurn(_flightEl); else {
-endFlight();
-restartTrailerAfterTurn();
-}
-};
-if (run && run.finished) run.finished.catch(() => {}).then(settle); else settle();
-}
-
-function resetTurn() {
-if (!_turned && !_turning) return false;
-const wasTurned = _turned;
-_turned = false;
-_turning = false;
-_turnTrailer = null;
-endFlight();
-return wasTurned;
-}
-
-window.addEventListener('resize', resetTurn);
 
 let _closingToCard = null;
 
@@ -9214,7 +9087,6 @@ btn.setAttribute('aria-pressed', String(on));
 }
 
 function openModal(m) {
-resetTurn();
 _modalMovie = m;
 const isW = isMarked(watched, m), isL = isMarked(liked, m), isM = isMarked(must, m);
 const embedUrl = youtubeEmbedUrl(m.trailer_url);
@@ -9449,16 +9321,13 @@ _unmuteTimers = [ 120, 500, 1200, 2500 ].map(ms => setTimeout(ask, ms));
 }
 
 function closeModal() {
-const faceDown = resetTurn();
 if (typeof shelfNeedsSeasonRedraw === 'function' && shelfNeedsSeasonRedraw()) {
 render({
 keepDrawn: true
 });
 }
 noteFlightTarget(_modalMovie);
-flyCardClosed(() => finishClosingModal(), {
-faceDown: faceDown
-});
+flyCardClosed(() => finishClosingModal());
 }
 
 function finishClosingModal() {
@@ -9501,8 +9370,6 @@ const to = Number(seek.value) / 1e3 * (_trailerClock.duration || 0);
 _trailerClock.seeking = false;
 trailerCommand('seekTo', [ to, true ]);
 });
-
-const NOT_A_TURN = 'a, button, input, select, textarea, label, iframe,' + ' [role="button"], [data-act], .actor, .rating-badge, .critic-badge';
 
 overlay.addEventListener('click', e => {
 if (e.target === overlay || e.target.closest('.modal-close')) {
@@ -9650,10 +9517,6 @@ tmdbId: btn.dataset.tmdb
 if (m) syncModalMarks(m);
 return;
 }
-if (!e.target.closest('.modal') || e.target.closest(NOT_A_TURN)) return;
-const selected = window.getSelection && String(window.getSelection());
-if (selected) return;
-turnOpenCard();
 });
 
 document.addEventListener('keydown', e => {
@@ -9697,6 +9560,7 @@ tasteStatsChanged();
 if (!window.__catalogueLoaded) render({
 keepDrawn: true
 });
+if (typeof syncStripMarks === 'function') syncStripMarks(movie);
 const uid = auth.currentUser && auth.currentUser.uid;
 for (const list of [ 'watched', 'liked', 'must' ]) {
 const localKey = localMarksKey(uid, list);
@@ -10838,11 +10702,9 @@ count: 4,
 markCounts: markCounts,
 accounts: markingAccounts
 });
+_dicePicks = picks.length ? picks : [];
 if (!picks.length) {
-_dicePicks = [];
-diceResultsEl.innerHTML = '';
-toast('error', 'Тут усе вже переглянуто — дзизі нема чого радити.');
-diceSheet.close();
+diceResultsEl.innerHTML = '<p class="dice-empty">Тут усе вже переглянуто — дзизі нема чого радити.</p>';
 return false;
 }
 renderDiceResults(picks);
@@ -10850,7 +10712,8 @@ return true;
 }
 
 if (diceBtn) diceBtn.addEventListener('click', () => {
-if (rollTheDice()) diceSheet.open();
+rollTheDice();
+diceSheet.open();
 });
 
 document.getElementById('diceAgainBtn').addEventListener('click', rollTheDice);
@@ -13694,6 +13557,24 @@ return `<button class="col-strip-film${seen ? ' is-watched' : ''}" type="button"
 return `<div class="col-strip"><div class="col-strip-rail">${films.map(cell).join('')}</div></div>`;
 }
 
+function syncStripMarks(movie) {
+const id = movie && movie.tmdb_id;
+if (!id || typeof document === 'undefined') return;
+const seen = isMarked(watched, movie);
+for (const el of document.querySelectorAll(`.col-strip-film[data-tmdb="${id}"]`)) {
+el.classList.toggle('is-watched', seen);
+const ribbon = el.querySelector('.col-strip-seen');
+if (seen && !ribbon) {
+const span = document.createElement('span');
+span.className = 'col-strip-seen';
+span.textContent = 'переглянуто';
+el.appendChild(span);
+} else if (!seen && ribbon) {
+ribbon.remove();
+}
+}
+}
+
 function openFilmFromStrip(el) {
 const where = {
 id: el.dataset.id,
@@ -14581,6 +14462,8 @@ atTop: atScrollTop(e.target, surface.box)
 passive: true
 });
 
+const NO_PULL_DOWN = new Set([ 'recs', 'dice' ]);
+
 document.addEventListener('touchmove', e => {
 if (!_swipe || !e.touches || e.touches.length !== 1) return;
 const t = e.touches[0];
@@ -14589,6 +14472,10 @@ const dy = t.clientY - _swipe.y0;
 if (!_swipe.axis) {
 _swipe.axis = swipeAxis(dx, dy);
 if (_swipe.axis === 'y' && !(_swipe.atTop && dy > 0)) {
+_swipe = null;
+return;
+}
+if (_swipe.axis === 'y' && NO_PULL_DOWN.has(_swipe.key)) {
 _swipe = null;
 return;
 }
@@ -14745,8 +14632,9 @@ const SHELF_KEPT = new Set([ 'seen', 'settings', 'search' ]);
 const TABBAR_MENU_SCREENS = new Set([ 'recs', 'friends', 'account', 'settings', 'trash', 'admin' ]);
 
 function tabAvailable(id) {
+if (HEADER_TAB_IDS.includes(id)) return true;
 const ctl = TABBAR_CONTROL[id] && document.getElementById(TABBAR_CONTROL[id]);
-if (!ctl) return !!HEADER_TAB_TYPE[id];
+if (!ctl) return false;
 if (ctl.hidden) return false;
 return ctl.style.display !== 'none';
 }
