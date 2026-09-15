@@ -243,6 +243,8 @@
     --graphite: #2A2C31;
     --ash: #8A8D93;
     --dust: #D5D7DB;
+    
+    --amber: #D9A521;
 
     
     --blood-rgb: 142, 0, 0;
@@ -970,8 +972,10 @@
     text-transform: uppercase; white-space: nowrap;
     pointer-events: none;
   }
+  
   .card-badge--new { background: var(--flash); color: var(--paper); }
-  .card-badge--soon {
+  .card-badge--soon { background: var(--amber); color: var(--ink); }
+  .card-badge--date {
     background: rgba(var(--coal-rgb), .82);
     color: var(--dust); box-shadow: inset 0 0 0 1px var(--steel);
   }
@@ -1345,6 +1349,13 @@
     font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
     color: var(--ash); margin-bottom: 10px; overflow-wrap: break-word;
   }
+  
+  .film-digital {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ash); margin: -4px 0 10px;
+  }
+  .film-digital b { font-weight: 400; color: var(--amber); }
   .film-scores { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
   .film-scores .card-rating { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px; }
   .film-scores .critic-row { flex: 1; margin-top: 0; max-width: 200px; }
@@ -1582,7 +1593,7 @@
   .col-strip-rail::-webkit-scrollbar { display: none; }
   
   .col-strip-film {
-    flex: 0 0 auto; width: 76px; aspect-ratio: 2/3; border-radius: 5px;
+    flex: 0 0 auto; width: 96px; aspect-ratio: 2/3; border-radius: 6px;
     overflow: hidden; padding: 0; border: 0; background: var(--surface2);
     cursor: pointer; -webkit-tap-highlight-color: transparent;
     transition: opacity .12s;
@@ -1591,18 +1602,19 @@
   .col-strip-film img { width: 100%; height: 100%; object-fit: cover; display: block; }
   
   .col-strip-film { position: relative; }
+  
   .col-strip-film.is-watched img,
-  .col-strip-film.is-watched .col-strip-bare { filter: grayscale(1) brightness(.45); }
+  .col-strip-film.is-watched .col-strip-bare { filter: grayscale(.8); }
   .col-strip-seen {
     position: absolute; left: 0; right: 0; bottom: 0;
     background: var(--blood); color: var(--paper);
-    font-family: var(--font-mono); font-size: 9px; letter-spacing: .04em;
-    text-transform: uppercase; text-align: center; line-height: 1.8;
+    font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; text-align: center; line-height: 1.9;
     pointer-events: none;
   }
   .col-strip-bare {
     display: flex; align-items: center; justify-content: center; height: 100%;
-    font-family: var(--font-display); font-size: 26px; color: var(--steel);
+    font-family: var(--font-display); font-size: 32px; color: var(--steel);
   }
 
   
@@ -2399,11 +2411,15 @@
       overscroll-behavior: contain;
       
       z-index: 40;
+      
+      transform: none; transition: none;
     }
     
     
     .sheet-backdrop { background: none; bottom: auto; height: var(--header-h, 0px); }
 
+    
+    .modal-overlay:not([data-band]).open { z-index: 55; }
     
     .modal-overlay[data-band] {
       top: 0;
@@ -2412,16 +2428,12 @@
       
       display: flex;
       visibility: hidden; pointer-events: none;
-      transition: visibility 0s linear .22s;
     }
-    .modal-overlay[data-band].open { visibility: visible; pointer-events: auto; transition: none; }
+    .modal-overlay[data-band].open { visibility: visible; pointer-events: auto; }
     .modal-overlay[data-band] > [data-surface="screen"] {
       border-radius: 0;
-      transform: translateY(105%);
-      transition: transform .22s ease-out;
       animation: none;
     }
-    .modal-overlay[data-band].open > [data-surface="screen"] { transform: none; }
 
     
     .modal-overlay > .modal > .modal-close { top: calc(16px + var(--safe-top)); z-index: 5; }
@@ -4121,11 +4133,11 @@ label: 'Архів'
 id: 'search',
 label: 'Пошук'
 }, {
-id: 'dice',
-label: 'Кубик'
-}, {
 id: 'filter',
 label: 'Фільтр'
+}, {
+id: 'friends',
+label: 'Друзі'
 }, {
 id: 'account',
 label: 'Акаунт'
@@ -4154,8 +4166,8 @@ type: 'серіал'
 id: 'recs',
 label: 'Добірки'
 }, {
-id: 'friends',
-label: 'Друзі'
+id: 'dice',
+label: 'Кубик'
 } ];
 const HEADER_TAB_IDS = HEADER_TABS.map(t => t.id);
 const HEADER_TAB_TYPE = {};
@@ -6269,9 +6281,22 @@ const BADGE_NEW_DAYS = 45;
 
 const BADGE_NEW_EPISODE_DAYS = 14;
 
-const BADGE_SOON_DAYS = 180;
+const BADGE_SOON_DAYS = 45;
 
 const BADGE_DAY_MS = 24 * 60 * 60 * 1e3;
+
+function badgeDay(date) {
+const t = String(date || '').slice(0, 10);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return '';
+const [y, mo, d] = t.split('-');
+return `${d}.${mo}.${y}`;
+}
+
+function digitalAhead(m, now = Date.now()) {
+const day = releaseDayMs(m && m.digital_date);
+if (day === null) return false;
+return day > Math.floor(now / BADGE_DAY_MS) * BADGE_DAY_MS;
+}
 
 function releaseDayMs(date) {
 const t = String(date || '').slice(0, 10);
@@ -6289,15 +6314,21 @@ const isSeries = !!(m.last_episode_date || m.next_episode_date) || isSeriesType(
 if (released !== null && released > today) {
 return released - today <= BADGE_SOON_DAYS * BADGE_DAY_MS ? {
 kind: 'soon',
-label: 'скоро реліз'
-} : null;
+label: 'скоро'
+} : {
+kind: 'date',
+label: badgeDay(m.release_date)
+};
 }
 if (released === null && isSeries) {
 const next = releaseDayMs(m.next_episode_date);
-if (next !== null && next > today && next - today <= BADGE_SOON_DAYS * BADGE_DAY_MS) {
-return {
+if (next !== null && next > today) {
+return next - today <= BADGE_SOON_DAYS * BADGE_DAY_MS ? {
 kind: 'soon',
-label: 'скоро реліз'
+label: 'скоро'
+} : {
+kind: 'date',
+label: badgeDay(m.next_episode_date)
 };
 }
 }
@@ -6767,7 +6798,9 @@ BADGE_NEW_DAYS: BADGE_NEW_DAYS,
 BADGE_NEW_EPISODE_DAYS: BADGE_NEW_EPISODE_DAYS,
 BADGE_SOON_DAYS: BADGE_SOON_DAYS,
 releaseDayMs: releaseDayMs,
+badgeDay: badgeDay,
 releaseBadge: releaseBadge,
+digitalAhead: digitalAhead,
 SERIES_TYPE: SERIES_TYPE,
 FILM_TYPE: FILM_TYPE,
 isSeriesType: isSeriesType,
@@ -9041,11 +9074,13 @@ const controls = embedUrl ? `<div class="trailer-controls">\n        <button cla
 const showEn = m.canonical_title_en && m.canonical_title_en.toLowerCase() !== (m.canonical_title_uk || '').toLowerCase();
 const facts = [ m.year, m.type, m.genre, m.country ].filter(Boolean).map(v => esc(String(v))).join(' · ');
 const badge = releaseBadge(m);
-const badgeDay = badge && (badge.kind === 'soon' ? m.release_date || m.next_episode_date : m.last_episode_date && badge.kind === 'new' && m.last_episode_date > (m.release_date || '') ? m.last_episode_date : m.release_date);
-const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeDay ? ` · ${esc(badgeDay.split('-').reverse().join('.'))}` : ''}</span>` : '';
+const badgeOn = badge && (badge.kind === 'soon' ? m.release_date || m.next_episode_date : m.last_episode_date && badge.kind === 'new' && m.last_episode_date > (m.release_date || '') ? m.last_episode_date : m.release_date);
+const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeOn && badge.kind !== 'date' ? ` · ${esc(badgeDay(badgeOn))}` : ''}</span>` : '';
+const digitalOn = digitalAhead(m) ? badgeDay(m.digital_date) : '';
+const digitalHtml = digitalOn ? `<div class="film-digital">На цифрі з <b>${digitalOn}</b></div>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          \x3c!-- STRAIGHT UNDER THE TITLE (owner's ask). It stood below the\n               facts row, three lines down, where it read as one more fact\n               about the film rather than as the thing it is: a flag on the\n               title saying this one is new. --\x3e\n          ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n      ${controls}\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          \x3c!-- STRAIGHT UNDER THE TITLE (owner's ask). It stood below the\n               facts row, three lines down, where it read as one more fact\n               about the film rather than as the thing it is: a flag on the\n               title saying this one is new. --\x3e\n          ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n      ${controls}\n    </div>\n    <div class="modal-body">\n      <div class="film-facts">${facts}</div>\n      ${digitalHtml}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      <p class="desc">${esc(m.description_uk)}</p>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 resetTrailerControls();
 overlay.classList.add('open');
 navSync();
@@ -9283,7 +9318,6 @@ renderDiceResults(_dicePicks);
 diceSheet.open();
 }
 }
-if (typeof reopenRecsAfterCard === 'function') reopenRecsAfterCard();
 const frame = modalBox.querySelector('.modal-trailer iframe');
 if (frame) frame.remove();
 _unmuteTimers.forEach(clearTimeout);
@@ -13502,38 +13536,13 @@ return `<button class="col-strip-film${seen ? ' is-watched' : ''}" type="button"
 return `<div class="col-strip"><div class="col-strip-rail">${films.map(cell).join('')}</div></div>`;
 }
 
-let _recsReturn = null;
-
 function openFilmFromStrip(el) {
 const where = {
 id: el.dataset.id,
 tmdbId: el.dataset.tmdb
 };
 const m = findFilm(MOVIES, where) || findFilm(catalogSource(), where);
-if (!m) return;
-_recsReturn = {
-source: recsSource,
-person: [ ..._friendOpen ][0] || null,
-expanded: [ ..._friendColsOpen ][0] || null
-};
-closeRecs();
-openModal(m);
-}
-
-function reopenRecsAfterCard() {
-const back = _recsReturn;
-_recsReturn = null;
-if (!back) return false;
-recsSource = back.source;
-_friendOpen.clear();
-_friendColsOpen.clear();
-if (back.person) {
-_friendOpen.add(back.person);
-loadFriendCollections(back.person);
-}
-if (back.expanded) _friendColsOpen.add(back.expanded);
-openRecs();
-return true;
+if (m) openModal(m);
 }
 
 function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', open: open = true, openAttr: openAttr = ''}) {
