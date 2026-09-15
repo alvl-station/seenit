@@ -367,8 +367,8 @@
   
   
   .topbar-tabs {
-    --topbar-gap: 30px;
-    display: flex; gap: var(--topbar-gap);
+    --topbar-gap: 0px;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
     padding: 0 var(--bar-pad);
     height: var(--tabbar-row);
   }
@@ -1136,16 +1136,10 @@
   .pick-drop-opt--ep.is-coming { color: var(--steel); }
   .pick-drop-opt--ep.active { color: var(--paper); }
   
-  .card.is-watched .poster img { filter: grayscale(1) brightness(.36); }
-  .card.is-watched .poster.fallback { filter: grayscale(1) brightness(.36); }
+  .card.is-watched .poster img,
+  .card.is-watched .poster.fallback { filter: grayscale(1); }
 
   
-  body.archive-shelf .card.is-watched .poster img,
-  body.archive-shelf .card.is-watched .poster.fallback { filter: grayscale(1); }
-  
-  body.search-shelf .card.is-watched .poster img,
-  body.search-shelf .card.is-watched .poster.fallback { filter: grayscale(1); }
-
   
   body.marks-collection .card.is-watched .poster img,
   body.marks-collection .card.is-watched .poster.fallback { filter: none; }
@@ -1177,8 +1171,8 @@
   }
   
   .card-score {
-    left: 6px; flex-direction: column; gap: 0;
-    padding: 3px 8px 4px; border: 2px solid transparent;
+    right: 6px; gap: 4px;
+    padding: 4px 9px; border: 2px solid transparent;
     background:
       linear-gradient(var(--surface), var(--surface)) padding-box,
       conic-gradient(var(--paper) 0 var(--score-turn, 0turn), var(--steel) var(--score-turn, 0turn) 1turn) border-box;
@@ -1186,17 +1180,20 @@
   .card-score b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
   
   .card-score i {
-    font-style: normal; font-size: 6.5px; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--slate); line-height: 1.2;
+    font-style: normal; font-size: 9px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--slate); line-height: 1.1;
   }
   
   .card-awards {
-    right: 6px; gap: 5px; padding: 4px 9px 4px 7px;
+    left: 6px; gap: 5px; padding: 4px 9px 4px 7px;
     background: var(--surface); box-shadow: inset 0 0 0 2px var(--amber);
     color: var(--amber);
   }
   .card-awards b { font-weight: 400; font-size: 11px; color: var(--paper); line-height: 1.1; }
   .card-awards svg { display: block; flex: none; }
+  
+  body[data-view="grid-s"] .card-score i { display: none; }
+  body[data-view="grid-s"] .card-score { gap: 0; }
 
   
   
@@ -1446,11 +1443,10 @@
   
   
   
+  
   .dice-results {
-    display: grid; grid-template-columns: repeat(2, 1fr);
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
     gap: 18px 14px; align-items: start;
-    
-    max-width: 560px;
   }
   .dice-results .card-body { padding-top: 6px; }
   
@@ -1579,8 +1575,11 @@
     background: none; border: none; padding: 0; text-align: left; color: inherit;
   }
   button.col-block-open { cursor: pointer; }
+  
   .col-block-name {
-    flex: 0 1 auto; min-width: 0; font-size: 14px; color: var(--paper);
+    flex: 0 1 auto; min-width: 0; color: var(--paper);
+    font-family: var(--font-display); font-weight: 400;
+    font-size: 13px; letter-spacing: -.01em; text-transform: uppercase;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .col-block-by {
@@ -1617,7 +1616,7 @@
   .col-strip-film { position: relative; }
   
   .col-strip-film.is-watched img,
-  .col-strip-film.is-watched .col-strip-bare { filter: grayscale(.8); }
+  .col-strip-film.is-watched .col-strip-bare { filter: grayscale(1); }
   .col-strip-seen {
     position: absolute; left: 0; right: 0; bottom: 0;
     background: var(--blood); color: var(--paper);
@@ -1629,6 +1628,31 @@
     display: flex; align-items: center; justify-content: center; height: 100%;
     font-family: var(--font-display); font-size: 32px; color: var(--steel);
   }
+
+  
+  .col-acts { margin-top: 10px; }
+  .col-act { position: relative; }
+  
+  .col-act[data-col-act="vis"][aria-pressed="true"] {
+    color: var(--paper); box-shadow: var(--key-in);
+  }
+  
+  .col-share {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+    display: flex; flex-direction: column; min-width: 190px;
+    background: var(--surface-key); border-radius: 14px;
+    box-shadow: var(--key-out); overflow: hidden;
+  }
+  .col-share-opt {
+    background: none; border: 0; cursor: pointer; text-align: left;
+    padding: 11px 14px; color: var(--dust);
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .col-share-opt:last-child { border-bottom: 0; }
+  .col-share-opt:active { color: var(--paper); background: var(--coal2); }
+  @media (hover: hover) { .col-share-opt:hover { color: var(--paper); background: var(--coal2); } }
 
   
   .friend-picks { margin-bottom: 4px; }
@@ -1898,7 +1922,10 @@
   .friend-col-name {
     
     flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--dust);
+    
+    font-family: var(--font-display); font-weight: 400;
+    font-size: 12px; letter-spacing: -.01em; text-transform: uppercase;
+    color: var(--dust);
   }
   
   .friend-col-add {
@@ -2368,8 +2395,11 @@
     #recsOverlay {
       bottom: calc(var(--tabbar-h) + var(--safe-bottom));
     }
+    
     #recsOverlay > .modal {
       width: 100%; max-width: none; border-radius: 0;
+      padding-left: max(24px, calc((100% - 1232px) / 2));
+      padding-right: max(24px, calc((100% - 1232px) / 2));
       animation: none;
     }
     #diceSheet {
@@ -2396,12 +2426,6 @@
     
     header { --bar-pad: 18px; padding: calc(18px + var(--safe-top)) 0 0; }
     .topbar { padding-bottom: 12px; }
-    
-    .topbar-tabs {
-      --topbar-gap: 0px;
-      display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-      padding: 0;
-    }
     main { padding-left: 18px; padding-right: 18px; }
     
     .col-plate, .col-plate-actions { width: calc(100% - 36px); }
@@ -7453,7 +7477,7 @@ let state = {
 onlyLiked: false,
 onlyMust: false,
 genre: 'all',
-sort: 'rating',
+sort: 'year-new',
 query: '',
 recommender: 'all',
 showWatched: false,
@@ -13057,17 +13081,15 @@ toast('Не вдалося');
 }
 });
 
-const VISIBILITY_LEVELS = [ [ 'private', 'Приватна' ], [ 'followers', 'Підписникам' ], [ 'public', 'Видима всім' ] ];
+const VISIBILITY_LEVELS = [ [ 'private', 'Приватна' ], [ 'public', 'Публічна' ] ];
 
 const VISIBILITY_SAID = {
 private: 'Добірку бачиш тільки ти',
-followers: 'Добірку бачать твої підписники',
 public: 'Добірку видно всім, навіть без акаунта'
 };
 
 function visibilityOf(col) {
-if (col && col.visibility) return col.visibility;
-return col && col.public ? 'public' : 'private';
+return col && (col.visibility === 'public' || col.public) ? 'public' : 'private';
 }
 
 function visibilityCells(col) {
@@ -13082,14 +13104,15 @@ const votes = plateVotesHtml();
 const linkable = !!(col && col.source === 'public' && col.owner && col.collection_id);
 const taken = !!(col && col.key && shelf.some(c => c.from && `${c.from.uid}/${c.from.collection_id}` === col.key));
 const shelfBtn = !linkable ? '' : taken ? '<span class="plate-right col-plate-have">вже в тебе</span>' : '<button class="btn plate-right" id="plateAddBtn" type="button">Додати собі</button>';
+const closeBtn = '<button class="btn plate-close-word" id="plateCloseBtn" type="button">Закрити</button>';
 if (!col || col.source === 'default' || col.source === 'recommends' || col.source === 'marks' || col.source === 'public') {
-el.hidden = !(votes || shelfBtn);
-el.innerHTML = votes + shelfBtn;
+el.hidden = false;
+el.innerHTML = votes + shelfBtn + closeBtn;
 wirePlateShelf(el, col);
 return;
 }
 el.hidden = false;
-el.innerHTML = votes + `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       ${visibilityCells(col)}\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>`;
+el.innerHTML = votes + `<button class="btn" id="plateShareBtn" type="button">Поділитися</button>\n       ${visibilityCells(col)}\n       \x3c!-- Right of the row, away from the two that describe SHARING: this\n            one changes what the collection holds and what it is called. --\x3e\n       <button class="btn plate-edit" id="plateEditBtn" type="button">Редагувати</button>` + closeBtn;
 const edit = el.querySelector('#plateEditBtn');
 if (edit) edit.addEventListener('click', () => openCollectionEditor(col));
 const share = el.querySelector('#plateShareBtn');
@@ -13142,6 +13165,8 @@ wirePlateShelf(el, col);
 }
 
 function wirePlateShelf(el, col) {
+const close = el.querySelector('#plateCloseBtn');
+if (close) close.addEventListener('click', () => document.getElementById('collectionPlateClose').click());
 const add = el.querySelector('#plateAddBtn');
 if (add) add.addEventListener('click', async () => {
 await addPersonCollection(col.key, add);
@@ -13581,13 +13606,29 @@ id: el.dataset.id,
 tmdbId: el.dataset.tmdb
 };
 const m = findFilm(MOVIES, where) || findFilm(catalogSource(), where);
-if (m) openModal(m);
+if (!m) return;
+rememberCardWalk(el);
+openModal(m);
 }
 
-function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', open: open = true, openAttr: openAttr = ''}) {
+function colActionsHtml({key: key, col: col = null, marks: marks = ''}) {
+const at = key ? ` data-col-key="${esc(key)}"` : '';
+const of = marks ? ` data-col-marks="${esc(marks)}"` : '';
+const act = (what, label, more = '') => `<button class="opt col-act" type="button" data-col-act="${what}"${at}${of}${more}>${label}</button>`;
+let out = act('open', 'Відкрити');
+if (col) {
+const level = visibilityOf(col);
+out += act('share', 'Поділитися');
+out += act('vis', level === 'public' ? 'Публічна' : 'Приватна', ` aria-pressed="${level === 'public'}"` + ` title="${level === 'public' ? 'Зробити приватною' : 'Зробити публічною'}"`);
+out += act('edit', 'Редагувати');
+}
+return `<div class="opts col-acts">${out}</div>`;
+}
+
+function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', acts: acts = '', open: open = true, openAttr: openAttr = ''}) {
 const sub = [ by, count || null ].filter(Boolean).join(' · ');
 const head = `<span class="col-block-name">${esc(name)}</span>` + (sub ? `<span class="col-block-by">${esc(sub)}</span>` : '');
-return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + note + colStripHtml(ids) + '</div>';
+return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + note + colStripHtml(ids) + acts + '</div>';
 }
 
 async function loadFriendCollections(username) {
@@ -13622,6 +13663,9 @@ name: 'Рекомендує',
 by: name,
 count: person.recommended.length,
 ids: person.recommended,
+acts: colActionsHtml({
+key: `${esc(name)}/recommends`
+}),
 openAttr: ` data-open-recommends-of="${esc(name)}"`
 }));
 }
@@ -13632,6 +13676,9 @@ name: 'Обовʼязково до перегляду',
 by: name,
 count: person.must_see.length,
 ids: person.must_see,
+acts: colActionsHtml({
+key: `${esc(name)}/must`
+}),
 openAttr: ` data-open-must-of="${esc(name)}"`
 }));
 }
@@ -13645,6 +13692,9 @@ by: name,
 count: c.count,
 ids: c.film_ids,
 open: false,
+acts: colActionsHtml({
+key: c.key
+}),
 extra: have ? '<span class="friend-col-have">вже в тебе</span>' : `<button class="friend-col-add" type="button" data-add-col="${esc(c.key)}" title="Додати собі" aria-label="Додати добірку «${esc(c.name)}» собі">${ICON.plus}</button>`
 }));
 }
@@ -13654,10 +13704,161 @@ const {rows: rows, hidden: hidden} = foldRows(out, expanded, FRIEND_OWN_KEEP);
 return `<div class="col-list">${head.join('')}${rows.join('')}</div>${hidden || expanded ? `<button class="friend-cols-more" type="button" data-fold="${esc(name)}" aria-expanded="${expanded}">\n         <span>${expanded ? 'Згорнути' : `Ще ${hidden}`}</span>\n         <span class="fold-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>\n       </button>` : ''}`;
 }
 
+const COL_SHARE_WHERE = [ [ 'instagram', 'Instagram' ], [ 'tiktok', 'TikTok' ], [ 'copy', 'Копіювати посилання' ] ];
+
+function colShareMenuHtml() {
+return `<div class="col-share" role="menu">${COL_SHARE_WHERE.map(([id, label]) => `<button class="col-share-opt" type="button" role="menuitem" data-col-share="${id}">${label}</button>`).join('')}</div>`;
+}
+
+function closeColShare(except) {
+recsBox.querySelectorAll('.col-share').forEach(el => {
+if (el !== except) el.remove();
+});
+recsBox.querySelectorAll('.col-act[data-col-act="share"]').forEach(b => b.classList.remove('active'));
+}
+
 recsBox.addEventListener('click', e => {
 const film = e.target.closest('.col-strip-film');
-if (film) openFilmFromStrip(film);
+if (film) {
+openFilmFromStrip(film);
+return;
+}
+const where = e.target.closest('[data-col-share]');
+if (where) {
+e.stopPropagation();
+const block = where.closest('.col-block');
+colShare(where.dataset.colShare, block && block.dataset.col);
+closeColShare();
+return;
+}
+const act = e.target.closest('.col-act');
+if (!act) {
+closeColShare();
+return;
+}
+e.stopPropagation();
+pressColAct(act);
 });
+
+function colOnShelf(key) {
+return shelf.find(c => c.key === key) || null;
+}
+
+function pressColAct(act) {
+const key = act.dataset.colKey || '';
+const marks = act.dataset.colMarks || '';
+const what = act.dataset.colAct;
+if (what !== 'share') closeColShare();
+if (what === 'open') {
+if (marks) {
+openOwnMarks(marks);
+closeRecs();
+return;
+}
+openColByKey(key);
+return;
+}
+const col = colOnShelf(key);
+if (!col) return;
+if (what === 'edit') {
+closeRecs();
+openCollectionEditor(col);
+return;
+}
+if (what === 'vis') {
+setColVisibility(col, visibilityOf(col) === 'public' ? 'private' : 'public', act);
+return;
+}
+if (what === 'share') {
+const open = act.nextElementSibling && act.nextElementSibling.classList.contains('col-share');
+closeColShare();
+if (open) return;
+act.classList.add('active');
+act.insertAdjacentHTML('afterend', colShareMenuHtml());
+}
+}
+
+function openColByKey(key) {
+const mine = colOnShelf(key);
+if (mine) {
+openCollectionAsCatalog(mine);
+closeRecs();
+return;
+}
+const top = _topCols.rows.find(c => `${c.owner}/${c.collection_id}` === key);
+if (top) {
+openCollectionAsCatalog({
+key: key,
+name: top.name,
+owner: top.owner,
+collection_id: top.collection_id,
+source: 'public',
+public: true,
+film_ids: top.film_ids || []
+});
+closeRecs();
+return;
+}
+const name = [ ..._friendOpen ][0];
+const person = name && _friendCols[name];
+if (!person) return;
+if (key === `${name}/recommends`) {
+openRecommendsOf(person);
+return;
+}
+if (key === `${name}/must`) {
+openMustOf(person);
+return;
+}
+const col = (person.collections || []).find(c => c.key === key);
+if (!col) return;
+openCollectionAsCatalog({
+key: key,
+name: col.name,
+owner: person.uid,
+collection_id: col.collection_id,
+source: 'public',
+public: true,
+film_ids: col.film_ids || []
+});
+closeRecs();
+}
+
+function colShare(where, key) {
+const col = colOnShelf(key);
+const url = collectionLink(window.location.href, key) || key;
+if (where === 'copy') {
+copyOrPrompt(url, () => toast('success', 'Посилання скопійовано'));
+return;
+}
+toast('info', where === 'tiktok' ? 'TikTok — скоро' : 'Instagram — скоро');
+void col;
+}
+
+async function setColVisibility(col, level, btn) {
+if (level === visibilityOf(col)) return;
+btn.disabled = true;
+try {
+const res = await fetch(`${API_PROXY}/library/collections/${encodeURIComponent(col.collection_id)}/public`, {
+method: 'PUT',
+headers: await proxyHeaders({
+accept: 'application/json',
+'content-type': 'application/json'
+}),
+body: JSON.stringify({
+visibility: level,
+public: level === 'public'
+})
+});
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+col.visibility = level;
+col.public = level === 'public';
+toast('success', VISIBILITY_SAID[level]);
+} catch (err) {
+toast('error', 'Не вдалося змінити видимість — спробуй ще раз');
+}
+renderRecs();
+}
 
 function wireFriendPicks(body) {
 body.querySelectorAll('[data-person]').forEach(el => el.addEventListener('click', () => {
@@ -13778,11 +13979,15 @@ by: c.from && c.from.username ? `від ${c.from.username}` : '',
 count: c.count,
 ids: c.film_ids,
 note: takers(c),
+acts: colActionsHtml({
+key: c.key,
+col: c
+}),
 extra: `<button class="recs-list-del" data-del-key="${esc(c.key)}" type="button" title="Видалити добірку" aria-label="Видалити «${esc(c.name)}»">` + '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>' + '</button>'
 });
 const groupHtml = (label, list, chip, hint) => list.length ? `<div class="recs-group"><div class="cf-label">${esc(label)}</div>\n          <div class="col-list">${list.map(chip).join('')}</div>\n          ${hint ? `<div class="add-hint">${esc(hint)}</div>` : ''}</div>` : '';
 const at = level => own.filter(c => visibilityOf(c) === level);
-const ownHtml = groupHtml('Приватні добірки', at('private'), chipFor, at('private').length ? 'Видно лише тобі.' : '') + groupHtml('Для підписників', at('followers'), chipFor, at('followers').length ? 'Бачать ті, хто на тебе підписаний.' : '') + groupHtml('Відкриті добірки', at('public'), chipFor, at('public').length ? 'Їх видно в пошуку за твоїм імʼям — і за посиланням, навіть без акаунта.' : '');
+const ownHtml = groupHtml('Приватні добірки', at('private'), chipFor, at('private').length ? 'Видно лише тобі.' : '') + groupHtml('Публічні добірки', at('public'), chipFor, at('public').length ? 'Їх видно в пошуку за твоїм імʼям — і за посиланням, навіть без акаунта.' : '');
 const recommended = MOVIES.filter(m => isMarked(liked, m));
 const mustSee = MOVIES.filter(m => isMarked(must, m));
 const chip = (list, label, films) => colBlockHtml({
@@ -13791,6 +13996,10 @@ name: label,
 by: '',
 count: films.length,
 ids: films.map(markKey),
+acts: films.length ? colActionsHtml({
+key: '',
+marks: list
+}) : '',
 openAttr: ` data-own-marks="${list}"${films.length ? '' : ' disabled'}`
 });
 const markHtml = `<div class="recs-group"><div class="cf-label">Мої списки</div>\n       <div class="col-list">\n         ${chip('liked', 'Рекомендую', recommended)}\n         ${chip('must', 'Обовʼязково до перегляду', mustSee)}\n       </div>\n       ${recommended.length || mustSee.length ? '<div class="acc-hint">Ті, хто підписався на тебе, бачать усе, що ти рекомендуєш. Крім фільмів із приватних добірок — вони лишаються твоєю рекомендацією, але під твоїм імʼям їх не видно.</div>' : '<div class="add-hint">Тут зʼявиться все, що ти позначиш серцем «рекомендую» і зіркою «обовʼязково до перегляду».</div>'}\n     </div>`;
@@ -13826,7 +14035,10 @@ key: c.key,
 name: c.name,
 by: '',
 count: c.count,
-ids: c.film_ids
+ids: c.film_ids,
+acts: colActionsHtml({
+key: c.key
+})
 })).join('')}</div></div>`;
 }).join('') || '<div class="add-hint">Тут поки порожньо.</div>';
 body.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => {
@@ -13881,6 +14093,9 @@ name: c.name,
 by: c.owner_name || 'хтось',
 count: c.count,
 ids: c.film_ids,
+acts: colActionsHtml({
+key: key
+}),
 extra: `<span class="col-score" title="Подобається ${c.likes}, не подобається ${c.dislikes}">` + `<span class="col-score-up">${ICON.thumbUp}${c.likes}</span>` + `<span class="col-score-down">${ICON.thumbDown}${c.dislikes}</span></span>`
 });
 }
@@ -14132,14 +14347,18 @@ return !_standalone;
 
 let _cardWalk = null;
 
+function walkScopeOf(cardEl) {
+return cardEl.closest('.col-strip-rail') || cardEl.closest('#diceResults') || cardEl.closest('#main');
+}
+
 function rememberCardWalk(cardEl) {
-const scope = cardEl.closest('#diceResults') || cardEl.closest('#main');
+const scope = walkScopeOf(cardEl);
 if (!scope) {
 _cardWalk = null;
 return;
 }
 noteFlightSource(cardEl);
-const cards = [ ...scope.querySelectorAll('.card') ];
+const cards = [ ...scope.querySelectorAll('.card, .col-strip-film') ];
 const ids = cards.map(el => ({
 id: el.dataset.id,
 tmdbId: el.dataset.tmdb || null
@@ -14156,15 +14375,23 @@ function revealWalkedCard() {
 if (!_cardWalk || _cardWalk.i === _cardWalk.from) return;
 const at = _cardWalk.ids[_cardWalk.i];
 _cardWalk.from = _cardWalk.i;
-const card = [ ...document.querySelectorAll('#main .card, #diceResults .card') ].find(el => at.tmdbId ? el.dataset.tmdb === at.tmdbId : el.dataset.id === at.id);
+const card = [ ...document.querySelectorAll('#main .card, #diceResults .card, .col-strip-film') ].find(el => at.tmdbId ? el.dataset.tmdb === at.tmdbId : el.dataset.id === at.id);
 if (!card) return;
-try {
-card.scrollIntoView({
+const inStrip = !!card.closest('.col-strip-rail');
+const how = inStrip ? {
+block: 'nearest',
+inline: 'center'
+} : {
 block: 'center',
 inline: 'nearest'
-});
+};
+if (typeof card.scrollIntoView !== 'function') return;
+try {
+card.scrollIntoView(how);
 } catch (err) {
+try {
 card.scrollIntoView();
+} catch (again) {}
 }
 }
 
