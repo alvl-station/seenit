@@ -2056,11 +2056,13 @@
   }
   .login-field input:focus { outline: none; border-color: var(--flash); }
   
-  .login button[type="submit"] {
+  
+  .login button[type="submit"], .login .login-go {
     width: 100%; height: var(--control-h); margin-top: 6px;
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box;
     background: var(--blood); color: var(--paper); border: none; border-radius: 3px;
     font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em;
-    text-transform: uppercase; cursor: pointer;
+    text-transform: uppercase; text-decoration: none; cursor: pointer;
   }
   .login button[type="submit"]:disabled { opacity: .6; cursor: default; }
   .login-error {
@@ -2089,9 +2091,9 @@
   }
   
   .login-reset {
-    text-align: center; font-family: var(--font-mono); font-size: 10.5px;
+    display: block; text-align: center; font-family: var(--font-mono); font-size: 10.5px;
     letter-spacing: .12em; text-transform: uppercase; color: var(--ash);
-    margin-top: 22px; cursor: pointer;
+    margin-top: 22px; cursor: pointer; text-decoration: none;
   }
   .login-reset[hidden] { display: none; }
   .login-reset b { color: var(--flash); font-weight: 400; }
@@ -2777,6 +2779,20 @@
      hundred milliseconds each, paid twice, before anything begins. -->
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://seenit-proxy.seenit.workers.dev" crossorigin>
+<!-- A device with no session mark goes from the root to the landing before
+     the SDK is fetched. Only the root: a page address is answered with the
+     login screen instead. Relative, so it works under any mount. -->
+<script>
+  (function () {
+    try {
+      var p = location.pathname;
+      var last = p.slice(p.lastIndexOf('/') + 1).replace(/\.html$/i, '');
+      if (last !== '' && last !== 'index') return;
+      if (localStorage.getItem('seenit-signed-in') === '1') return;
+      location.replace('main' + location.search + location.hash);
+    } catch (e) { /* storage refused: the app decides once the session is known */ }
+  })();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -4153,6 +4169,184 @@ omdbYearAcceptable: omdbYearAcceptable
 
 if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_OMDB;
 
+const LOGIC_ROUTES = function() {
+const HOME_ORIGIN = 'https://seenit-app.pages.dev';
+const OLD_HOST = 'alvl-station.github.io';
+const ROUTES = {
+main: {
+landing: true
+},
+films: {
+shelf: 'films',
+tab: 'films'
+},
+series: {
+shelf: 'series',
+tab: 'series'
+},
+collections: {
+surface: 'recs',
+tab: 'recs',
+control: 'recsBtn',
+element: 'recsOverlay'
+},
+swipe: {
+surface: 'dice',
+tab: 'dice',
+control: 'diceBtn',
+element: 'diceSheet'
+},
+search: {
+surface: 'search',
+tab: 'search',
+control: 'searchOpenBtn',
+element: 'topSearch'
+},
+archive: {
+surface: 'seen',
+tab: 'seen',
+control: 'watchedToggle',
+element: 'markRow'
+},
+friends: {
+surface: 'friends',
+tab: 'friends',
+control: 'friendsBtn',
+element: 'friendsOverlay'
+},
+account: {
+surface: 'account',
+tab: 'account',
+control: 'accountBtn',
+element: 'accountOverlay'
+},
+trash: {
+surface: 'trash',
+tab: 'trash',
+control: 'trashBtn',
+element: 'trashSheet'
+},
+admin: {
+surface: 'admin',
+tab: 'admin',
+control: 'adminBtn',
+element: 'adminSheet'
+},
+login: {
+gate: 'login'
+},
+registrations: {
+gate: 'register'
+}
+};
+const ROUTE_NAMES = Object.keys(ROUTES);
+function isPage(name) {
+return !!(ROUTES[name] && ROUTES[name].surface);
+}
+function isShelf(name) {
+return !!(ROUTES[name] && ROUTES[name].shelf);
+}
+function isGate(name) {
+return !!(ROUTES[name] && ROUTES[name].gate);
+}
+function isAppRoute(name) {
+return isPage(name) || isShelf(name);
+}
+function routeSurfaces() {
+const set = new Set;
+for (const name of ROUTE_NAMES) if (ROUTES[name].surface) set.add(ROUTES[name].surface);
+return set;
+}
+function routeOfSurface(surface) {
+for (const name of ROUTE_NAMES) if (ROUTES[name].surface === surface) return name;
+return null;
+}
+function shelfRoute(isSeries) {
+return isSeries ? 'series' : 'films';
+}
+function gateRoute(mode) {
+return mode === 'register' ? 'registrations' : 'login';
+}
+function splitRoutePath(pathname) {
+const path = String(pathname || '/').split(/[?#]/)[0] || '/';
+const cut = path.lastIndexOf('/');
+const base = cut < 0 ? '/' : path.slice(0, cut + 1);
+let name = cut < 0 ? path : path.slice(cut + 1);
+name = name.replace(/\.html$/i, '');
+if (name === 'index') name = '';
+if (name === '') return {
+base: base,
+name: '',
+known: true
+};
+return {
+base: base,
+name: name,
+known: Object.prototype.hasOwnProperty.call(ROUTES, name)
+};
+}
+function routeQuery(search) {
+const out = {};
+const q = String(search || '').replace(/^\?/, '');
+if (!q) return out;
+for (const pair of q.split('&')) {
+if (!pair) continue;
+const eq = pair.indexOf('=');
+const k = eq < 0 ? pair : pair.slice(0, eq);
+const v = eq < 0 ? '' : pair.slice(eq + 1);
+try {
+out[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+} catch (err) {}
+}
+return out;
+}
+function queryString(query) {
+if (!query) return '';
+const parts = [];
+for (const k of Object.keys(query)) {
+const v = query[k];
+if (v === null || v === undefined || v === '') continue;
+parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v)).replace(/%2F/gi, '/'));
+}
+return parts.length ? '?' + parts.join('&') : '';
+}
+function routePath(base, name, query) {
+return String(base || '/') + String(name || '') + queryString(query);
+}
+function nextFromQuery(search) {
+const next = routeQuery(search).next;
+return next && isAppRoute(next) ? next : null;
+}
+function bridgeUrl(loc) {
+if (!loc || loc.hostname !== OLD_HOST) return null;
+const at = splitRoutePath(loc.pathname);
+const name = at.known ? at.name : '';
+return HOME_ORIGIN + '/' + name + String(loc.search || '') + String(loc.hash || '');
+}
+return {
+HOME_ORIGIN: HOME_ORIGIN,
+OLD_HOST: OLD_HOST,
+ROUTES: ROUTES,
+ROUTE_NAMES: ROUTE_NAMES,
+isPage: isPage,
+isShelf: isShelf,
+isGate: isGate,
+isAppRoute: isAppRoute,
+routeSurfaces: routeSurfaces,
+routeOfSurface: routeOfSurface,
+shelfRoute: shelfRoute,
+gateRoute: gateRoute,
+splitRoutePath: splitRoutePath,
+routeQuery: routeQuery,
+queryString: queryString,
+routePath: routePath,
+nextFromQuery: nextFromQuery,
+bridgeUrl: bridgeUrl
+};
+}();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = LOGIC_ROUTES;
+
 const LOGIC_SEARCH = function() {
 function levenshtein(a, b) {
 if (a === b) return 0;
@@ -4436,6 +4630,8 @@ const {backupCounts: backupCounts, backupRejectionReason: backupRejectionReason,
 
 const {TABBAR_TABS: TABBAR_TABS, TABBAR_IDS: TABBAR_IDS, HEADER_TABS: HEADER_TABS, HEADER_TAB_IDS: HEADER_TAB_IDS, HEADER_TAB_TYPE: HEADER_TAB_TYPE, TABBAR_HIDDEN_BY_DEFAULT: TABBAR_HIDDEN_BY_DEFAULT, normalizeTabbar: normalizeTabbar, tabbarLayout: tabbarLayout, headerTabs: headerTabs, moveTab: moveTab, toggleTab: toggleTab, tabbarIsDefault: tabbarIsDefault} = IS_NODE ? require('./logic/tabbar.js') : LOGIC_TABBAR;
 
+const {HOME_ORIGIN: HOME_ORIGIN, OLD_HOST: OLD_HOST, ROUTES: ROUTES, ROUTE_NAMES: ROUTE_NAMES, isPage: isPage, isShelf: isShelf, isGate: isGate, isAppRoute: isAppRoute, routeSurfaces: routeSurfaces, routeOfSurface: routeOfSurface, shelfRoute: shelfRoute, gateRoute: gateRoute, splitRoutePath: splitRoutePath, routeQuery: routeQuery, queryString: queryString, routePath: routePath, nextFromQuery: nextFromQuery, bridgeUrl: bridgeUrl} = IS_NODE ? require('./logic/routes.js') : LOGIC_ROUTES;
+
 const SERIES_TYPE = 'серіал';
 
 const FILM_TYPE = 'фільм';
@@ -4699,14 +4895,19 @@ return `${base}/c.html#/c/${encodeURIComponent(pair.owner)}/${encodeURIComponent
 }
 
 function parseCollectionLink(href) {
-const hash = String(href || '').split('#')[1] || '';
+const text = String(href || '');
+const hash = text.split('#')[1] || '';
 const m = hash.match(/^\/?c\/([^/?#]+)\/([^/?#]+)/);
-if (!m) return null;
+if (m) {
 try {
 return parseCollectionKey(`${decodeURIComponent(m[1])}/${decodeURIComponent(m[2])}`);
 } catch (err) {
 return null;
 }
+}
+const search = text.split('#')[0].split('?')[1] || '';
+const c = routeQuery(search).c;
+return c ? parseCollectionKey(c) : null;
 }
 
 function collectionFilmUrl(base, collectionId, tmdbId) {
@@ -7007,6 +7208,24 @@ headerTabs: headerTabs,
 moveTab: moveTab,
 toggleTab: toggleTab,
 tabbarIsDefault: tabbarIsDefault,
+HOME_ORIGIN: HOME_ORIGIN,
+OLD_HOST: OLD_HOST,
+ROUTES: ROUTES,
+ROUTE_NAMES: ROUTE_NAMES,
+isPage: isPage,
+isShelf: isShelf,
+isGate: isGate,
+isAppRoute: isAppRoute,
+routeSurfaces: routeSurfaces,
+routeOfSurface: routeOfSurface,
+shelfRoute: shelfRoute,
+gateRoute: gateRoute,
+splitRoutePath: splitRoutePath,
+routeQuery: routeQuery,
+queryString: queryString,
+routePath: routePath,
+nextFromQuery: nextFromQuery,
+bridgeUrl: bridgeUrl,
 FLIGHT_MS: FLIGHT_MS,
 FLIGHT_BACK_MS: FLIGHT_BACK_MS,
 FLIGHT_HALF_TURN: FLIGHT_HALF_TURN,
@@ -7392,7 +7611,7 @@ function raiseBoot() {
 bootLifted = false;
 _contentDeadline = 0;
 bootSplash.hidden = false;
-requestAnimationFrame(() => bootSplash.classList.remove('out'));
+if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => bootSplash.classList.remove('out'));
 setTimeout(() => bootSplash.classList.remove('out'), 32);
 }
 
@@ -7408,6 +7627,7 @@ window.dispatchEvent(new CustomEvent('seenit:booted'));
 }
 
 function firstScreenPostersReady() {
+if (document.body.classList.contains('header-page')) return true;
 const cards = document.querySelectorAll('#main .card');
 if (!cards.length) return false;
 const vh = window.innerHeight || 800;
@@ -7491,6 +7711,7 @@ if (!snap.val() && !hasPendingCollection()) openOnboarding();
 }
 loadShelf().then(openPendingCollection).catch(() => {});
 }
+if (typeof onRouteSignedIn === 'function') onRouteSignedIn();
 } else {
 resetAccountState();
 loadedForUid = null;
@@ -7498,6 +7719,7 @@ loginOverlay.classList.remove('hidden');
 appRoot.style.display = 'none';
 logoutBtn.style.display = 'none';
 accountBtn.style.display = 'none';
+if (typeof onRouteSignedOut === 'function') onRouteSignedOut();
 }
 if (user) finishBootWhenFilmsShow(); else finishBoot();
 });
@@ -7516,6 +7738,7 @@ resetSessionBtn.hidden = !text;
 function setAuthMode(mode) {
 authMode = mode;
 setLoginError('');
+if (typeof syncGateAddress === 'function') syncGateAddress();
 const register = mode === 'register';
 loginBtn.textContent = register ? 'Зареєструватися' : 'Увійти';
 document.querySelector('.login-sub').textContent = 'Мережа поціновувачів кіно';
@@ -8384,7 +8607,7 @@ const key = takePendingCollection();
 if (!key) return;
 const pair = parseCollectionKey(key);
 if (!pair) return;
-let col = shelf.find(c => c.from && `${c.from.uid}/${c.from.collection_id}` === key);
+let col = shelf.find(c => c.key === key) || shelf.find(c => c.from && `${c.from.uid}/${c.from.collection_id}` === key);
 if (!col) {
 try {
 const res = await fetch(copyUrl(API_PROXY, pair.owner, pair.collectionId), {
@@ -14383,51 +14606,8 @@ return !!el && el.classList.contains('open');
 function navSync() {
 if (typeof syncTabbar === 'function') syncTabbar();
 document.body.classList.toggle('header-page', headerPageShowing());
-const showing = !!topNavSurface(navOpenNow());
-if (showing === _navGuard) return;
-if (showing) {
-_navGuard = true;
-try {
-history.pushState({
-seenitNav: true
-}, '');
-} catch (err) {
-_navGuard = false;
+scheduleHistorySync();
 }
-} else {
-_navGuard = false;
-let ours = false;
-try {
-ours = !!(history.state && history.state.seenitNav);
-} catch (err) {
-ours = false;
-}
-if (!ours) return;
-_navExpectPop = true;
-try {
-history.back();
-} catch (err) {
-_navExpectPop = false;
-}
-setTimeout(() => {
-_navExpectPop = false;
-}, 1e3);
-}
-}
-
-window.addEventListener('popstate', () => {
-if (_navExpectPop) {
-_navExpectPop = false;
-return;
-}
-_navGuard = false;
-const top = topNavSurface(navOpenNow());
-if (!top) return;
-try {
-NAV_CLOSERS[top].close();
-} catch (err) {}
-navSync();
-});
 
 const SWIPE_BOXES = {
 filmCard: () => modalBox,
@@ -14849,7 +15029,7 @@ if (moved) {
 render();
 saveSettings();
 }
-syncTabbar();
+navSync();
 }
 
 function pressTab(id) {
@@ -15096,6 +15276,298 @@ if (show) setTabbar(toggleTab(state.tabbar, id, show.getAttribute('aria-pressed'
 document.getElementById('tabbarResetBtn').addEventListener('click', () => setTabbar(null));
 
 renderTabbar();
+
+const ROUTE_ARRIVAL = splitRoutePath(window.location.pathname);
+
+const ROUTE_BASE = ROUTE_ARRIVAL.base;
+
+const ROUTE_SURFACES = routeSurfaces();
+
+try {
+history.replaceState({
+seenitBase: true
+}, '', window.location.href);
+} catch (err) {}
+
+let _session = null;
+
+let _routeNext = null;
+
+function routeShowing(open) {
+const masked = {};
+for (const key of Object.keys(open || {})) if (ROUTE_SURFACES.has(key)) masked[key] = open[key];
+const top = topNavSurface(masked);
+const query = openCatalogCollection ? {
+c: openCatalogCollection.key
+} : null;
+const name = top ? routeOfSurface(top) : openCatalogCollection ? 'collections' : shelfRoute(state.type === SERIES_TYPE);
+return {
+name: name,
+query: query,
+page: top || null
+};
+}
+
+function routeIsShowing(name) {
+const r = ROUTES[name];
+if (!r || !r.surface) return false;
+let open = null;
+try {
+open = navOpenNow();
+} catch (err) {
+return false;
+}
+return !!open[r.surface];
+}
+
+function openRoute(name) {
+const r = ROUTES[name];
+if (!r) return false;
+if (r.shelf) {
+pressTab(r.tab);
+return true;
+}
+if (!r.surface) return false;
+if (routeIsShowing(name)) return true;
+if (typeof tabAvailable === 'function' && !tabAvailable(r.tab)) return false;
+pressTab(r.tab);
+return true;
+}
+
+function currentAddress() {
+return window.location.pathname + window.location.search;
+}
+
+function entryIsOurs() {
+try {
+return !!(history.state && history.state.seenitNav);
+} catch (err) {
+return false;
+}
+}
+
+function replaceAddress(entry, url) {
+if (currentAddress() === url) return;
+try {
+history.replaceState(entry, '', url);
+} catch (err) {}
+}
+
+function scheduleHistorySync() {
+if (scheduleHistorySync.queued) return;
+scheduleHistorySync.queued = true;
+Promise.resolve().then(() => {
+scheduleHistorySync.queued = false;
+syncHistory();
+});
+}
+
+function syncGateAddress() {
+if (_session !== false) return;
+const url = routePath(ROUTE_BASE, gateRoute(authMode), _routeNext ? {
+next: _routeNext
+} : null);
+replaceAddress({
+seenitBase: true
+}, url);
+}
+
+function syncHistory() {
+if (_session === null) return;
+try {
+syncHistoryNow();
+} catch (err) {}
+}
+
+function syncHistoryNow() {
+if (_session === false) {
+syncGateAddress();
+return;
+}
+let open = null;
+try {
+open = navOpenNow();
+} catch (err) {
+open = {};
+}
+const top = topNavSurface(open);
+const showing = routeShowing(open);
+if (_pendingOpen && showing.page && showing.page !== _pendingOpen.since) _pendingOpen = null;
+const url = routePath(ROUTE_BASE, showing.name, showing.query);
+const ours = entryIsOurs();
+if (!top) {
+_navGuard = false;
+if (ours) {
+_navExpectPop = true;
+try {
+history.back();
+} catch (err) {
+_navExpectPop = false;
+}
+setTimeout(() => {
+_navExpectPop = false;
+}, 1e3);
+return;
+}
+replaceAddress({
+seenitBase: true
+}, url);
+return;
+}
+const entry = {
+seenitNav: true,
+route: showing.name
+};
+if (ours) {
+_navGuard = true;
+replaceAddress(entry, url);
+return;
+}
+try {
+history.pushState(entry, '', url);
+_navGuard = true;
+} catch (err) {
+_navGuard = false;
+}
+}
+
+window.addEventListener('popstate', e => {
+if (_navExpectPop) {
+_navExpectPop = false;
+scheduleHistorySync();
+return;
+}
+_navGuard = false;
+let top = null;
+try {
+top = topNavSurface(navOpenNow());
+} catch (err) {
+top = null;
+}
+if (top) {
+try {
+NAV_CLOSERS[top].close();
+} catch (err) {}
+navSync();
+return;
+}
+const want = e && e.state && e.state.route || splitRoutePath(window.location.pathname).name;
+if (_session === true && isPage(want) && !routeIsShowing(want) && openRoute(want)) return;
+if (_session === true && isShelf(want) && shelfRoute(state.type === SERIES_TYPE) !== want) {
+openRoute(want);
+return;
+}
+scheduleHistorySync();
+});
+
+const ROUTE_OPEN_WAIT_MS = 6e3;
+
+let _arrivalSpent = false;
+
+let _pendingOpen = null;
+
+function openRouteWhenReady(name) {
+const r = ROUTES[name];
+if (!r || !r.surface) return;
+const started = Date.now();
+let since = null;
+try {
+since = routeShowing(navOpenNow()).page;
+} catch (err) {
+since = null;
+}
+const token = {
+since: since
+};
+_pendingOpen = token;
+const tick = () => {
+if (_pendingOpen !== token) return;
+if (_session !== true) {
+_pendingOpen = null;
+return;
+}
+const ready = window.__catalogueShowable === true && typeof tabAvailable === 'function' && tabAvailable(r.tab);
+if (ready) {
+_pendingOpen = null;
+openRoute(name);
+return;
+}
+const wait = typeof window.__routeOpenWaitMs === 'number' ? window.__routeOpenWaitMs : ROUTE_OPEN_WAIT_MS;
+if (Date.now() - started >= wait) {
+_pendingOpen = null;
+scheduleHistorySync();
+return;
+}
+setTimeout(tick, 100);
+};
+tick();
+}
+
+function onRouteSignedIn() {
+_session = true;
+if (_bridgeTo) {
+leaveForHome();
+return;
+}
+const at = splitRoutePath(window.location.pathname);
+let target = null;
+if (isGate(at.name)) target = nextFromQuery(window.location.search); else if (!_arrivalSpent && at.known && isAppRoute(at.name)) target = at.name;
+_arrivalSpent = true;
+_routeNext = null;
+if (target === 'collections' && routeQuery(window.location.search).c) target = null;
+if (target && isShelf(target)) {
+if (shelfRoute(state.type === SERIES_TYPE) !== target) openRoute(target);
+} else if (target && isPage(target)) {
+openRouteWhenReady(target);
+}
+scheduleHistorySync();
+}
+
+function onRouteSignedOut() {
+_session = false;
+_pendingOpen = null;
+if (_bridgeTo) {
+try {
+window.location.replace(_bridgeTo);
+} catch (err) {}
+return;
+}
+if (!_arrivalSpent) {
+_arrivalSpent = true;
+if (isGate(ROUTE_ARRIVAL.name)) {
+_routeNext = nextFromQuery(window.location.search);
+if (ROUTES[ROUTE_ARRIVAL.name].gate !== authMode) setAuthMode(ROUTES[ROUTE_ARRIVAL.name].gate);
+} else {
+const name = ROUTE_ARRIVAL.known ? ROUTE_ARRIVAL.name : '';
+_routeNext = isPage(name) || name === 'series' ? name : null;
+}
+} else {
+_routeNext = null;
+}
+scheduleHistorySync();
+}
+
+const _bridgeTo = bridgeUrl(window.location);
+
+function leaveForHome() {
+const started = Date.now();
+const tick = () => {
+let pending = 0;
+try {
+pending = pendingMarkOps(pendingMarks).length;
+} catch (err) {
+pending = 0;
+}
+if (pending && Date.now() - started < 2e4) {
+setTimeout(tick, 300);
+return;
+}
+try {
+window.location.replace(_bridgeTo);
+} catch (err) {}
+};
+tick();
+}
 </script>
 <!-- Tesseract is NOT loaded here any more. It is the OCR for «add a film
      from a screenshot», which almost nobody reaches and nobody reaches on

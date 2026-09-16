@@ -152,6 +152,8 @@
 </div>
 <script>
 (function () {
+  // The page moved hosts; the old one forwards.
+  if (location.hostname === 'alvl-station.github.io') { location.replace('https://seenit-app.pages.dev/c' + location.hash); return; }
   var API = 'https://seenit-proxy.seenit.workers.dev';
   var body = document.getElementById('body');
   var cta = document.getElementById('cta');
