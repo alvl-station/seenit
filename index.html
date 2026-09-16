@@ -316,6 +316,8 @@
     --wordmark-app: 42px;
     --radius: 3px;
     
+    --radius-key: 10px;
+    
     --radius-card: 14px;
     --radius-poster: 9px;
     --radius-overlay: 16px;
@@ -328,6 +330,18 @@
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   
+  
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid var(--flash);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+  
+  a, button, input, select, textarea, [role="button"], [tabindex] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     margin: 0;
     background-color: var(--bg);
@@ -434,7 +448,7 @@
     width: var(--control-h); height: var(--control-h); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; padding: 0; color: var(--dust);
-    cursor: pointer; transition: color .15s; border-radius: 2px;
+    cursor: pointer; transition: color .15s; border-radius: var(--radius-key);
   }
   .hicon:active { color: var(--paper); }
   
@@ -585,7 +599,7 @@
   .delete-bar[hidden] { display: none; }
   .delete-bar-count { flex: 1; min-width: 0; font-size: 13px; color: var(--text); }
   .delete-bar-btn {
-    height: var(--control-h); border-radius: 3px; padding: 0 16px; font-size: 12px;
+    height: var(--control-h); border-radius: var(--radius-key); padding: 0 16px; font-size: 12px;
     cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
     color: var(--paper); font-family: var(--font-mono);
     text-transform: uppercase; letter-spacing: .08em;
@@ -799,7 +813,7 @@
 
   
   .scope-toggle {
-    flex: none; height: 30px; padding: 0 10px; border-radius: 2px; cursor: pointer;
+    flex: none; height: 30px; padding: 0 10px; border-radius: var(--radius-key); cursor: pointer;
     background: var(--surface); border: 1px solid var(--border); color: var(--ash);
     font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em;
     text-transform: uppercase; white-space: nowrap;
@@ -1098,7 +1112,7 @@
   
   .btn.pick-drop {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    width: 100%; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 2px;
+    width: 100%; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: var(--radius-key);
     font-size: 11.5px; letter-spacing: .04em; text-align: left;
     -webkit-tap-highlight-color: transparent;
   }
@@ -1366,10 +1380,16 @@
     color: var(--ash); margin: -4px 0 10px;
   }
   .film-digital b { font-weight: 400; color: var(--amber); }
-  .film-scores { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-  .film-scores .card-rating { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px; }
+  .film-scores { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   
-  .film-scores .card-score { position: static; }
+  .film-runtime {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ash);
+  }
+  
+  .film-scores .card-score,
+  .film-scores .card-rate { position: static; }
 
   
   .film-awards { margin-bottom: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -1847,7 +1867,7 @@
   
   
   .col-routes { display: flex; flex-direction: column; gap: 1px; }
-  .col-routes .sheet-row { border-radius: 2px; }
+  .col-routes .sheet-row { border-radius: var(--radius-key); }
 
   
   
@@ -2058,7 +2078,7 @@
     content: ''; flex: 1; height: 1px; background: var(--border);
   }
   .login .google-btn {
-    width: 100%; height: var(--control-h); border-radius: 3px;
+    width: 100%; height: var(--control-h); border-radius: var(--radius-key);
     border: 1px solid var(--border); background: none; color: var(--dust);
     font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .14em;
     text-transform: uppercase; cursor: pointer;
@@ -2157,7 +2177,7 @@
     position: absolute; top: 4px; right: 4px; bottom: 4px;
     
     min-width: 96px; padding: 0 12px;
-    background: var(--blood); border: none; border-radius: 2px;
+    background: var(--blood); border: none; border-radius: var(--radius-key);
     color: var(--paper); cursor: pointer;
     font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
     text-transform: uppercase;
@@ -2979,6 +2999,46 @@
      name, its exit and its sharing state; four more controls beside them
      would bury the name they describe. -->
 <div class="sheet-backdrop" id="colEditBackdrop" hidden></div>
+<!-- NEW COLLECTION, AS A POPUP (owner's ask, 2026-09-16). It was a pane
+     inside the collections page — a whole screen for a name and a button —
+     and making it a popup is what lets the rest of that screen stay put
+     behind it: you are still in your collections, adding one.
+     Everything it needs is here, in the order you fill it in: the name, who
+     may see it, the films you are putting in, and the search that finds
+     them. The search opens UNDER the shelf it fills (owner's ask) so what
+     you add lands where you are already looking. -->
+<div class="sheet-backdrop" id="newColBackdrop" hidden></div>
+<div class="sheet" id="newColSheet" data-surface="popup" data-material="solid" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="sheet-title">Нова добірка</div>
+    <button class="hicon" id="newColCloseBtn" type="button" title="Закрити" aria-label="Закрити">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="cf-label">Назва</div>
+  <div class="field-clear-wrap">
+    <input id="newColName" type="text" placeholder="Подивитись із Мартою" maxlength="80">
+    <button class="field-clear-btn" data-clear-target="newColName" type="button" aria-label="Очистити">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="cf-label">Хто бачить</div>
+  <div class="opts" id="newColVis"></div>
+  <div class="cf-label" id="newColCount">Фільми</div>
+  <div id="newColStrip"></div>
+  <button class="btn" id="newColAddBtn" type="button">Додати фільми</button>
+  <div id="newColSearch" hidden>
+    <div class="field-clear-wrap">
+      <input id="newColQuery" type="search" placeholder="Назва фільму або серіалу" autocomplete="off">
+      <button class="field-clear-btn" data-clear-target="newColQuery" type="button" aria-label="Очистити">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+      </button>
+    </div>
+    <div id="newColResults"></div>
+  </div>
+  <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>
+</div>
+
 <div class="sheet" id="colEditSheet" data-surface="window" data-material="solid" aria-hidden="true">
   <div class="sheet-head">
     <div class="sheet-title" id="colEditTitle">Редагувати добірку</div>
@@ -4773,6 +4833,30 @@ order.push(group);
 group.texts.push(text);
 }
 return order;
+}
+
+function plural(n, one, few, many) {
+const abs = Math.abs(Math.trunc(Number(n) || 0));
+const tens = abs % 100;
+if (tens >= 11 && tens <= 14) return many;
+const unit = abs % 10;
+if (unit === 1) return one;
+if (unit >= 2 && unit <= 4) return few;
+return many;
+}
+
+function collectionKinds(movies, ids) {
+const want = new Set((ids || []).map(String));
+let films = 0;
+let series = 0;
+for (const m of movies || []) {
+if (!m || !want.has(String(m.tmdb_id))) continue;
+if (isSeriesType(m.type)) series += 1; else films += 1;
+}
+return {
+films: films,
+series: series
+};
 }
 
 function awardsTally(won, nominated) {
@@ -6713,6 +6797,8 @@ clearFlushedMarkOps: clearFlushedMarkOps,
 applyPendingMarks: applyPendingMarks,
 usernameToEmail: usernameToEmail,
 ratingNum: ratingNum,
+plural: plural,
+collectionKinds: collectionKinds,
 criticBarTone: criticBarTone,
 matches: matches,
 levenshtein: levenshtein,
@@ -7798,10 +7884,10 @@ function metaLine(parts) {
 return parts.filter(Boolean).join('<span class="meta-sep">·</span>');
 }
 
-function criticBadgeHtml(m) {
+function criticBadgeHtml(m, caption = 'score') {
 if (m.critic_score === undefined || m.critic_score === null || m.critic_score === '') return '';
 const pct = Math.max(0, Math.min(100, Math.round(m.critic_score)));
-return `<span class="card-score critic-badge" data-critic-pct="${pct}" role="button" tabindex="0"\n      style="--score-turn: ${(pct / 100).toFixed(4)}turn">\n      <b>${pct}%</b><i>score</i>\n    </span>`;
+return `<span class="card-score critic-badge" data-critic-pct="${pct}" role="button" tabindex="0"\n      style="--score-turn: ${(pct / 100).toFixed(4)}turn">\n      <b>${pct}%</b><i>${esc(caption)}</i>\n    </span>`;
 }
 
 function criticScoreToast(anchorEl, pct) {
@@ -7866,9 +7952,22 @@ return `<div class="${cls}">\n      <img src="${esc(m.poster_url)}" alt="${esc(m
 return `<div class="${cls} fallback"><span class="poster-initial">${esc((m.canonical_title_uk || '?')[0].toUpperCase())}</span>${inside}</div>`;
 }
 
-function releaseBadgeHtml(m) {
+function releaseBadgeHtml(m, {withDay: withDay = false} = {}) {
 const badge = releaseBadge(m);
-return badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}</span>` : '';
+if (!badge) return '';
+const on = withDay && (badge.kind === 'soon' ? m.release_date || m.next_episode_date : m.last_episode_date && badge.kind === 'new' && m.last_episode_date > (m.release_date || '') ? m.last_episode_date : m.release_date);
+const day = on && badge.kind !== 'date' ? ` · ${esc(badgeDay(on))}` : '';
+return `<span class="card-badge card-badge--${badge.kind}">${badge.label}${day}</span>`;
+}
+
+function filmFactsHtml(m) {
+const facts = [ m.year, m.type, m.genre, m.country ].filter(Boolean).map(v => esc(String(v))).join(' · ');
+return `<div class="film-facts">${facts}</div>`;
+}
+
+function runtimeHtml(m) {
+const min = Number(m && m.runtime) || 0;
+return min > 0 ? `<span class="film-runtime">Тривалість ${min} хв</span>` : '';
 }
 
 function cardAwardsRow(m) {
@@ -9091,17 +9190,14 @@ const ground = `<div class="trailer-ground" aria-hidden="true">${markEl ? markEl
 const frame = embedUrl ? `<div class="modal-trailer">${ground}<iframe src="${esc(embedUrl)}" title="Трейлер: ${esc(m.canonical_title_uk)}"\n         allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="eager"></iframe></div>` : posterHtml(m, 'modal-poster');
 const sound = embedUrl ? `<button class="hicon film-sound" type="button" title="Звук" aria-pressed="${state.trailerSound ? 'true' : 'false'}">\n         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>\n           <g class="snd-waves"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g>\n           <line class="snd-slash" x1="22" y1="3" x2="14" y2="21"/>\n         </svg>\n       </button>` : '';
 const showEn = m.canonical_title_en && m.canonical_title_en.toLowerCase() !== (m.canonical_title_uk || '').toLowerCase();
-const facts = [ m.year, m.type, m.genre, m.country ].filter(Boolean).map(v => esc(String(v))).join(' · ');
-const badge = releaseBadge(m);
-const badgeOn = badge && (badge.kind === 'soon' ? m.release_date || m.next_episode_date : m.last_episode_date && badge.kind === 'new' && m.last_episode_date > (m.release_date || '') ? m.last_episode_date : m.release_date);
-const badgeHtml = badge ? `<span class="card-badge card-badge--${badge.kind}">${badge.label}${badgeOn && badge.kind !== 'date' ? ` · ${esc(badgeDay(badgeOn))}` : ''}</span>` : '';
+const badgeHtml = releaseBadgeHtml(m, {
+withDay: true
+});
 const digitalOn = digitalAhead(m) ? badgeDay(m.digital_date) : '';
 const digitalHtml = digitalOn ? `<div class="film-digital">На цифрі з <b>${digitalOn}</b></div>` : '';
 const cast = (m.cast || []).map(a => `<span class="actor" data-actor="${esc(a)}">${esc(a)}</span>`).join('');
-const runtimeMin = Number(m.runtime) || 0;
-const runtimeText = runtimeMin > 0 ? `Тривалість ${runtimeMin} хв` : '';
 const crew = m.director ? `<div class="modal-cast"><div class="lbl">Режисер</div><span class="actor" data-actor="${esc(m.director)}">${esc(m.director)}</span></div>` : '';
-modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          \x3c!-- STRAIGHT UNDER THE TITLE (owner's ask). It stood below the\n               facts row, three lines down, where it read as one more fact\n               about the film rather than as the thing it is: a flag on the\n               title saying this one is new. --\x3e\n          ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      \x3c!-- THE ORDER IS THE OWNER'S (2026-09-16), and it reads as a\n           descending answer to «what is this»: what it is, how long and how\n           it was received, what it won, what it is about, who made it, who\n           is in it, and last what YOU think of it.\n           Two things moved. The scores line picked up the RUNTIME, which\n           the catalogue has carried all along (a column on the movies\n           table, and the shared collection page has been printing it) and\n           this card never showed. And the awards came up from under the cast: they\n           are a fact about the film, and they were sitting among the\n           people. --\x3e\n      <div class="film-facts">${facts}</div>\n      ${digitalHtml}\n      \x3c!-- Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${runtimeText || m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${runtimeText ? `<span class="film-runtime">${esc(runtimeText)}</span>` : ''}\n        ${m.rating ? `<span class="card-rating rating-badge" data-rating="${esc(m.rating)}" role="button" tabindex="0">${esc(m.rating)}</span>` : ''}\n        ${criticBadgeHtml(m)}\n      </div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- Drawn even when empty, and hidden instead. A lean catalogue opens\n           this card before the synopsis has arrived and PATCHES the\n           paragraph when it does (see applyFilmDetail) — rather than\n           rebuilding the card, which would restart a trailer the reader had\n           already begun. A block that is absent has nothing to patch. --\x3e\n      <div class="film-desc"${m.description_uk ? '' : ' hidden'}>\n        <div class="lbl">Опис</div>\n        <p class="desc" data-desc tabindex="0" role="button">${esc(m.description_uk || '')}</p>\n      </div>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
+modalBox.innerHTML = `\n    <div class="film-head">\n      ${frame}\n    </div>\n    \x3c!-- ON THE CARD, NOT ON THE PLAYER. The title, the sound control and the\n         player's controls used to be a plate lying across the bottom of the\n         frame. YouTube's Required Minimum Functionality forbids putting any\n         visual element in front of an embedded player, so the plate steps\n         down off it (owner's call) and stands on the card instead. --\x3e\n    <div class="film-title-plate">\n      <div class="film-plate-row">\n        <div class="film-title-text">\n          <h2>${esc(m.canonical_title_uk)}</h2>\n          ${showEn ? `<div class="film-sub">${esc(m.canonical_title_en)}</div>` : ''}\n          \x3c!-- STRAIGHT UNDER THE TITLE (owner's ask). It stood below the\n               facts row, three lines down, where it read as one more fact\n               about the film rather than as the thing it is: a flag on the\n               title saying this one is new. --\x3e\n          ${badgeHtml ? `<div class="film-badges">${badgeHtml}</div>` : ''}\n        </div>\n        ${sound}\n      </div>\n    </div>\n    <div class="modal-body">\n      \x3c!-- THE ORDER IS THE OWNER'S (2026-09-16), and it reads as a\n           descending answer to «what is this»: what it is, how long and how\n           it was received, what it won, what it is about, who made it, who\n           is in it, and last what YOU think of it.\n           Two things moved. The scores line picked up the RUNTIME, which\n           the catalogue has carried all along (a column on the movies\n           table, and the shared collection page has been printing it) and\n           this card never showed. And the awards came up from under the cast: they\n           are a fact about the film, and they were sitting among the\n           people. --\x3e\n      ${filmFactsHtml(m)}\n      ${digitalHtml}\n      \x3c!-- THE SAME TWO LABELS THE SHELF DRAWS (owner's ask, 2026-09-16), from\n           the same two functions — the audience pill with its ring and the\n           critics' with theirs. They used to be flattened here into plain\n           mono text, which made the open card answer the same question in a\n           different hand from the tile it was opened from. The critics' one\n           says what kind of score it is, because here there is a line for\n           it; on a 58px tile there is room for one word. --\x3e\n      ${runtimeHtml(m) || m.rating || m.critic_score != null ? `<div class="film-scores">\n        ${runtimeHtml(m)}\n        ${ratingBadgeHtml(m)}\n        ${criticBadgeHtml(m, 'critical score')}\n      </div>` : ''}\n      ${filmAwardsHtml(m)}\n      \x3c!-- Drawn even when empty, and hidden instead. A lean catalogue opens\n           this card before the synopsis has arrived and PATCHES the\n           paragraph when it does (see applyFilmDetail) — rather than\n           rebuilding the card, which would restart a trailer the reader had\n           already begun. A block that is absent has nothing to patch. --\x3e\n      <div class="film-desc"${m.description_uk ? '' : ' hidden'}>\n        <div class="lbl">Опис</div>\n        <p class="desc" data-desc tabindex="0" role="button">${esc(m.description_uk || '')}</p>\n      </div>\n      ${crew}\n      ${cast ? `<div class="modal-cast"><div class="lbl">У головних ролях</div>${cast}</div>` : ''}\n      \x3c!-- The marks are a section of their own, with a name, and the three of\n           them share one row at one size (owner's ask): they are three answers\n           to one question about this film, and three buttons of three widths\n           read as three unrelated things. The state is the fill, so the word\n           stays the same on and off. --\x3e\n      <div class="film-marks">\n        <div class="lbl">Позначки</div>\n        <div class="modal-actions">\n          <button class="btn b-watched ${isW ? 'on' : ''}" data-act="watch" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isW}">${ICON.eye}<span>Переглянуто</span></button>\n          <button class="btn b-liked ${isL ? 'on' : ''}" data-act="like" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isL}">${ICON.heart}<span>Рекомендую</span></button>\n          <button class="btn b-must ${isM ? 'on' : ''}" data-act="must" data-id="${esc(m.id)}"${m.tmdb_id ? ` data-tmdb="${esc(String(m.tmdb_id))}"` : ''} aria-pressed="${isM}">${ICON.starLine}<span>Обовʼязково</span></button>\n        </div>\n        \x3c!-- One act, the width of the card, in the app's red (owner's ask).\n             The picker unfolds in place under it rather than popping over\n             the card (U-4). --\x3e\n        <button class="btn b-collect" id="addToCollectionBtn" type="button" aria-expanded="false">${ICON.plus} Додати в добірку</button>\n        <div class="pick-collection" id="pickCollection" hidden></div>\n      </div>\n      ${providersHtml(m)}\n      \x3c!-- THE SEASONS COME LAST (owner's ask, 2026-09-16). They stood\n           directly under the facts, which put the longest control on the\n           card between the reader and everything the card is FOR — a\n           synopsis, a cast, the three marks. A series is a film first and a\n           schedule second: what it is, what it won, what it is about, who\n           is in it, what you think of it, and then which of it you have\n           seen. A film never has this block at all, so the order the owner\n           gave is the same order in both.\n           Filled by wireSeasons() after the card is on screen: the episode\n           list is a request, and a card must not wait on one to open. --\x3e\n      <div class="film-seasons" id="filmSeasons" hidden></div>\n      ${adminEditorHtml(m)}\n      ${m.low_confidence ? '<div class="warn-note"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Назву визначено автоматично — можлива неточність</div>' : ''}\n    </div>\n    <button class="modal-close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>`;
 resetTrailerControls();
 const descEl = modalBox.querySelector('.desc[data-desc]');
 if (descEl) {
@@ -13539,9 +13635,20 @@ out += act('edit', 'Редагувати');
 return `<div class="opts col-acts">${out}</div>`;
 }
 
-function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', acts: acts = '', open: open = true, openAttr: openAttr = ''}) {
-const sub = [ by, count || null ].filter(Boolean).join(' · ');
-const head = `<span class="col-block-name">${esc(name)}</span>` + (sub ? `<span class="col-block-by">${esc(sub)}</span>` : '');
+function colKindsHtml(ids, count) {
+const {films: films, series: series} = collectionKinds(MOVIES, ids);
+const parts = [];
+if (films) parts.push(`${films} ${plural(films, 'фільм', 'фільми', 'фільмів')}`);
+if (series) parts.push(`${series} ${plural(series, 'серіал', 'серіали', 'серіалів')}`);
+if (!parts.length) return count ? `${count}` : '';
+return parts.join(' · ');
+}
+
+function colBlockHtml({key: key, name: name, by: by, count: count, ids: ids, extra: extra = '', note: note = '', stats: stats = '', acts: acts = '', open: open = true, openAttr: openAttr = ''}) {
+const kinds = colKindsHtml(ids, count);
+const sub = [ by, kinds ? `[ ${kinds} ]` : null ].filter(Boolean).join(' · ');
+const subHtml = [ sub ? esc(sub) : '', stats ].filter(Boolean).join(' &middot; ');
+const head = `<span class="col-block-name">${esc(name)}</span>` + (subHtml ? `<span class="col-block-by">${subHtml}</span>` : '');
 return `<div class="col-block" data-col="${esc(key || '')}">` + '<div class="col-block-head">' + (open ? `<button class="col-block-open" type="button" data-key="${esc(key || '')}"${openAttr}>${head}</button>` : `<span class="col-block-open">${head}</span>`) + extra + '</div>' + note + colStripHtml(ids) + acts + '</div>';
 }
 
@@ -13808,17 +13915,96 @@ if (person) openMustOf(person);
 }));
 }
 
-let _recsCreate = false;
+const NEW_COL_MAX = 100;
 
-function renderRecsCreate(body) {
-body.innerHTML = `\n    <label class="cf-label">Назва</label>\n    <div class="field-clear-wrap">\n      <input id="newColName" type="text" placeholder="Подивитись із Мартою">\n      <button class="field-clear-btn" data-clear-target="newColName" type="button">${ICON.close}</button>\n    </div>\n    <div class="acc-actions"><button class="btn-primary" id="createColBtn" type="button">Створити</button></div>`;
-const input = body.querySelector('#newColName');
-const btn = body.querySelector('#createColBtn');
-input.focus();
-btn.addEventListener('click', async () => {
+const newColSheet = wireSheet('newColSheet', 'newColBackdrop');
+
+let _newCol = {
+ids: [],
+visibility: 'private'
+};
+
+function newColRefresh() {
+const strip = document.getElementById('newColStrip');
+const count = document.getElementById('newColCount');
+const add = document.getElementById('newColAddBtn');
+const full = _newCol.ids.length >= NEW_COL_MAX;
+count.textContent = `Фільми · ${_newCol.ids.length} / ${NEW_COL_MAX}`;
+strip.innerHTML = _newCol.ids.length ? colStripHtml(_newCol.ids) : '<div class="add-hint">Поки що порожньо — додай фільми або створи добірку і наповни її пізніше.</div>';
+add.disabled = full;
+add.textContent = full ? `Більше ${NEW_COL_MAX} не можна` : 'Додати фільми';
+document.getElementById('newColVis').innerHTML = VISIBILITY_LEVELS.map(([level, label]) => `<button class="btn vis-cell" type="button" data-new-vis="${level}"` + ` aria-pressed="${level === _newCol.visibility}">${label}</button>`).join('');
+}
+
+function newColResults(q) {
+const box = document.getElementById('newColResults');
+const query = (q || '').trim();
+if (!query) {
+box.innerHTML = '';
+return;
+}
+const found = rankSearchResults(MOVIES.filter(m => matches(m, query)), query).slice(0, 20);
+box.innerHTML = found.length ? found.map(m => {
+const on = _newCol.ids.includes(String(m.tmdb_id));
+return `<button class="sheet-row" type="button" data-new-pick="${esc(String(m.tmdb_id || ''))}"` + `${on || !m.tmdb_id ? ' disabled' : ''}>` + `${esc(m.canonical_title_uk)}<span class="col-block-by">${esc([ m.year, m.type ].filter(Boolean).join(' · '))}` + `${on ? ' · вже в добірці' : ''}</span></button>`;
+}).join('') : '<div class="add-hint">Нічого не знайшов. Якщо фільму ще немає в каталозі — додай його через «+» у шапці.</div>';
+}
+
+function openNewCollection() {
+_newCol = {
+ids: [],
+visibility: 'private'
+};
+document.getElementById('newColName').value = '';
+document.getElementById('newColQuery').value = '';
+document.getElementById('newColSearch').hidden = true;
+newColResults('');
+newColRefresh();
+newColSheet.open();
+document.getElementById('newColName').focus();
+}
+
+document.getElementById('newColCloseBtn').addEventListener('click', newColSheet.close);
+
+document.getElementById('newColAddBtn').addEventListener('click', () => {
+const box = document.getElementById('newColSearch');
+box.hidden = false;
+document.getElementById('newColQuery').focus();
+});
+
+document.getElementById('newColQuery').addEventListener('input', e => newColResults(e.target.value));
+
+document.getElementById('newColSheet').addEventListener('click', e => {
+const vis = e.target.closest('[data-new-vis]');
+if (vis) {
+_newCol.visibility = vis.dataset.newVis;
+newColRefresh();
+return;
+}
+const pick = e.target.closest('[data-new-pick]');
+if (pick) {
+const id = pick.dataset.newPick;
+if (!id || _newCol.ids.includes(id) || _newCol.ids.length >= NEW_COL_MAX) return;
+_newCol.ids.push(id);
+newColRefresh();
+newColResults(document.getElementById('newColQuery').value);
+return;
+}
+const off = e.target.closest('.col-strip-film');
+if (off && off.dataset.tmdb) {
+_newCol.ids = _newCol.ids.filter(x => x !== String(off.dataset.tmdb));
+newColRefresh();
+newColResults(document.getElementById('newColQuery').value);
+}
+});
+
+document.getElementById('createColBtn').addEventListener('click', async () => {
+const input = document.getElementById('newColName');
+const btn = document.getElementById('createColBtn');
 const name = input.value.trim();
 if (!name) {
 toast('error', 'Дай добірці назву.');
+input.focus();
 return;
 }
 const taken = shelf.filter(c => c.source === 'own').map(c => c.collection_id);
@@ -13836,44 +14022,40 @@ accept: 'application/json',
 }),
 body: JSON.stringify({
 name: name,
-film_ids: []
+film_ids: _newCol.ids
 })
 });
 if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+if (_newCol.visibility === 'public') {
+await setColVisibility({
+collection_id: id,
+visibility: 'private'
+}, 'public', btn).catch(() => {});
+}
 } catch (err) {
-toast('error', 'Не вдалося створити добірку — спробуй ще раз');
+toast('error', `Не вийшло створити: ${err.message}`);
 btn.disabled = false;
 return;
 }
+btn.disabled = false;
 await loadShelf();
-toast('success', `Добірку «${name}» створено`);
-_recsCreate = false;
+newColSheet.close();
 recsSource = 'mine';
 renderRecs();
+toast('success', 'Добірку створено.');
 });
-}
 
 function renderRecs() {
-const src = (id, label) => `<button class="add-tab ${!_recsCreate && recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
-recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n      <button class="add-tab${_recsCreate ? ' active' : ''}" data-recs-new="1" type="button">Створити</button>\n    </div>\n    <div id="recsbody"></div>`;
+const src = (id, label) => `<button class="add-tab ${recsSource === id ? 'active' : ''}" data-recs-src="${id}">${label}</button>`;
+recsBox.innerHTML = `\n    <div class="sheet-title">Добірки</div>\n    <div class="add-tabs">\n      ${src('top', 'Топ')}${src('friends', 'Від друзів')}${src('mine', 'Мої')}${src('seenit', 'SeenIt')}\n      \x3c!-- Never lit: it is an ACT, not a source, and what it opens stands\n           over this page rather than replacing what is in it. --\x3e\n      <button class="add-tab" data-recs-new="1" type="button">Створити</button>\n    </div>\n    <div id="recsbody"></div>`;
 recsBox.querySelectorAll('[data-recs-src]').forEach(el => el.addEventListener('click', () => {
 recsSource = el.dataset.recsSrc;
 _friendOpen.clear();
 _friendColsOpen.clear();
-_recsCreate = false;
 renderRecs();
 }));
-recsBox.querySelector('[data-recs-new]').addEventListener('click', () => {
-_recsCreate = true;
-_friendOpen.clear();
-_friendColsOpen.clear();
-renderRecs();
-});
+recsBox.querySelector('[data-recs-new]').addEventListener('click', openNewCollection);
 const body = recsBox.querySelector('#recsbody') || recsBox.querySelector('#recsbody, #recsbody');
-if (_recsCreate) {
-renderRecsCreate(body);
-return;
-}
 if (recsSource === 'top') {
 renderTopCollections(body);
 return;
@@ -13885,14 +14067,20 @@ return;
 }
 if (recsSource === 'mine') {
 const own = shelf.filter(c => c.source === 'own');
-const takers = c => c.views === undefined && c.copies === undefined ? '' : '<span class="recs-list-takers" title="Скільки людей відкрили посилання, і скільки зберегли добірку собі">' + `${c.views || 0}&nbsp;відкрили&nbsp;&middot;&nbsp;${c.copies || 0}&nbsp;зберегли</span>`;
+const takers = c => {
+const bits = [];
+if (c.views !== undefined) bits.push(`${c.views || 0}&nbsp;відкрили`);
+if (c.copies !== undefined) bits.push(`${c.copies || 0}&nbsp;зберегли`);
+if (c.shares !== undefined) bits.push(`${c.shares || 0}&nbsp;поділились`);
+return bits.length ? '<span class="recs-list-takers" title="Скільки людей відкрили посилання, скільки зберегли добірку собі">' + bits.join('&nbsp;&middot;&nbsp;') + '</span>' : '';
+};
 const chipFor = c => colBlockHtml({
 key: c.key,
 name: c.name,
 by: c.from && c.from.username ? `від ${c.from.username}` : '',
 count: c.count,
 ids: c.film_ids,
-note: takers(c),
+stats: takers(c),
 acts: colActionsHtml({
 key: c.key,
 col: c
