@@ -2499,6 +2499,8 @@
     body.sheet-nav .modal-overlay { z-index: 82; }
     
     body.sheet-nav .modal-overlay:not([data-band]) > .modal { animation: sheet-up .22s ease-out; }
+    
+    body.sheet-nav #modalOverlay > .modal { animation: none; }
 
     
     
@@ -14807,12 +14809,16 @@ els: shown
 }
 
 function windowTabsNow() {
-let top = null;
+let open = null;
 try {
-top = topNavSurface(navOpenNow());
+open = navOpenNow();
 } catch (err) {
 return null;
 }
+const top = topNavSurface(open === null ? null : {
+...open,
+filmCard: false
+});
 const spec = WINDOW_TABS.find(w => w.surface === top);
 return spec ? rowFrom(spec, top) : null;
 }
